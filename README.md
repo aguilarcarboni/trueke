@@ -18,6 +18,7 @@ The project follows a modular structure within the `trueke/src` directory:
 An **`.env`** file is used to store configuration settings and sensitive information (like API keys or database credentials) that vary across different environments.
 
 - **`.env`**: This file stores the actual environment variables used for your local development environment. It should **never** be committed to version control to keep secrets safe.
+- **`.env`**: This file stores the actual environment variables used for your local development environment. It should **never** be committed to version control to keep secrets safe.
 - **`.template.env`**: This file is a blueprint that defines the keys for all necessary environment variables. It serves as a guide for anyone setting up the project.
   - When setting up the project, you should copy `.template.env` to a new file named `.env` and fill in the actual values.
 

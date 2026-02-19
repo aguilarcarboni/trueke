@@ -1,26 +1,33 @@
-"use client";
+import { getUsers } from "@/utils/supabase/tables/user";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Separator } from "./ui/separator";
+import { DataTable } from "./misc/DataTable";
 
-import { APIResponse } from "@/lib/api";
-import { fetchAPI } from "@/utils/api";
-import { useEffect, useState } from "react";
+const Main = async () => {
 
-const Main = () => {
+  const { data, error } = await getUsers()
 
-  const [health, setHealth] = useState<APIResponse | null>(null);
-
-  useEffect(() => {
-    const checkHealth = async () => {
-      const response = await fetchAPI("/api/health");
-        setHealth(response);
-      };
-    checkHealth();
-  }, []);
-
-  if (!health) {
-    return <div>Loading...</div>;
+  if (error) {
+    return <div className="flex flex-col w-full h-full">
+      <p>{error.message}</p>
+    </div>
   }
 
-  return <div>{health.message}</div>;
+  return (
+    <div className="flex flex-col w-full h-full items-center justify-center">
+      {data && data.length > 0 && (
+        <Card className="w-fit h-fit">
+          <CardHeader>
+            <CardTitle>Users</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DataTable data={data} />
+          </CardContent>
+        </Card>
+      )}  
+    </div>
+  )
+
 };
 
 export default Main;

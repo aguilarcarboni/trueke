@@ -1,0 +1,2 @@
+cd trueke
+npm ci

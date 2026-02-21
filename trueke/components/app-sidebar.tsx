@@ -8,7 +8,6 @@ import {
   MessageSquare,
   User,
   Bell,
-  Shield,
   Heart,
   Search,
 } from "lucide-react"
@@ -28,7 +27,6 @@ const navItems = [
   { id: "messages", label: "Messages", icon: MessageSquare },
   { id: "favorites", label: "Favorites", icon: Heart },
   { id: "profile", label: "Profile", icon: User },
-  { id: "admin", label: "Admin", icon: Shield },
 ]
 
 export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) {

@@ -10,6 +10,7 @@ import {
   Shield,
   Heart,
   Package,
+  Plus,
 } from "lucide-react"
 import { currentUser, notifications } from "@/lib/data"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -23,11 +24,11 @@ const navItems = [
   { id: "dashboard", label: "Dashboard", icon: Home },
   { id: "marketplace", label: "Marketplace", icon: ShoppingBag },
   { id: "my-items", label: "My Items", icon: Package },
+  { id: "create-item", label: "Create Item", icon: Plus },
   { id: "exchanges", label: "Exchanges", icon: ArrowLeftRight },
   { id: "auctions", label: "Auctions", icon: Gavel },
   { id: "messages", label: "Messages", icon: MessageSquare },
   { id: "favorites", label: "Favorites", icon: Heart },
-  { id: "admin", label: "Admin", icon: Shield },
 ]
 
 export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) {

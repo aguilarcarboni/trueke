@@ -1,20 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Trash2, Edit, Eye, User } from "lucide-react"
+import { Plus, Trash2, Edit, Eye } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { items, categories } from "@/lib/data"
+import { items } from "@/lib/data"
 import type { Item } from "@/lib/data"
 
 interface MyItemsProps {
   onSelectItem?: (item: Item) => void
+  onCreateItem?: () => void
 }
 
 const conditionLabel: Record<string, string> = {
@@ -32,30 +28,11 @@ const stateColors: Record<string, string> = {
   pending: "bg-warning/20 text-warning-foreground",
 }
 
-export function MyItems({ onSelectItem }: MyItemsProps) {
+export function MyItems({ onSelectItem, onCreateItem }: MyItemsProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [newItem, setNewItem] = useState({
-    title: "",
-    description: "",
-    category: "Electronics",
-    condition: "like-new",
-  })
 
   // Filter items to show only user's items (for demo, show first 3 items as user's)
   const myItems = items.slice(0, 3)
-
-  const handleCreateItem = () => {
-    // In a real app, this would submit to a backend API
-    console.log("Creating new item:", newItem)
-    setIsDialogOpen(false)
-    setNewItem({
-      title: "",
-      description: "",
-      category: "Electronics",
-      condition: "like-new",
-    })
-  }
 
   const handleDeleteItem = (itemId: string) => {
     console.log("Deleting item:", itemId)
@@ -69,74 +46,10 @@ export function MyItems({ onSelectItem }: MyItemsProps) {
           <h1 className="text-2xl font-bold text-foreground">My Items</h1>
           <p className="text-muted-foreground mt-1">Manage your items available for trade.</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add New Item
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Create New Item</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="title">Item Title</Label>
-                <Input
-                  id="title"
-                  placeholder="Enter item title"
-                  value={newItem.title}
-                  onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="category">Category</Label>
-                <Select value={newItem.category} onValueChange={(value) => setNewItem({ ...newItem, category: value })}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="condition">Condition</Label>
-                <Select value={newItem.condition} onValueChange={(value) => setNewItem({ ...newItem, condition: value })}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select condition" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(conditionLabel).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe your item..."
-                  value={newItem.description}
-                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                  className="mt-1 min-h-24"
-                />
-              </div>
-              <Button onClick={handleCreateItem} className="w-full">
-                Create Item
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button className="gap-2" onClick={onCreateItem}>
+          <Plus className="h-4 w-4" />
+          Add New Item
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -161,9 +74,6 @@ export function MyItems({ onSelectItem }: MyItemsProps) {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Traded</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{}</div>
-          </CardContent>
         </Card>
       </div>
 
@@ -174,14 +84,16 @@ export function MyItems({ onSelectItem }: MyItemsProps) {
             <div className="text-center">
               <p className="text-lg font-semibold text-foreground mb-2">No items yet</p>
               <p className="text-muted-foreground mb-6">Start by adding your first item to the marketplace.</p>
-              <Button variant="outline">Add Your First Item</Button>
+              <Button variant="outline" onClick={onCreateItem}>
+                Add Your First Item
+              </Button>
             </div>
           </CardContent>
         </Card>
       ) : (
         <div className={viewMode === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3" : "space-y-3"}>
           {myItems.map((item) => (
-            <Card key={item.id} className={viewMode === "list" ? "" : ""}>
+            <Card key={item.id}>
               <CardContent className="p-0">
                 {viewMode === "grid" ? (
                   <div className="flex flex-col">

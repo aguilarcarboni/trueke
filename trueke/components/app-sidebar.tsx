@@ -6,11 +6,10 @@ import {
   ArrowLeftRight,
   Gavel,
   MessageSquare,
-  User,
   Bell,
   Shield,
   Heart,
-  Search,
+  Package,
 } from "lucide-react"
 import { currentUser, notifications } from "@/lib/data"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -23,11 +22,11 @@ interface AppSidebarProps {
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: Home },
   { id: "marketplace", label: "Marketplace", icon: ShoppingBag },
+  { id: "my-items", label: "My Items", icon: Package },
   { id: "exchanges", label: "Exchanges", icon: ArrowLeftRight },
   { id: "auctions", label: "Auctions", icon: Gavel },
   { id: "messages", label: "Messages", icon: MessageSquare },
   { id: "favorites", label: "Favorites", icon: Heart },
-  { id: "profile", label: "Profile", icon: User },
   { id: "admin", label: "Admin", icon: Shield },
 ]
 
@@ -45,6 +44,9 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
       </div>
 
       {/* Search */}
+      {/*Comment out for now, redundant
+      if we already have the "Marketplace button in the 
+      navegation bar"
       <div className="px-4 pb-3">
         <button
           onClick={() => onSectionChange("marketplace")}
@@ -53,8 +55,7 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
           <Search className="h-4 w-4" />
           <span>Search items...</span>
         </button>
-      </div>
-
+      </div>*/}
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3">
         <div className="space-y-1">

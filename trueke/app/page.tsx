@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { MobileHeader } from "@/components/mobile-header"
 import { Dashboard } from "@/components/sections/dashboard"
 import { Marketplace } from "@/components/sections/marketplace"
+import { MyItems } from "@/components/sections/my-items"
 import { ItemDetail } from "@/components/sections/item-detail"
 import { Exchanges } from "@/components/sections/exchanges"
 import { Auctions } from "@/components/sections/auctions"
@@ -43,6 +44,8 @@ export default function Home() {
         return <Dashboard onNavigate={handleSectionChange} />
       case "marketplace":
         return <Marketplace onSelectItem={handleSelectItem} />
+      case "my-items":
+        return <MyItems onSelectItem={handleSelectItem} />
       case "exchanges":
         return <Exchanges />
       case "auctions":

@@ -5,6 +5,8 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { MobileHeader } from "@/components/mobile-header"
 import { Dashboard } from "@/components/sections/dashboard"
 import { Marketplace } from "@/components/sections/marketplace"
+import { MyItems } from "@/components/sections/my-items"
+import { CreateItem } from "@/components/sections/create-item"
 import { ItemDetail } from "@/components/sections/item-detail"
 import { Exchanges } from "@/components/sections/exchanges"
 import { Auctions } from "@/components/sections/auctions"
@@ -28,14 +30,14 @@ export default function Home() {
     setActiveSection("item-detail")
   }
 
-  const handleBackToMarketplace = () => {
+  const handleBackToMyItems = () => {
     setSelectedItem(null)
-    setActiveSection("marketplace")
+    setActiveSection("my-items")
   }
 
   const renderSection = () => {
     if (activeSection === "item-detail" && selectedItem) {
-      return <ItemDetail item={selectedItem} onBack={handleBackToMarketplace} />
+      return <ItemDetail item={selectedItem} onBack={handleBackToMyItems} />
     }
 
     switch (activeSection) {
@@ -43,6 +45,10 @@ export default function Home() {
         return <Dashboard onNavigate={handleSectionChange} />
       case "marketplace":
         return <Marketplace onSelectItem={handleSelectItem} />
+      case "my-items":
+        return <MyItems onSelectItem={handleSelectItem} onCreateItem={() => handleSectionChange("create-item")} />
+      case "create-item":
+        return <CreateItem onBack={handleBackToMyItems} />
       case "exchanges":
         return <Exchanges />
       case "auctions":

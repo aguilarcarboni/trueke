@@ -1,11 +1,13 @@
 "use client"
 
+import { useState } from "react"
 import { ArrowLeft, Star, MapPin, ArrowLeftRight, Heart, Share2, Flag, MessageSquare } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { TradeProposalDialog } from "@/components/trade-proposal-dialog"
 import type { Item } from "@/lib/data"
 
 interface ItemDetailProps {
@@ -30,6 +32,8 @@ const conditionColor: Record<string, string> = {
 }
 
 export function ItemDetail({ item, onBack }: ItemDetailProps) {
+  const [isTradeDialogOpen, setIsTradeDialogOpen] = useState(false)
+
   return (
     <div className="space-y-6">
       {/* Back button */}
@@ -37,6 +41,13 @@ export function ItemDetail({ item, onBack }: ItemDetailProps) {
         <ArrowLeft className="h-4 w-4" />
         Back to Marketplace
       </Button>
+
+      {/* Trade Proposal Dialog */}
+      <TradeProposalDialog
+        open={isTradeDialogOpen}
+        onOpenChange={setIsTradeDialogOpen}
+        requestedItem={item}
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Image & Details */}
@@ -152,7 +163,10 @@ export function ItemDetail({ item, onBack }: ItemDetailProps) {
           {/* Actions */}
           <Card>
             <CardContent className="pt-6 space-y-3">
-              <Button className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button 
+                className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={() => setIsTradeDialogOpen(true)}
+              >
                 <ArrowLeftRight className="h-4 w-4" />
                 Propose Trade
               </Button>

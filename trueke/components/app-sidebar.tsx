@@ -7,7 +7,6 @@ import {
   Gavel,
   MessageSquare,
   Bell,
-  Shield,
   Heart,
   Package,
   Plus,

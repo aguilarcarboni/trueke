@@ -5,19 +5,18 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { MobileHeader } from "@/components/mobile-header"
 import { Dashboard } from "@/components/sections/dashboard"
 import { Marketplace } from "@/components/sections/marketplace"
-import { MyItems } from "@/components/sections/my-items"
-import { CreateItem } from "@/components/sections/create-item"
 import { ItemDetail } from "@/components/sections/item-detail"
 import { Exchanges } from "@/components/sections/exchanges"
 import { Auctions } from "@/components/sections/auctions"
 import { Messages } from "@/components/sections/messages"
 import { Favorites } from "@/components/sections/favorites"
 import { Profile } from "@/components/sections/profile"
-import { Admin } from "@/components/sections/admin"
+import { ViewSwitcher } from "@/components/view-switcher"
 import type { Item } from "@/lib/data"
 
-export default function Home() {
-  const router = useRouter()
+export default function UserPage() {
+  const [activeSection, setActiveSection] = useState("dashboard")
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
 
   const handleSectionChange = (section: string) => {
     setActiveSection(section)
@@ -29,14 +28,14 @@ export default function Home() {
     setActiveSection("item-detail")
   }
 
-  const handleBackToMyItems = () => {
+  const handleBackToMarketplace = () => {
     setSelectedItem(null)
-    setActiveSection("my-items")
+    setActiveSection("marketplace")
   }
 
   const renderSection = () => {
     if (activeSection === "item-detail" && selectedItem) {
-      return <ItemDetail item={selectedItem} onBack={handleBackToMyItems} />
+      return <ItemDetail item={selectedItem} onBack={handleBackToMarketplace} />
     }
 
     switch (activeSection) {
@@ -44,10 +43,6 @@ export default function Home() {
         return <Dashboard onNavigate={handleSectionChange} />
       case "marketplace":
         return <Marketplace onSelectItem={handleSelectItem} />
-      case "my-items":
-        return <MyItems onSelectItem={handleSelectItem} onCreateItem={() => handleSectionChange("create-item")} />
-      case "create-item":
-        return <CreateItem onBack={handleBackToMyItems} />
       case "exchanges":
         return <Exchanges />
       case "auctions":
@@ -58,20 +53,28 @@ export default function Home() {
         return <Favorites />
       case "profile":
         return <Profile />
-      case "admin":
-        return <Admin />
       default:
         return <Dashboard onNavigate={handleSectionChange} />
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Redirecting to user interface...</p>
+    <div className="flex min-h-screen bg-background">
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:block">
+        <AppSidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
       </div>
+
+      {/* Main Content */}
+      <div className="flex-1 lg:ml-64">
+        <MobileHeader activeSection={activeSection} onSectionChange={handleSectionChange} />
+        <main className="p-4 lg:p-8">
+          {renderSection()}
+        </main>
+      </div>
+
+      {/* View Switcher for Demo */}
+      <ViewSwitcher currentView="user" />
     </div>
   )
 }
-

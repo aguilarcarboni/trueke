@@ -14,6 +14,7 @@ export interface User {
   bio: string
   joinedDate: string
   totalTrades: number
+  role?: "user" | "admin"
 }
 
 export interface Item {
@@ -142,6 +143,18 @@ export const users: User[] = [
 ]
 
 export const currentUser = users[0]
+
+export const adminUser: User = {
+  id: "admin1",
+  name: "Admin User",
+  avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Admin",
+  location: "System",
+  rating: 5.0,
+  bio: "Platform administrator",
+  joinedDate: "2023-01-01",
+  totalTrades: 0,
+  role: "admin",
+}
 
 // Mock Items
 export const items: Item[] = [
@@ -416,3 +429,123 @@ export const dashboardStats = {
   completedTrades: 47,
   averageRating: 4.8,
 }
+
+// Report types and interfaces
+export type ReportReason =
+  | "misleading-description"
+  | "failed-trade"
+  | "inappropriate-messages"
+  | "fake-item"
+  | "harassment"
+  | "scam"
+  | "spam"
+  | "other"
+
+export type ReportStatus = "pending" | "reviewing" | "resolved" | "dismissed"
+
+export interface Report {
+  id: string
+  reporter: User
+  reported: User
+  reason: ReportReason
+  reasonText: string
+  description: string
+  status: ReportStatus
+  date: string
+  relatedItem?: Item
+  relatedExchange?: Exchange
+  evidence?: string[]
+  adminNotes?: string
+  resolvedBy?: string
+  resolvedDate?: string
+}
+
+// Mock Reports for Admin
+export const reports: Report[] = [
+  {
+    id: "r1",
+    reporter: users[0],
+    reported: users[3],
+    reason: "misleading-description",
+    reasonText: "Misleading item description",
+    description: "The keyboard advertised as 'like new' had multiple broken switches and keycaps missing. Photos didn't match the actual condition.",
+    status: "pending",
+    date: "2026-02-20",
+    relatedItem: items[2],
+    relatedExchange: exchanges[1],
+    evidence: ["https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400&h=300&fit=crop"],
+  },
+  {
+    id: "r2",
+    reporter: users[1],
+    reported: users[4],
+    reason: "failed-trade",
+    reasonText: "Failed to complete agreed trade",
+    description: "User agreed to exchange but never showed up to the meeting location. Stopped responding to messages after confirmation.",
+    status: "reviewing",
+    date: "2026-02-19",
+    relatedExchange: exchanges[3],
+    adminNotes: "Investigating user's trade history. Found 2 similar complaints in the past month.",
+  },
+  {
+    id: "r3",
+    reporter: users[2],
+    reported: users[1],
+    reason: "inappropriate-messages",
+    reasonText: "Inappropriate messages",
+    description: "User sent multiple harassing messages after I declined their trade offer. Messages were rude and unprofessional.",
+    status: "resolved",
+    date: "2026-02-15",
+    evidence: ["screenshot1.jpg", "screenshot2.jpg"],
+    resolvedBy: "Admin",
+    resolvedDate: "2026-02-17",
+    adminNotes: "User warned. Pattern of behavior noted. Next violation will result in temporary suspension.",
+  },
+  {
+    id: "r4",
+    reporter: users[4],
+    reported: users[3],
+    reason: "scam",
+    reasonText: "Suspected scam attempt",
+    description: "User requested payment upfront outside of platform before exchange. Pressured me to complete trade immediately.",
+    status: "reviewing",
+    date: "2026-02-18",
+    relatedItem: items[6],
+    adminNotes: "High priority. User account flagged. Checking for other similar reports.",
+  },
+  {
+    id: "r5",
+    reporter: users[3],
+    reported: users[2],
+    reason: "fake-item",
+    reasonText: "Item is counterfeit",
+    description: "The 'handmade leather bag' is clearly a mass-produced counterfeit. Not artisan-crafted as advertised.",
+    status: "pending",
+    date: "2026-02-21",
+    relatedItem: items[1],
+  },
+  {
+    id: "r6",
+    reporter: users[0],
+    reported: users[4],
+    reason: "harassment",
+    reasonText: "User harassment",
+    description: "User has been repeatedly messaging me despite being blocked. Creating new accounts to continue contact.",
+    status: "pending",
+    date: "2026-02-21",
+    evidence: ["screenshot3.jpg", "screenshot4.jpg", "screenshot5.jpg"],
+  },
+  {
+    id: "r7",
+    reporter: users[1],
+    reported: users[3],
+    reason: "spam",
+    reasonText: "Spam listings",
+    description: "User posted 15+ duplicate listings for the same item with slightly different descriptions to flood the marketplace.",
+    status: "dismissed",
+    date: "2026-02-12",
+    resolvedBy: "Admin",
+    resolvedDate: "2026-02-13",
+    adminNotes: "Investigated. User was unaware of policy. Duplicates removed. User educated on guidelines.",
+  },
+]

@@ -26,13 +26,13 @@ The central entity that represents the end-user as an **authorized** member of t
 | end_ban_date_time | Timestamp indicating when a ban expires. Null if not banned. | 2026-03-01 00:00:00 |
 | created_at | Timestamp of when the user account was created. | 2025-01-15 10:23:45 |
 | is_admin | Boolean flag indicating administrator privileges. Drives admin-specific logic and access control. | `true` \| `false` |
-| rating_average | Derived attribute calculated from the **User Rating** table. Aggregates all ratings associated with this user into an average score. | $4.7$ |
 
 *Users Constraints & Rules*
 - user_id is primary key and generated (UUID).
 - email & username are unique and potentially modifiable.
 - bio is an optional element and empty as default.
 - profile_picture is optional, default image to be determined. 
+- rating average should be a function that derives the rating from the user rating table. 
 ---
 
 ### **`Address`**
@@ -106,7 +106,7 @@ Represents any item listing a user may offer — the essence and core functional
 | description | Detailed description of the item being listed. | "Used but in great condition." |
 | last_date_uploaded | System-generated timestamp of the last time the listing was uploaded or re-submitted. | 2025-06-10 11:00:00 |
 | date_bought | Optional date indicating when the owner originally purchased the item. | 2023-11-25 |
-| condition | Condition descriptor of the item. | `New`, `Like New`, `Used`, `Damaged` |
+| condition | Condition descriptor of the item. | `New`, `Like New`, `Used`, `Heavily Used`, `Damaged` |
 | state | Current state of the listing lifecycle. | `Draft` \| `Active` \| `Contested` \| `Traded` \| `Deleted` |
 | item_type | Indicates whether the item is physical or digital. | `Physical` \| `Digital` |
 | category | Predefined/fixed category value. Includes an "Other" option with a free-text field for the MVP. | `Electronics`, `Books`, `Other` |
@@ -120,9 +120,9 @@ Associates an address with an item, structured identically to **User Address** b
 |---|---|---|
 | item_id | FK → Item. The item this address is associated with. | i9a8b7... |
 | address_id | FK → Address. The address associated with the item. | a3f2c1... |
-| is_current | Boolean flag indicating whether this is the item's current active address. | `true` \| `false` |
-| active_start_time | Timestamp of when this address became active for the item. | 2025-06-10 11:00:00 |
-| deactivated_at_time | Timestamp of when this address was replaced or deactivated. Null if currently active. | 2025-09-15 09:00:00 |
+| is_current | Boolean flag indicating whether this is the user's current active address. | `true` \| `false` |
+| active_start_time | Timestamp of when this address became the user's active address. | 2025-02-10 08:00:00 |
+| deactivated_at_time | Timestamp of when this address was replaced or deactivated. Null if currently active. | 2025-09-01 12:00:00 |
 
 ---
 
@@ -174,6 +174,7 @@ Core concept of Trueke. A strong entity that acts as a container of contextual i
 | content_description | Optional description or summary of what the negotiation is about. | "Swap Switch for PS5 controller." |
 | is_public | Boolean flag indicating whether the negotiation is publicly visible. | `true` \| `false` |
 | created_at | Timestamp of when the negotiation was created. | 2025-07-01 10:00:00 |
+| status | Status of a negotiation that indicates whether it is active or not, used to make soft deletions for chats and such. | `active` \| `inactive` \| `deleted` |
 
 ---
 
@@ -206,7 +207,7 @@ Contains the information associated with a message sent within a specific negoti
 ---
 
 ### **`Exchange Proposal / Exchange`**
-The core transactional entity that represents and tracks the exchange process — its timing, initial state, status lifecycle, and optional context message. Every exchange must be associated with a negotiation.
+The core transactional entity that represents and tracks the exchange process — its timing, initial state, status lifecycle, and optional context message. 
 
 | Attribute | Description | Example |
 |---|---|---|

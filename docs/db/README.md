@@ -3,8 +3,8 @@
 This **`README.md`** document contains a quick description of each entity displayed in the ER diagram under **`docs/db/er-diagram.md`** and what each attribute entails if necessary. Note, most constraints should be present in final versions of the table creation for data integrity purposes but currently they won't be done for development facility and testing purposes.
 
 <details>
-<summary style="font-size: 20pt;"><strong>Entities</summary>
-Throughout this section you will be exposed to each entity and examples of each data type for exposure, regarding formatting and potential. 
+<summary><strong style="font-size:18pt;">Entities</strong></summary>
+Throughout this section you will be exposed to each entity and examples of each data type for exposure, regarding formatting and potental. 
 
 ---
 
@@ -139,6 +139,31 @@ Handles images and media associated with a listing. At least one image is requir
 
 ---
 
+### **`Item List`**
+Handles the creation of a list of items, for users to define lists of favorites, office, etc...
+
+| Attribute | Description | Example |
+|---|---|---|
+| item_list_id | Primary key. Unique identifier for the list. | l1c2d3... |
+| owner_id | FK → User. The user who owns the list. | 1982001830 |
+| name | Display name of the list. | "Favourites" |
+| description | Optional description of the list's purpose. | "Items I want to trade for." |
+| is_predefined | Boolean indicating whether this list was created by the system rather than the user. | `true` \| `false` |
+| created_at | Timestamp of when the list was created. | 2025-03-20 14:00:00 |
+
+---
+
+### **`Item List Member`**
+Junction table that maintains the items of a given list, representing the relationship between a user and a list. 
+
+| Attribute | Description | Example |
+|---|---|---|
+| item_list_id | FK → Item List. The list the member belongs to. | l1c2d3... |
+| item_member_id | FK → Item. The item who is a member of the list. | 2048110011 |
+| added_date_time | Timestamp of when the item was added to the list. | 2025-04-01 09:30:00 |
+
+--- 
+
 ### **`Negotiation`**
 Core concept of Trueke. A strong entity that acts as a container of contextual information for exchanges, messages, and meetings. Whenever a meeting or an exchange is created it must be associated with a negotiation.
 
@@ -186,7 +211,6 @@ The core transactional entity that represents and tracks the exchange process �
 | Attribute | Description | Example |
 |---|---|---|
 | exchange_id | Primary key. Unique identifier for the exchange. | ex1234... |
-| negotiation_id | FK → Negotiation. The negotiation under which this exchange was proposed. | n5f6g7... |
 | initiator_user_id | FK → User. The user who initiated the exchange proposal. | 1982001830 |
 | status | Current status of the exchange in its lifecycle. | `pending` \| `accepted` \| `rejected` \| `expired` \| `cancelled` |
 | expiration_date | Timestamp by which the proposal must be accepted or it expires automatically. | 2025-07-10 23:59:59 |

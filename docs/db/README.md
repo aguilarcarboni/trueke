@@ -106,7 +106,7 @@ Represents any item listing a user may offer — the essence and core functional
 | description | Detailed description of the item being listed. | "Used but in great condition." |
 | last_date_uploaded | System-generated timestamp of the last time the listing was uploaded or re-submitted. | 2025-06-10 11:00:00 |
 | date_bought | Optional date indicating when the owner originally purchased the item. | 2023-11-25 |
-| condition | Condition descriptor of the item. | `New`, `Like New`, `Used`, `Heavily Used`, `Damaged` |
+| condition | Condition descriptor of the item. | `New`, `Like New`, `Used`, `Heavily Used`, `Broken` |
 | state | Current state of the listing lifecycle. | `Draft` \| `Active` \| `Contested` \| `Traded` \| `Deleted` |
 | item_type | Indicates whether the item is physical or digital. | `Physical` \| `Digital` |
 | category | Predefined/fixed category value. Includes an "Other" option with a free-text field for the MVP. | `Electronics`, `Books`, `Other` |

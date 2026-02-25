@@ -28,7 +28,6 @@ DROP TABLE IF EXISTS exchange_item;
 DROP TABLE IF EXISTS exchange_participant;
 DROP TABLE IF EXISTS exchange;
 DROP TABLE IF EXISTS meeting_invitee;
-DROP TABLE IF EXISTS meeting_address;
 DROP TABLE IF EXISTS meeting;
 DROP TABLE IF EXISTS message;
 DROP TABLE IF EXISTS negotiation_participant;

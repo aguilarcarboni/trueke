@@ -1,34 +1,78 @@
 --===================================--
 ---- Create ENUMS for the database ----
 --===================================--
-
-CREATE TYPE user_status AS ENUM ('active', 'inactive', 'banned');
-CREATE TYPE item_condition AS ENUM ('new', 'like new', 'used', 'heavily used', 'broken');
-CREATE TYPE item_status AS ENUM ('draft', 'active', 'contested', 'traded', 'deleted');
-CREATE TYPE item_type AS ENUM ('physical', 'digital');
-CREATE TYPE negotiation_status AS ENUM ('active', 'inactive', 'deleted');
-CREATE TYPE exchange_status AS ENUM ('pending', 'accepted', 'rejected', 'expired', 'cancelled');
-CREATE TYPE exchange_role AS ENUM ('initiator', 'member');
-CREATE TYPE exchange_direction AS ENUM ('offered', 'requested');
-CREATE TYPE meeting_type AS ENUM ('physical', 'virtual');
-CREATE TYPE meeting_rsvp_status AS ENUM ('accepted', 'declined', 'pending', 'overdue');
-CREATE TYPE report_target_type AS ENUM ('user', 'item');
-CREATE TYPE report_status AS ENUM ('open', 'reviewed', 'resolved');
-CREATE TYPE notification_type AS ENUM (
-    'account_created', 'proposal_created', 'proposal_accepted',
-    'proposal_rejected', 'counter_offer', 'message_received',
-    'meeting_invite', 'meeting_rsvp', 'item_reported',
-    'user_reported', 'rating_received', 'system'
-    );
-CREATE TYPE notification_channel AS ENUM ('in_app', 'email');
-CREATE TYPE notification_status AS ENUM ('queued', 'sent', 'failed', 'skipped', 'delivered');
-CREATE TYPE notification_priority AS ENUM ('low', 'normal', 'high');
-CREATE TYPE login_event_type AS ENUM ('login', 'logout');
+DO $$ BEGIN 
+    CREATE TYPE user_status         AS ENUM ('active', 'inactive', 'banned');  
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE item_condition      AS ENUM ('new', 'like new', 'used', 'heavily used', 'broken');                                                     
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE item_status         AS ENUM ('draft', 'active', 'contested', 'traded', 'deleted');                                                     
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE item_type           AS ENUM ('physical', 'digital');                                                                                   
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE negotiation_status  AS ENUM ('active', 'inactive', 'deleted');                                                                         
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE exchange_status     AS ENUM ('pending', 'accepted', 'rejected', 'expired', 'cancelled');                                               
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE exchange_role       AS ENUM ('initiator', 'member');                                                                                   
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE exchange_direction  AS ENUM ('offered', 'requested');                                                                                  
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE meeting_type        AS ENUM ('physical', 'virtual');                                                                                   
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE meeting_rsvp_status AS ENUM ('accepted', 'declined', 'pending', 'overdue');                                                           
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE report_target_type  AS ENUM ('user', 'item');                                                                                          
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE report_status       AS ENUM ('open', 'reviewed', 'resolved');                                                                          
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE notification_type   AS ENUM ('account_created', 'proposal_created', 'proposal_accepted', 'proposal_rejected', 'counter_offer', 'message_received', 'meeting_invite', 'meeting_rsvp', 'item_reported', 'user_reported', 'rating_received', 'system'); 
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE notification_channel  AS ENUM ('in_app', 'email');                                                                                     
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE notification_status   AS ENUM ('queued', 'sent', 'failed', 'skipped', 'delivered');                                                    
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE notification_priority AS ENUM ('low', 'normal', 'high');                                                                               
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
+DO $$ BEGIN 
+    CREATE TYPE login_event_type    AS ENUM ('login', 'logout');                                                                                       
+    EXCEPTION WHEN duplicate_object THEN NULL; 
+END $$;
 
 --==========================================================--
 ----------------------- CREATE TABLES ------------------------
 --==========================================================--
-
 -- Users Table
 CREATE TABLE IF NOT EXISTS "user" (
     user_id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -106,7 +150,7 @@ CREATE TABLE IF NOT EXISTS item_address (
     address_id          UUID NOT NULL REFERENCES "address"(address_id) ON DELETE RESTRICT,
     is_current          BOOLEAN NOT NULL DEFAULT TRUE,
     active_start_time   TIMESTAMP NOT NULL DEFAULT NOW(),
-    deactivated_at_time TIMESTAMP,
+    deactivated_time    TIMESTAMP,
     PRIMARY KEY (item_id, address_id)
 );
 
@@ -172,19 +216,13 @@ CREATE TABLE IF NOT EXISTS message (
 CREATE TABLE IF NOT EXISTS meeting (
     meeting_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     negotiation_id      UUID NOT NULL REFERENCES negotiation(negotiation_id) ON DELETE CASCADE,
+    address_id          UUID REFERENCES "address"(address_id) ON DELETE RESTRICT,
     meeting_type        meeting_type NOT NULL,
     platform            VARCHAR(100),
     access_code         VARCHAR(255),
     scheduled_at        TIMESTAMP NOT NULL,
     due_date            TIMESTAMP,
     created_by_user_id  UUID NOT NULL REFERENCES "user"(user_id) ON DELETE CASCADE
-);
-
--- Meeting Address Table
-CREATE TABLE IF NOT EXISTS meeting_address (
-    meeting_id  UUID NOT NULL REFERENCES meeting(meeting_id) ON DELETE CASCADE,
-    address_id  UUID NOT NULL REFERENCES "address"(address_id) ON DELETE RESTRICT,
-    PRIMARY KEY (meeting_id, address_id)
 );
 
 -- Meeting RSVP Table
@@ -292,28 +330,53 @@ CREATE TABLE IF NOT EXISTS login_event (
 --==========================================================--
 
 -- Ensure only one current address per user
-CREATE UNIQUE INDEX uq_user_current_address 
-ON user_address(user_id) 
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_current_address
+ON user_address(user_id)
 WHERE is_current = TRUE;
 
 -- Ensure only one current address per item
-CREATE UNIQUE INDEX uq_item_current_address
-ON item_address(item_id) 
+CREATE UNIQUE INDEX IF NOT EXISTS uq_item_current_address
+ON item_address(item_id)
 WHERE is_current = TRUE;
 
 -- Ensure users cannot rate themselves
-ALTER TABLE user_rating
-ADD CONSTRAINT chk_no_self_rating 
-CHECK (rated_user_id <> by_user_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_no_self_rating'
+          AND conrelid = 'user_rating'::regclass
+    ) THEN
+        ALTER TABLE user_rating
+        ADD CONSTRAINT chk_no_self_rating
+        CHECK (rated_user_id <> by_user_id);
+    END IF;
+END $$;
+
+-- Ensure banned users have an end ban date time set and active users do not
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_ban_dates'
+          AND conrelid = '"user"'::regclass
+    ) THEN
+        ALTER TABLE "user"
+        ADD CONSTRAINT chk_ban_dates
+        CHECK (
+            (status = 'banned' AND end_ban_date_time IS NOT NULL) OR
+            (status <> 'banned' AND end_ban_date_time IS NULL)
+        );
+    END IF;
+END $$;
 
 -- Ensure Media display order is unique per item
-CREATE UNIQUE INDEX uq_item_media_display_order
+CREATE UNIQUE INDEX IF NOT EXISTS uq_item_media_display_order
 ON item_media(item_id, display_order);
 
 --=========================================================--
 --------------- CREATE TRIGGERS & FUNCTIONS -----------------
 --=========================================================--
-
 -- Whenever a new address is inputted automatically set it as the current address for the user and deactivate any previous current address
 CREATE OR REPLACE FUNCTION set_previous_address_inactive_user_address()
 RETURNS TRIGGER AS $$
@@ -328,7 +391,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger to call the function before inserting or updating a user address
-CREATE TRIGGER trg_set_previous_address_inactive_user_address
+CREATE OR REPLACE TRIGGER trg_set_previous_address_inactive_user_address
 BEFORE INSERT OR UPDATE ON user_address
 FOR EACH ROW
 EXECUTE FUNCTION set_previous_address_inactive_user_address();
@@ -339,7 +402,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.is_current THEN
         UPDATE item_address
-        SET is_current = FALSE, deactivated_at_time = NOW()
+        SET is_current = FALSE, deactivated_time = NOW()
         WHERE item_id = NEW.item_id AND is_current = TRUE AND address_id <> NEW.address_id;
     END IF;
     RETURN NEW;
@@ -347,7 +410,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger to call the function before inserting or updating an item address
-CREATE TRIGGER trg_set_previous_address_inactive_item_address
+CREATE OR REPLACE TRIGGER trg_set_previous_address_inactive_item_address
 BEFORE INSERT OR UPDATE ON item_address
 FOR EACH ROW
 EXECUTE FUNCTION set_previous_address_inactive_item_address();
@@ -364,7 +427,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger to call the function after inserting a new media for an item
-CREATE TRIGGER trg_update_item_last_date_uploaded
+CREATE OR REPLACE TRIGGER trg_update_item_last_date_uploaded
 AFTER INSERT ON item_media
 FOR EACH ROW
 EXECUTE FUNCTION update_item_last_date_uploaded();

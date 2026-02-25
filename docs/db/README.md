@@ -370,3 +370,81 @@ Tracks user login and logout events for auditing, security, and notification pur
 | user_agent | Browser or client user-agent string at the time of the event. | Mozilla/5.0 (Windows NT 10.0...) |
 </details>
 
+## Migration 
+The SQL scripts in charge of constructing the schema are found in `src/utils/supabase/`. Rather than using a migration framework, we use the Supabase SQL editor or `psql` directly to keep deployment simple and explicit. The scripts are the following:
+
+| Script | Purpose |
+|---|---|
+| `migrations/create-schema.sql` | Creates all ENUMs, tables, constraints, and triggers |
+| `migrations/schema-breakdown.sql` | Drops everything — use to reset a local instance |
+| `scripts/fake-data.sql` | Inserts a fixed seed dataset for development and testing |
+| `scripts/fake-data-cleanup.sql` | Deletes all seed rows (leaves schema intact) |
+| `scripts/query-schema.sql` | Spot-checks every table with representative SELECT queries |
+| `scripts/create-admins.sql` | Inserts or promotes admin users (run once, not wiped by cleanup) |
+
+
+
+The SQL scripts in charge of constructing the schema are found in the `src` folder under `utils/supabase/migrations`, instead of using a migration tool we utilize the SQL CLI found in Supabase to prevent over complicating database deployment and modifications. The script in charge of constructing the schema is `create-schema.sql`; subsequently the script in charge of deleting the schema is `schema-breakdown.sql`.
+
+Furthermore, there are various scripts that together verify the schema. First, we create a fake set of data using `utils/supabase/scripts/fake-data.sql` to guarantee successful integration of the database. Secondly, we attempt to query each individual table `utils/supabase/scripts/query-schema.sql`. Together we successfully revise the creation of data. 
+
+## Migration
+
+The SQL scripts in charge of constructing the schema are found in `src/utils/supabase/migrations/`. Rather than using a migration framework, we use the Supabase SQL editor or `psql` directly to keep deployment simple and explicit.
+
+| Script | Purpose |
+|---|---|
+| `migrations/create-schema.sql` | Creates all ENUMs, tables, constraints, and triggers |
+| `migrations/schema-breakdown.sql` | Drops everything — use to reset a local instance |
+| `scripts/fake-data.sql` | Inserts a fixed seed dataset for development and testing |
+| `scripts/fake-data-cleanup.sql` | Deletes all seed rows (leaves schema intact) |
+| `scripts/query-schema.sql` | Spot-checks every table with representative SELECT queries |
+| `scripts/create-admins.sql` | Inserts or promotes admin users (run once, not wiped by cleanup) |
+
+### Running Migrations
+1. Open your project in [supabase.com](https://supabase.com) → **SQL Editor**
+2. Paste and run the scripts in the following order:
+
+```
+migrations/create-schema.sql
+scripts/create-admins.sql     ← optional, only if admin accounts are needed
+scripts/fake-data.sql         ← optional, only for development/testing
+```
+
+---
+
+### Running migrations
+
+#### Option A — Supabase SQL Editor (recommended for Supabase hosted projects)
+
+1. Open your project in [supabase.com](https://supabase.com) → **SQL Editor**
+2. Paste and run the scripts in the following order:
+
+```
+migrations/schema-breakdown.sql ← ensure old image is deleted
+migrations/create-schema.sql    ← construct schema  
+migrations/verify-schema.sql       ← optional, only if admin accounts are needed
+```
+---
+
+### Verifying the migration (AC3)
+
+After running `create-schema.sql`, confirm all expected tables exist by querying the Postgres information schema:
+
+```sql
+-- Lists all tables created by the migration
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN (
+      'user', 'address', 'user_address', 'user_list', 'user_list_member',
+      'item', 'item_address', 'item_media', 'item_list', 'item_list_member',
+      'negotiation', 'negotiation_participant', 'message',
+      'meeting', 'meeting_invitee',
+      'exchange', 'exchange_participant', 'exchange_item',
+      'user_rating', 'item_rating',
+      'report', 'notification', 'login_event'
+  )
+ORDER BY table_name;
+-- Expected: 22 rows returned, one per table name above.
+```

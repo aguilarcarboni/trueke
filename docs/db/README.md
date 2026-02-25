@@ -280,6 +280,7 @@ A container entity representing a multi-party or two-party meeting in either a v
 |---|---|---|
 | meeting_id | Primary key. Unique identifier for the meeting. | mt0001... |
 | negotiation_id | FK → Negotiation. The negotiation this meeting is tied to. | n5f6g7... |
+| address_id | FK → Address. The physical location of the meeting, optional when virtual. | a3f2c1... |
 | meeting_type | Indicates whether the meeting is in-person or remote. | `Physical` \| `Virtual` |
 | platform | Applies to virtual meetings. The platform or tool used. | `Zoom`, `Google Meet` |
 | access_code | Applies to virtual meetings. Code or link required to join. | abc-defg-hij |
@@ -423,7 +424,7 @@ scripts/fake-data.sql         ← optional, only for development/testing
 ```
 migrations/schema-breakdown.sql ← ensure old image is deleted
 migrations/create-schema.sql    ← construct schema  
-migrations/verify-schema.sql       ← optional, only if admin accounts are needed
+migrations/verify-schema.sql    ← optional, only if admin accounts are needed
 ```
 ---
 
@@ -446,5 +447,6 @@ WHERE table_schema = 'public'
       'report', 'notification', 'login_event'
   )
 ORDER BY table_name;
--- Expected: 22 rows returned, one per table name above.
+-- Expected: 23 rows returned, one per table name above.
 ```
+

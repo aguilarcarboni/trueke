@@ -1,4 +1,4 @@
--- Confirm All Tables Exist
+-- Confirm All Tables Exist, 23 total tables
 SELECT table_name
 FROM information_schema.tables
 WHERE table_schema = 'public'

@@ -70,10 +70,15 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Redirecting to user interface...</p>
+    <div className="flex min-h-screen bg-background">
+      <div className="hidden lg:block">
+        <AppSidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
+      </div>
+      <div className="flex flex-col flex-1 min-w-0 lg:ml-64">
+        <MobileHeader activeSection={activeSection} onSectionChange={handleSectionChange} />
+        <main className="flex-1 overflow-auto p-4 md:p-6">
+          {renderSection()}
+        </main>
       </div>
     </div>
   )

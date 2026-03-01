@@ -12,8 +12,8 @@ import { adminUser } from "@/lib/data"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface AdminSidebarProps {
-  activeSection: string
-  onSectionChange: (section: string) => void
+  activeSection?: string
+  onSectionChange?: (section: string) => void
 }
 
 const adminNavItems = [
@@ -24,7 +24,7 @@ const adminNavItems = [
   { id: "admin-settings", label: "Settings", icon: Settings },
 ]
 
-export function AdminSidebar({ activeSection, onSectionChange }: AdminSidebarProps) {
+export function AdminSidebar({ activeSection = "admin", onSectionChange }: AdminSidebarProps) {
   return (
     <aside className="fixed left-0 top-0 z-30 flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
       {/* Logo */}
@@ -56,7 +56,7 @@ export function AdminSidebar({ activeSection, onSectionChange }: AdminSidebarPro
             return (
               <button
                 key={item.id}
-                onClick={() => onSectionChange(item.id)}
+                onClick={() => onSectionChange?.(item.id)}
                 className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-sidebar-primary text-sidebar-primary-foreground"

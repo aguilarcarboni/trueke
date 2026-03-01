@@ -1,15 +1,28 @@
-"use client"
-
+import { getCurrentUser } from '@/utils/supabase/auth'
+import { redirect } from 'next/navigation'
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { Admin } from "@/components/sections/admin"
 import { ViewSwitcher } from "@/components/view-switcher"
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  // Check if user is logged in
+  const user = await getCurrentUser()
+  
+  // If not logged in, redirect to login page
+  if (!user) {
+    redirect('/login')
+  }
+  
+  // Check if user is admin - only admins can access this page
+  if (!user.isAdmin) {
+    redirect('/user')
+  }
+  
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <AdminSidebar activeSection="admin" onSectionChange={() => {}} />
+        <AdminSidebar />
       </div>
 
       {/* Main Content */}

@@ -6,7 +6,7 @@ import { getRedirectPath } from './get-redirect-path'
 
 export default function Home() {
   const router = useRouter()
-
+  
   useEffect(() => {
     getRedirectPath().then((path) => {
       router.replace(path)

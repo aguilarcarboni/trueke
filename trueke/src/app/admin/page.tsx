@@ -13,7 +13,7 @@ export default async function AdminPage() {
     redirect('/login')
   }
   
-  // Check if user is admin
+  // Check if user is admin - only admins can access this page
   if (!user.isAdmin) {
     redirect('/user')
   }
@@ -22,7 +22,7 @@ export default async function AdminPage() {
     <div className="flex min-h-screen bg-background">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <AdminSidebar activeSection="admin" onSectionChange={() => {}} />
+        <AdminSidebar />
       </div>
 
       {/* Main Content */}

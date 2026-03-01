@@ -90,8 +90,12 @@ export default function LoginPage() {
         }
         setIsLoading(false)
       } else {
-        // Success - redirect to user page
-        router.push("/user")
+        // Success - redirect based on user role
+        if (result.user?.isAdmin) {
+          router.push("/admin")
+        } else {
+          router.push("/user")
+        }
         router.refresh() // Refresh to update auth state
       }
     } catch (error) {

@@ -11,6 +11,11 @@ export default async function UserPage() {
     redirect('/login')
   }
   
+  // Check if user is admin - admins should use admin view
+  if (user.isAdmin) {
+    redirect('/admin')
+  }
+  
   // Pass user data to client component
   return <UserPageClient user={user} />
 }

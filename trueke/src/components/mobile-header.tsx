@@ -5,16 +5,16 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { notifications } from "@/lib/data"
 import { AppSidebar } from "./app-sidebar"
-import { UserMenu } from "./user-menu"
 
 interface MobileHeaderProps {
   activeSection: string
   onSectionChange: (section: string) => void
-  user?: {
+  user: {
+    id: string
     email?: string
     name?: string
     avatar?: string
-  } | null
+  }
 }
 
 export function MobileHeader({ activeSection, onSectionChange, user }: MobileHeaderProps) {
@@ -31,7 +31,11 @@ export function MobileHeader({ activeSection, onSectionChange, user }: MobileHea
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0">
-            <AppSidebar activeSection={activeSection} onSectionChange={onSectionChange} />
+            <AppSidebar
+              activeSection={activeSection}
+              onSectionChange={onSectionChange}
+              user={user}
+            />
           </SheetContent>
         </Sheet>
         <div className="flex items-center gap-2">
@@ -41,7 +45,6 @@ export function MobileHeader({ activeSection, onSectionChange, user }: MobileHea
           <span className="text-lg font-bold text-foreground">Trueke</span>
         </div>
       </div>
-      <div className="flex items-center gap-2">
       <Button variant="ghost" size="icon" className="relative">
         <Bell className="h-5 w-5" />
         {unread > 0 && (
@@ -50,9 +53,6 @@ export function MobileHeader({ activeSection, onSectionChange, user }: MobileHea
           </span>
         )}
       </Button>
-        {/* User Menu */}
-        <UserMenu user={user} />
-      </div>
     </header>
   )
 }

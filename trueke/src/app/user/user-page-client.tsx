@@ -12,7 +12,6 @@ import { Messages } from "@/components/sections/messages"
 import { Favorites } from "@/components/sections/favorites"
 import { Profile } from "@/components/sections/profile"
 import { ViewSwitcher } from "@/components/view-switcher"
-import { UserMenu } from "@/components/user-menu"
 import type { Item } from "@/lib/data"
 import type { UserProfile } from "@/utils/supabase/tables/profile"
 
@@ -79,8 +78,8 @@ export function UserPageClient({ user, profile }: UserPageClientProps) {
 
       {/* Main Content */}
       <div className="flex-1 lg:ml-64">
-        <MobileHeader 
-          activeSection={activeSection} 
+        <MobileHeader
+          activeSection={activeSection}
           onSectionChange={handleSectionChange}
           user={user}
         />

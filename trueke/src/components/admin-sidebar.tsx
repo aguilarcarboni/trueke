@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   Shield,
   Users,
@@ -7,13 +8,23 @@ import {
   Settings,
   BarChart3,
   AlertTriangle,
+  LogOut,
+  Loader2,
 } from "lucide-react"
-import { adminUser } from "@/lib/data"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { logout } from "@/app/login/actions"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 interface AdminSidebarProps {
   activeSection?: string
   onSectionChange?: (section: string) => void
+  user: {
+    id: string
+    email?: string
+    name?: string
+    avatar?: string
+  }
 }
 
 const adminNavItems = [
@@ -24,7 +35,31 @@ const adminNavItems = [
   { id: "admin-settings", label: "Settings", icon: Settings },
 ]
 
-export function AdminSidebar({ activeSection = "admin", onSectionChange }: AdminSidebarProps) {
+export function AdminSidebar({ activeSection = "admin", onSectionChange, user }: AdminSidebarProps) {
+  const router = useRouter()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      const result = await logout()
+      if (result?.error) {
+        toast.error(result.error)
+        return
+      }
+      router.replace("/")
+      router.refresh()
+    } catch {
+      toast.error("Failed to sign out. Please try again.")
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
+
+  const initials = user.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
+    : user.email?.charAt(0).toUpperCase() || "A"
+
   return (
     <aside className="fixed left-0 top-0 z-30 flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
       {/* Logo */}
@@ -72,20 +107,32 @@ export function AdminSidebar({ activeSection = "admin", onSectionChange }: Admin
       </nav>
 
       {/* Admin User Info */}
-      <div className="border-t border-sidebar-border px-4 py-4">
+      <div className="border-t border-sidebar-border px-4 py-4 space-y-2">
         <div className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-sidebar-accent">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={adminUser.avatar} alt={adminUser.name} />
-            <AvatarFallback>{adminUser.name.charAt(0)}</AvatarFallback>
+            <AvatarImage src={user.avatar} alt={user.name || user.email} />
+            <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1 text-left">
             <div className="flex items-center gap-1.5">
-              <p className="text-sm font-medium leading-none">{adminUser.name}</p>
+              <p className="text-sm font-medium leading-none">{user.name || "Admin"}</p>
               <Shield className="h-3 w-3 text-primary" />
             </div>
             <p className="text-xs text-sidebar-foreground/50 mt-0.5">Administrator</p>
           </div>
         </div>
+        <button
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-sidebar-accent transition-colors disabled:opacity-50"
+        >
+          {isLoggingOut ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="h-4 w-4" />
+          )}
+          <span>{isLoggingOut ? "Signing out..." : "Log out"}</span>
+        </button>
       </div>
     </aside>
   )

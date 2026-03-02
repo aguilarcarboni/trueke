@@ -116,14 +116,39 @@ export async function login(formData: FormData) {
   }
 }
 
-export async function logout() {
-  const cookieStore = await cookies()
-  
-  // Delete session cookies
-  cookieStore.delete('session_token')
-  cookieStore.delete('user_id')
-  
-  revalidatePath('/', 'layout')
+export async function logout(): Promise<{ error?: string }> {
+  try {
+    const cookieStore = await cookies()
+    const userId = cookieStore.get('user_id')?.value
+
+    // Delete session cookies first
+    cookieStore.delete('session_token')
+    cookieStore.delete('user_id')
+
+    // Audit log (optional - only if we had a user)
+    if (userId) {
+      const headersList = await headers()
+      const ipRaw = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || headersList.get('x-real-ip') || null
+      const ipAddress = ipRaw || '0.0.0.0'
+
+      const supabase = await createClient()
+      const { error: auditError } = await supabase.from('login_event').insert({
+        login_event_id: crypto.randomUUID(),
+        user_id: userId,
+        event_type: 'logout',
+        event_time: new Date().toISOString(),
+        ip_address: ipAddress,
+        user_agent: headersList.get('user-agent') || null,
+      })
+      if (auditError) console.error('Logout event insert failed:', auditError)
+    }
+
+    revalidatePath('/', 'layout')
+    return {}
+  } catch (error) {
+    console.error('Logout error:', error)
+    return { error: 'Failed to sign out. Please try again.' }
+  }
 }
 
 // Helper function to generate session token

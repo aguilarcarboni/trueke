@@ -11,12 +11,14 @@ import {
   Package,
   Plus,
 } from "lucide-react"
-import { currentUser, notifications } from "@/lib/data"
+import { notifications } from "@/lib/data"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import type { UserProfile } from "@/utils/supabase/tables/profile"
 
 interface AppSidebarProps {
   activeSection: string
   onSectionChange: (section: string) => void
+  profile: UserProfile | null
 }
 
 const navItems = [
@@ -30,7 +32,21 @@ const navItems = [
   { id: "favorites", label: "Favorites", icon: Heart },
 ]
 
-export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) {
+export function AppSidebar({ activeSection, onSectionChange, profile }: AppSidebarProps) {
+  const displayName = profile
+    ? `${profile.firstName} ${profile.lastName}`.trim() || profile.username
+    : "—"
+  const initials = displayName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+  const locationSummary = profile?.address
+    ? [profile.address.city, profile.address.province, profile.address.countryCode]
+        .filter(Boolean)
+        .join(", ")
+    : profile?.email ?? ""
   const unread = notifications.filter((n) => !n.read).length
 
   return (
@@ -107,12 +123,17 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
           className="flex w-full items-center gap-3 rounded-lg transition-colors hover:bg-sidebar-accent px-2 py-1.5"
         >
           <Avatar className="h-8 w-8">
-            <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
-            <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+            <AvatarImage src={profile?.profilePictureUrl || undefined} alt={displayName} />
+            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
-          <div className="flex-1 text-left">
-            <p className="text-sm font-medium leading-none">{currentUser.name}</p>
-            <p className="text-xs text-sidebar-foreground/50 mt-0.5">{currentUser.location}</p>
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-sm font-medium leading-none truncate">{displayName}</p>
+            {locationSummary && (
+              <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{locationSummary}</p>
+            )}
+            {!locationSummary && profile?.username && (
+              <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">@{profile.username}</p>
+            )}
           </div>
         </button>
       </div>

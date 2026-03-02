@@ -2,7 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { cookies, headers } from 'next/headers'
+import { cookies } from 'next/headers'
 import bcrypt from 'bcrypt'
 
 export async function login(formData: FormData) {
@@ -27,11 +27,6 @@ export async function login(formData: FormData) {
 
     if (queryError || !user) {
       return { error: 'No account found with this email address.' }
-    }
-
-    // Check user status (e.g. only allow 'active' users to log in)
-    if (user.status !== 'active') {
-      return { error: 'This account is not active. Please contact support.' }
     }
 
     // Check if user is banned
@@ -76,26 +71,6 @@ export async function login(formData: FormData) {
       .from('user')
       .update({ last_login_at: new Date().toISOString() })
       .eq('user_id', user.user_id)
-
-    // Audit log: record successful login
-    const headersList = await headers()
-    const ipRaw =
-      headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      headersList.get('x-real-ip') ||
-      null
-    // Use 0.0.0.0 when missing so insert never fails
-    const ipAddress = ipRaw || '0.0.0.0'
-
-    const { error: auditError } = await supabase.from('login_event').insert({
-      login_event_id: crypto.randomUUID(),
-      user_id: user.user_id,
-      event_type: 'login',
-      event_time: new Date().toISOString(),
-      ip_address: ipAddress,
-      user_agent: headersList.get('user-agent') || null,
-    })
-
-    if (auditError) console.error('Login event insert failed:', auditError)
 
     // Revalidate the path to update auth state
     revalidatePath('/', 'layout')

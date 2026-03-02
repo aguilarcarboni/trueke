@@ -124,7 +124,7 @@ export function AppSidebar({ activeSection, onSectionChange, profile }: AppSideb
         >
           <Avatar className="h-8 w-8">
             <AvatarImage src={profile?.profilePictureUrl || undefined} alt={displayName} />
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            <AvatarFallback className="text-xs text-muted-foreground">{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0 text-left">
             <p className="text-sm font-medium leading-none truncate">{displayName}</p>

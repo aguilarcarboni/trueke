@@ -133,9 +133,10 @@ export function Profile({ profile }: ProfileProps) {
         {/* Profile Card — view only */}
         <Card className="lg:row-span-2">
           <CardContent className="pt-6 text-center space-y-4">
+            {/* Avatar */}
             <div className="relative inline-block">
               <Avatar className="h-24 w-24 mx-auto">
-                <AvatarImage src={profile?.profilePictureUrl} alt={displayName} />
+                <AvatarImage src={profile?.profilePictureUrl || undefined} alt={displayName} />
                 <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
               </Avatar>
             </div>

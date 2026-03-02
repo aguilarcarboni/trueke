@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 
+// UserAddress mirror the address table structure, but with camelCase keys for easier use in the frontend
 export interface UserAddress {
   addressId: string | null
   countryCode: string
@@ -11,6 +12,7 @@ export interface UserAddress {
   zipCode: string
 }
 
+// UserProfile represents the combined data from the user table and their current address (if any) for use in the frontend
 export interface UserProfile {
   id: string
   email: string
@@ -25,6 +27,7 @@ export interface UserProfile {
   status: string
 }
 
+// Data structure for updating user profile information, including nested address fields
 export interface UpdateProfileData {
   firstName: string
   lastName: string
@@ -34,6 +37,7 @@ export interface UpdateProfileData {
   address: Omit<UserAddress, "addressId">
 }
 
+// Fetches the user's profile information, including their current address if available
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   const supabase = await createClient()
 
@@ -90,6 +94,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   }
 }
 
+// Updates the user's profile information, including their address. Handles creating/updating address records as needed.
 export async function updateUserProfile(
   userId: string,
   data: UpdateProfileData
@@ -200,3 +205,5 @@ export async function updateUserProfile(
 
   return { error: null }
 }
+
+// Fetches a user's associated listings/items for display on their profile page 

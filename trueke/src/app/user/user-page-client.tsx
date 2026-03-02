@@ -77,11 +77,17 @@ export function UserPageClient({ user }: UserPageClientProps) {
 
       {/* Main Content */}
       <div className="flex-1 lg:ml-64">
+        {/* Mobile: header with menu, bell, user menu */}
         <MobileHeader 
           activeSection={activeSection} 
           onSectionChange={handleSectionChange}
           user={user}
         />
+        {/* Desktop: header with user menu (MobileHeader is hidden via lg:hidden) */}
+        <header className="hidden lg:flex sticky top-0 z-40 items-center justify-between border-b border-border bg-card px-4 py-3">
+          <span className="font-semibold">Trueke</span>
+          <UserMenu user={user} />
+        </header>
         <main className="p-4 lg:p-8">
           {renderSection()}
         </main>

@@ -1,6 +1,7 @@
 "use client"
 
-import { User, LogOut, Settings } from "lucide-react"
+import { useState } from "react"
+import { User, LogOut, Settings, Loader2 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -13,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { logout } from "@/app/login/actions"
+import { toast } from "sonner"
 
 interface UserMenuProps {
   user: {
@@ -24,6 +26,7 @@ interface UserMenuProps {
 
 export function UserMenu({ user }: UserMenuProps) {
   const router = useRouter()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   if (!user) {
     return (
@@ -38,9 +41,20 @@ export function UserMenu({ user }: UserMenuProps) {
   }
 
   const handleLogout = async () => {
-    await logout()
-    router.push("/login")
-    router.refresh()
+    setIsLoggingOut(true)
+    try {
+      const result = await logout()
+      if (result?.error) {
+        toast.error(result.error)
+        return
+      }
+      router.replace("/")
+      router.refresh()
+    } catch {
+      toast.error("Failed to sign out. Please try again.")
+    } finally {
+      setIsLoggingOut(false)
+    }
   }
 
   const initials = user.name
@@ -76,9 +90,17 @@ export function UserMenu({ user }: UserMenuProps) {
           <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Log out</span>
+        <DropdownMenuItem
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="text-destructive"
+        >
+          {isLoggingOut ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="mr-2 h-4 w-4" />
+          )}
+          <span>{isLoggingOut ? "Signing out..." : "Log out"}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -12,7 +12,6 @@ import { Messages } from "@/components/sections/messages"
 import { Favorites } from "@/components/sections/favorites"
 import { Profile } from "@/components/sections/profile"
 import { ViewSwitcher } from "@/components/view-switcher"
-import { UserMenu } from "@/components/user-menu"
 import type { Item } from "@/lib/data"
 
 interface UserPageClientProps {
@@ -72,13 +71,17 @@ export function UserPageClient({ user }: UserPageClientProps) {
     <div className="flex min-h-screen bg-background">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <AppSidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
+        <AppSidebar
+          activeSection={activeSection}
+          onSectionChange={handleSectionChange}
+          user={user}
+        />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 lg:ml-64">
-        <MobileHeader 
-          activeSection={activeSection} 
+        <MobileHeader
+          activeSection={activeSection}
           onSectionChange={handleSectionChange}
           user={user}
         />

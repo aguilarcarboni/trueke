@@ -37,7 +37,6 @@ export function AdminPageClient({ user, profile }: AdminPageClientProps) {
         <AdminSidebar
           activeSection={activeSection}
           onSectionChange={setActiveSection}
-          user={user}
           profile={profile}
         />
       </div>

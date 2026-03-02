@@ -303,12 +303,12 @@ export function Profile({ profile }: ProfileProps) {
         ────────── Edit Profile Dialog ───────────
         ========================================== */}
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="flex flex-col w-full max-w-2xl max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Edit Profile</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[70vh] pr-4">
+        <ScrollArea className="flex-1 overflow-y-auto pr-4">
           <div className="space-y-4 py-1">
             <p className="text-xs text-muted-foreground">
               Fields marked with <span className="text-destructive font-semibold">*</span> are required.
@@ -520,7 +520,7 @@ export function Profile({ profile }: ProfileProps) {
           </div>
         </ScrollArea>
 
-        <DialogFooter className="gap-2 pt-2">
+        <DialogFooter className="gap-2 pt-2 shrink-0">
           <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isPending}>
             Cancel
           </Button>

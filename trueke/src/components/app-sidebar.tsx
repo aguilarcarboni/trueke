@@ -52,7 +52,7 @@ export function AppSidebar({ activeSection, onSectionChange, profile }: AppSideb
     ? [profile.address.city, profile.address.province, profile.address.countryCode]
         .filter(Boolean)
         .join(", ")
-    : profile?.email ?? ""
+    : ""
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const unread = notifications.filter((n) => !n.read).length
@@ -156,9 +156,6 @@ export function AppSidebar({ activeSection, onSectionChange, profile }: AppSideb
             <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{profile?.email}</p>
             {locationSummary && (
               <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{locationSummary}</p>
-            )}
-            {!locationSummary && profile?.username && (
-              <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">@{profile.username}</p>
             )}
           </div>
         </button>

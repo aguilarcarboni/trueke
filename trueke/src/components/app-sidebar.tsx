@@ -127,7 +127,8 @@ export function AppSidebar({ activeSection, onSectionChange, profile }: AppSideb
             <AvatarFallback className="text-xs text-muted-foreground">{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-sm font-medium leading-none truncate">{displayName}</p>
+            <p className="text-sm font-medium leading-none truncate">{displayName || profile?.username}</p>
+            <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{profile?.email}</p>
             {locationSummary && (
               <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{locationSummary}</p>
             )}

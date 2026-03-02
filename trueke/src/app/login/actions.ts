@@ -125,7 +125,7 @@ export async function logout(): Promise<{ error?: string }> {
     cookieStore.delete('session_token')
     cookieStore.delete('user_id')
 
-    // Audit log (optional - only if we had a user)
+    // Audit log (only if we had a user to log out)
     if (userId) {
       const headersList = await headers()
       const ipRaw = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || headersList.get('x-real-ip') || null

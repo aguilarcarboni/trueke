@@ -12,7 +12,6 @@ import { Messages } from "@/components/sections/messages"
 import { Favorites } from "@/components/sections/favorites"
 import { Profile } from "@/components/sections/profile"
 import { ViewSwitcher } from "@/components/view-switcher"
-import { UserMenu } from "@/components/user-menu"
 import type { Item } from "@/lib/data"
 
 interface UserPageClientProps {
@@ -72,22 +71,20 @@ export function UserPageClient({ user }: UserPageClientProps) {
     <div className="flex min-h-screen bg-background">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <AppSidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
+        <AppSidebar
+          activeSection={activeSection}
+          onSectionChange={handleSectionChange}
+          user={user}
+        />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 lg:ml-64">
-        {/* Mobile: header with menu, bell, user menu */}
-        <MobileHeader 
-          activeSection={activeSection} 
+        <MobileHeader
+          activeSection={activeSection}
           onSectionChange={handleSectionChange}
           user={user}
         />
-        {/* Desktop: header with user menu (MobileHeader is hidden via lg:hidden) */}
-        <header className="hidden lg:flex sticky top-0 z-40 items-center justify-between border-b border-border bg-card px-4 py-3">
-          <span className="font-semibold">Trueke</span>
-          <UserMenu user={user} />
-        </header>
         <main className="p-4 lg:p-8">
           {renderSection()}
         </main>

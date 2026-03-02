@@ -1,7 +1,7 @@
 import { getCurrentUser } from '@/utils/supabase/auth'
 import { redirect } from 'next/navigation'
 import { AdminSidebar } from "@/components/admin-sidebar"
-import { AdminHeader } from "@/components/admin-header"
+import { AdminMobileHeader } from "@/components/admin-mobile-header"
 import { Admin } from "@/components/sections/admin"
 import { ViewSwitcher } from "@/components/view-switcher"
 
@@ -23,12 +23,12 @@ export default async function AdminPage() {
     <div className="flex min-h-screen bg-background">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <AdminSidebar />
+        <AdminSidebar user={user} />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 lg:ml-64">
-        <AdminHeader user={user} />
+        <AdminMobileHeader user={user} />
         <main className="p-4 lg:p-8">
           <Admin />
         </main>

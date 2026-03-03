@@ -94,11 +94,56 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   }
 }
 
+// Validation patterns (mirrors client-side rules)
+const LETTERS_ONLY    = /^[a-zA-Z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff\s'\-]+$/
+const ALPHANUMERIC    = /^[a-zA-Z0-9]+$/
+const LOCATION_TEXT   = /^[a-zA-Z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff\s'\-\.]+$/
+const ZIPCODE_PATTERN = /^[a-zA-Z0-9\s\-]+$/
+const ADDRESS_LINE    = /^[a-zA-Z0-9\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff\s'\-\.,#\/]+$/
+
+function validateProfileData(data: UpdateProfileData): string | null {
+  const { firstName, lastName, username, address } = data
+
+  if (!firstName.trim()) return "First name is required."
+  if (!LETTERS_ONLY.test(firstName.trim())) return "First name may only contain letters or '-'."
+  if (firstName.trim().length > 50) return "First name must be 50 characters or fewer."
+
+  if (!lastName.trim()) return "Last name is required."
+  if (!LETTERS_ONLY.test(lastName.trim())) return "Last name may only contain letters or '-'."
+  if (lastName.trim().length > 50) return "Last name must be 50 characters or fewer."
+
+  if (!username.trim()) return "Username is required."
+  if (!ALPHANUMERIC.test(username.trim())) return "Username may only contain letters and numbers."
+
+  const hasAnyAddressField = Object.values(address).some((v) => v.trim() !== "")
+  if (hasAnyAddressField) {
+    if (!address.countryCode.trim()) return "Country is required."
+    if (!address.city.trim()) return "City is required."
+    if (!LOCATION_TEXT.test(address.city.trim())) return "City may only contain letters."
+    if (address.city.trim().length > 75) return "City must be 75 characters or fewer."
+    if (!address.province.trim()) return "Province is required."
+    if (!LOCATION_TEXT.test(address.province.trim())) return "Province may only contain letters."
+    if (address.province.trim().length > 75) return "Province must be 75 characters or fewer."
+    if (address.muniDistrict.trim() && !LOCATION_TEXT.test(address.muniDistrict.trim())) return "Municipality may only contain letters."
+    if (address.muniDistrict.trim().length > 100) return "Municipality must be 100 characters or fewer."
+    if (!address.zipCode.trim()) return "Zip code is required."
+    if (!ZIPCODE_PATTERN.test(address.zipCode.trim())) return "Zip code may only contain letters, numbers and hyphens."
+    if (address.zipCode.trim().length > 10) return "Zip code must be 10 characters or fewer."
+    if (address.addressLine1.trim() && !ADDRESS_LINE.test(address.addressLine1.trim())) return "Address line 1 contains invalid characters."
+    if (address.addressLine2.trim() && !ADDRESS_LINE.test(address.addressLine2.trim())) return "Address line 2 contains invalid characters."
+  }
+
+  return null
+}
+
 // Updates the user's profile information, including their address. Handles creating/updating address records as needed.
 export async function updateUserProfile(
   userId: string,
   data: UpdateProfileData
 ): Promise<{ error: string | null }> {
+  const validationError = validateProfileData(data)
+  if (validationError) return { error: validationError }
+
   const supabase = await createClient()
 
   // Update user table fields

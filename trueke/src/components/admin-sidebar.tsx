@@ -116,8 +116,8 @@ export function AdminSidebar({ activeSection = "admin", onSectionChange, profile
       {/* Admin User Info */}
       <div className="border-t border-sidebar-border px-4 py-4 space-y-2">
         <button
-          onClick={() => onSectionChange?.("profile")}
-          className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 transition-colors text-left ${activeSection === "profile" ? "bg-sidebar-primary text-sidebar-primary-foreground" : "hover:bg-sidebar-accent"}`}
+          onClick={() => onSectionChange?.("admin-profile")}
+          className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 transition-colors text-left ${activeSection === "admin-profile" ? "bg-sidebar-primary text-sidebar-primary-foreground" : "hover:bg-sidebar-accent"}`}
         >
           <Avatar className="h-8 w-8">
             <AvatarImage src={profile?.profilePictureUrl || undefined} alt={displayName} />

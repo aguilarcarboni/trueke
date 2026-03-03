@@ -4,7 +4,7 @@ import { useState } from "react"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { AdminMobileHeader } from "@/components/admin-mobile-header"
 import { Admin } from "@/components/sections/admin"
-import { Profile } from "@/components/sections/profile"
+import { AdminProfile } from "@/components/sections/admin-profile"
 import { ViewSwitcher } from "@/components/view-switcher"
 import type { UserProfile } from "@/utils/supabase/tables/profile"
 
@@ -23,8 +23,8 @@ export function AdminPageClient({ user, profile }: AdminPageClientProps) {
 
   const renderSection = () => {
     switch (activeSection) {
-      case "profile":
-        return <Profile profile={profile} />
+      case "admin-profile":
+        return <AdminProfile profile={profile} />
       default:
         return <Admin />
     }

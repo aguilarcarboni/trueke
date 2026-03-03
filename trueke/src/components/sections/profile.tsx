@@ -73,7 +73,6 @@ export function Profile({ profile }: ProfileProps) {
               )}
             </div>
             
-
             {/* Static 5-star rating for now */} 
             <div className="flex items-center justify-center gap-1">
               {[1, 2, 3, 4, 5].map((s) => (

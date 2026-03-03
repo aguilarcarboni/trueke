@@ -22,9 +22,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { COUNTRIES } from "@/lib/data"
 import { updateProfileAction } from "@/app/user/actions"
 import type { UserProfile } from "@/utils/supabase/tables/profile"
+import { Country, State, City } from "country-state-city"
 
 // Validation patterns
 const LETTERS_ONLY      = /^[a-zA-ZÀ-ÖØ-öø-ÿ\s'\-]+$/
@@ -43,24 +43,16 @@ const EMPTY_ADDRESS = {
   zipCode: "",
 }
 
-/**
- * mode="user"  — full edit: avatar, name, username, bio, address
- * mode="admin" — restricted: first name and last name only
- */
-export type EditProfileMode = "user" | "admin"
-
 interface EditProfileDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   profile: UserProfile | null
-  mode?: EditProfileMode
 }
 
 export function EditProfileDialog({
   open,
   onOpenChange,
   profile,
-  mode = "user",
 }: EditProfileDialogProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -82,11 +74,14 @@ export function EditProfileDialog({
   })
 
   const [form, setForm] = useState(buildForm)
+  // stateCode is UI-only (drives city dropdown); not persisted
+  const [stateCode, setStateCode] = useState<string>("")
 
   // Re-sync when dialog opens
   const handleOpenChange = (next: boolean) => {
     if (next) {
       setForm(buildForm())
+      setStateCode("")
       setError(null)
       setFieldErrors({})
     }
@@ -116,21 +111,19 @@ export function EditProfileDialog({
     if (!form.lastName.trim()) errors.lastName = "Last name is required."
     else if (!LETTERS_ONLY.test(form.lastName.trim())) errors.lastName = "Last name may only contain letters."
 
-    if (mode === "user") {
-      if (!form.username.trim()) errors.username = "Username is required."
-      else if (!ALPHANUMERIC_ONLY.test(form.username.trim())) errors.username = "Username may only contain letters and numbers."
+    if (!form.username.trim()) errors.username = "Username is required."
+    else if (!ALPHANUMERIC_ONLY.test(form.username.trim())) errors.username = "Username may only contain letters and numbers."
 
-      const hasAnyAddressField = Object.values(form.address).some((v) => v?.trim() !== "")
-      if (hasAnyAddressField) {
-        if (!form.address.countryCode.trim()) errors.countryCode = "Country is required."
-        if (!form.address.city.trim()) errors.city = "City is required."
-        else if (!LOCATION_TEXT.test(form.address.city.trim())) errors.city = "City may only contain letters."
-        if (!form.address.province.trim()) errors.province = "Province is required."
-        else if (!LOCATION_TEXT.test(form.address.province.trim())) errors.province = "Province may only contain letters."
-        if (form.address.muniDistrict.trim() && !LOCATION_TEXT.test(form.address.muniDistrict.trim())) errors.muniDistrict = "Municipality may only contain letters."
-        if (!form.address.zipCode.trim()) errors.zipCode = "Zip code is required."
-        else if (!ZIPCODE_PATTERN.test(form.address.zipCode.trim())) errors.zipCode = "Zip code may only contain letters, numbers and hyphens."
-      }
+    const hasAnyAddressField = Object.values(form.address).some((v) => v?.trim() !== "")
+    if (hasAnyAddressField) {
+      if (!form.address.countryCode.trim()) errors.countryCode = "Country is required."
+      if (!form.address.city.trim()) errors.city = "City is required."
+      else if (!LOCATION_TEXT.test(form.address.city.trim())) errors.city = "City may only contain letters."
+      if (!form.address.province.trim()) errors.province = "Province is required."
+      else if (!LOCATION_TEXT.test(form.address.province.trim())) errors.province = "Province may only contain letters."
+      if (form.address.muniDistrict.trim() && !LOCATION_TEXT.test(form.address.muniDistrict.trim())) errors.muniDistrict = "Municipality may only contain letters."
+      if (!form.address.zipCode.trim()) errors.zipCode = "Zip code is required."
+      else if (!ZIPCODE_PATTERN.test(form.address.zipCode.trim())) errors.zipCode = "Zip code may only contain letters, numbers and hyphens."
     }
 
     if (Object.keys(errors).length > 0) {
@@ -167,25 +160,23 @@ export function EditProfileDialog({
               Fields marked with <span className="text-destructive font-semibold">*</span> are required.
             </p>
 
-            {/* ── Avatar (user only) ── */}
-            {mode === "user" && (
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16 shrink-0">
-                  <AvatarImage src={form.profilePictureUrl} alt={displayName} />
-                  <AvatarFallback className="text-lg">{initials}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 space-y-1">
-                  <Label htmlFor="avatarUrl" className="text-xs">Profile picture URL</Label>
-                  <Input
-                    id="avatarUrl"
-                    value={form.profilePictureUrl}
-                    onChange={(e) => setForm({ ...form, profilePictureUrl: e.target.value })}
-                    placeholder="https://..."
-                    className="h-8 text-sm"
-                  />
-                </div>
+            {/* ── Avatar ── */}
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16 shrink-0">
+                <AvatarImage src={form.profilePictureUrl} alt={displayName} />
+                <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-1">
+                <Label htmlFor="avatarUrl" className="text-xs">Profile picture URL</Label>
+                <Input
+                  id="avatarUrl"
+                  value={form.profilePictureUrl}
+                  onChange={(e) => setForm({ ...form, profilePictureUrl: e.target.value })}
+                  placeholder="https://..."
+                  className="h-8 text-sm"
+                />
               </div>
-            )}
+            </div>
 
             {/* ── Name ── */}
             <div className="grid grid-cols-2 gap-3">
@@ -229,9 +220,8 @@ export function EditProfileDialog({
               </div>
             </div>
 
-            {/* ── Username / Bio / Location (user only) ── */}
-            {mode === "user" && (
-              <>
+            {/* ── Username / Bio / Location ── */}
+            <>
                 {/* Username */}
                 <div className="space-y-1">
                   <Label htmlFor="username" className="text-xs">
@@ -272,7 +262,7 @@ export function EditProfileDialog({
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Location</p>
 
-                  {/* Country */}
+                  {/* Country — fixed to Costa Rica for v1 */}
                   <div className="space-y-1">
                     <Label className="text-xs">
                       Country <span className="text-destructive">*</span>
@@ -280,65 +270,130 @@ export function EditProfileDialog({
                     <Select
                       value={form.address.countryCode}
                       onValueChange={(val) => {
-                        setForm({ ...form, address: { ...form.address, countryCode: val } })
+                        setForm({ ...form, address: { ...form.address, countryCode: val, province: "", city: "" } })
+                        setStateCode("")
                         if (fieldErrors.countryCode) clearFieldError("countryCode")
+                        if (fieldErrors.province) clearFieldError("province")
+                        if (fieldErrors.city) clearFieldError("city")
                       }}
                     >
                       <SelectTrigger className={`h-8 text-sm w-full${fieldErrors.countryCode ? " border-destructive" : ""}`}>
                         <SelectValue placeholder="Select country" />
                       </SelectTrigger>
                       <SelectContent>
-                        {COUNTRIES.map(({ code, name }) => (
-                          <SelectItem key={code} value={code}>
-                            {name} ({code})
-                          </SelectItem>
-                        ))}
+                        {Country.getAllCountries()
+                          .filter((c) => c.isoCode === "CR") // Remove filter to show all countries in the dropdown 
+                          .map((c) => (
+                            <SelectItem key={c.isoCode} value={c.isoCode}>
+                              {c.name} ({c.isoCode})
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                     {fieldErrors.countryCode && <p className="text-xs text-destructive">{fieldErrors.countryCode}</p>}
                   </div>
 
-                  {/* City / Province */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label htmlFor="city" className="text-xs">
-                        City <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="city"
-                        value={form.address.city}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          if (val.length > 75) { triggerShake("city"); return }
-                          if (val !== "" && !LOCATION_TEXT.test(val)) { triggerShake("city"); return }
-                          setForm({ ...form, address: { ...form.address, city: val } })
-                          if (fieldErrors.city) clearFieldError("city")
-                        }}
-                        placeholder="San José"
-                        className={inputCls("city")}
-                      />
-                      {fieldErrors.city && <p className="text-xs text-destructive">{fieldErrors.city}</p>}
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="province" className="text-xs">
-                        Province / State <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="province"
-                        value={form.address.province}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          if (val.length > 75) { triggerShake("province"); return }
-                          if (val !== "" && !LOCATION_TEXT.test(val)) { triggerShake("province"); return }
-                          setForm({ ...form, address: { ...form.address, province: val } })
-                          if (fieldErrors.province) clearFieldError("province")
-                        }}
-                        placeholder="San José"
-                        className={inputCls("province")}
-                      />
-                      {fieldErrors.province && <p className="text-xs text-destructive">{fieldErrors.province}</p>}
-                    </div>
-                  </div>
+
+                  {/* Province / State — dropdown if states exist, otherwise free text */}
+                  {(() => {
+                    const states = form.address.countryCode
+                      ? State.getStatesOfCountry(form.address.countryCode)
+                      : []
+                    return (
+                      <div className="space-y-1">
+                        <Label className="text-xs">
+                          Province / State <span className="text-destructive">*</span>
+                        </Label>
+                        {states.length > 0 ? (
+                          <Select
+                            value={stateCode}
+                            onValueChange={(val) => {
+                              const state = states.find((s) => s.isoCode === val)
+                              setStateCode(val)
+                              setForm({ ...form, address: { ...form.address, province: state?.name ?? val, city: "" } })
+                              if (fieldErrors.province) clearFieldError("province")
+                              if (fieldErrors.city) clearFieldError("city")
+                            }}
+                          >
+                            <SelectTrigger className={`h-8 text-sm w-full${fieldErrors.province ? " border-destructive" : ""}`}>
+                              <SelectValue placeholder="Select state / province" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {states.map((s) => (
+                                <SelectItem key={s.isoCode} value={s.isoCode}>
+                                  {s.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            value={form.address.province}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              if (val.length > 75) { triggerShake("province"); return }
+                              if (val !== "" && !LOCATION_TEXT.test(val)) { triggerShake("province"); return }
+                              setForm({ ...form, address: { ...form.address, province: val } })
+                              if (fieldErrors.province) clearFieldError("province")
+                            }}
+                            placeholder="Province / State"
+                            className={inputCls("province")}
+                          />
+                        )}
+                        {fieldErrors.province && <p className="text-xs text-destructive">{fieldErrors.province}</p>}
+                      </div>
+                    )
+                  })()}
+
+                  {/* City — dropdown if cities exist for the selected state, otherwise free text */}
+                  {(() => {
+                    const cities = stateCode
+                      ? City.getCitiesOfState(form.address.countryCode, stateCode)
+                      : form.address.countryCode && !State.getStatesOfCountry(form.address.countryCode).length
+                        ? City.getCitiesOfCountry(form.address.countryCode) ?? []
+                        : []
+                    return (
+                      <div className="space-y-1">
+                        <Label className="text-xs">
+                          City <span className="text-destructive">*</span>
+                        </Label>
+                        {cities.length > 0 ? (
+                          <Select
+                            value={form.address.city}
+                            onValueChange={(val) => {
+                              setForm({ ...form, address: { ...form.address, city: val } })
+                              if (fieldErrors.city) clearFieldError("city")
+                            }}
+                          >
+                            <SelectTrigger className={`h-8 text-sm w-full${fieldErrors.city ? " border-destructive" : ""}`}>
+                              <SelectValue placeholder="Select city" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {cities.map((c) => (
+                                <SelectItem key={`${c.name}-${c.stateCode}`} value={c.name}>
+                                  {c.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            value={form.address.city}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              if (val.length > 75) { triggerShake("city"); return }
+                              if (val !== "" && !LOCATION_TEXT.test(val)) { triggerShake("city"); return }
+                              setForm({ ...form, address: { ...form.address, city: val } })
+                              if (fieldErrors.city) clearFieldError("city")
+                            }}
+                            placeholder="City"
+                            className={inputCls("city")}
+                          />
+                        )}
+                        {fieldErrors.city && <p className="text-xs text-destructive">{fieldErrors.city}</p>}
+                      </div>
+                    )
+                  })()}
 
                   {/* Municipality / Zip */}
                   <div className="grid grid-cols-2 gap-3">
@@ -410,8 +465,7 @@ export function EditProfileDialog({
                     />
                   </div>
                 </div>
-              </>
-            )}
+            </>
 
             {error && <p className="text-xs text-destructive">{error}</p>}
           </div>

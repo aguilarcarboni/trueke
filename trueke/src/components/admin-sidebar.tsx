@@ -15,16 +15,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { logout } from "@/app/login/actions"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import type { UserProfile } from "@/utils/supabase/tables/profile"
 
 interface AdminSidebarProps {
   activeSection?: string
   onSectionChange?: (section: string) => void
-  user: {
-    id: string
-    email?: string
-    name?: string
-    avatar?: string
-  }
+  profile: UserProfile | null
 }
 
 const adminNavItems = [
@@ -35,9 +31,24 @@ const adminNavItems = [
   { id: "admin-settings", label: "Settings", icon: Settings },
 ]
 
-export function AdminSidebar({ activeSection = "admin", onSectionChange, user }: AdminSidebarProps) {
+export function AdminSidebar({ activeSection = "admin", onSectionChange, profile }: AdminSidebarProps) {
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  const displayName = profile
+    ? `${profile.firstName} ${profile.lastName}`.trim() || profile.username
+    : "Admin"
+  const initials = displayName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "A"
+  const locationSummary = profile?.address
+    ? [profile.address.city, profile.address.province, profile.address.countryCode]
+        .filter(Boolean)
+        .join(", ")
+    : ""
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -55,10 +66,6 @@ export function AdminSidebar({ activeSection = "admin", onSectionChange, user }:
       setIsLoggingOut(false)
     }
   }
-
-  const initials = user.name
-    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
-    : user.email?.charAt(0).toUpperCase() || "A"
 
   return (
     <aside className="fixed left-0 top-0 z-30 flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
@@ -108,19 +115,22 @@ export function AdminSidebar({ activeSection = "admin", onSectionChange, user }:
 
       {/* Admin User Info */}
       <div className="border-t border-sidebar-border px-4 py-4 space-y-2">
-        <div className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-sidebar-accent">
+        <button
+          onClick={() => onSectionChange?.("admin-profile")}
+          className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 transition-colors text-left ${activeSection === "admin-profile" ? "bg-sidebar-primary text-sidebar-primary-foreground" : "hover:bg-sidebar-accent"}`}
+        >
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatar} alt={user.name || user.email} />
-            <AvatarFallback>{initials}</AvatarFallback>
+            <AvatarImage src={profile?.profilePictureUrl || undefined} alt={displayName} />
+            <AvatarFallback className="text-xs text-muted-foreground">{initials}</AvatarFallback>
           </Avatar>
-          <div className="flex-1 text-left">
-            <div className="flex items-center gap-1.5">
-              <p className="text-sm font-medium leading-none">{user.name || "Admin"}</p>
-              <Shield className="h-3 w-3 text-primary" />
-            </div>
-            <p className="text-xs text-sidebar-foreground/50 mt-0.5">Administrator</p>
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-sm font-medium leading-none truncate">{displayName || profile?.username}</p>
+            <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{profile?.email}</p>
+            {locationSummary && (
+              <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{locationSummary}</p>
+            )}
           </div>
-        </div>
+        </button>
         <button
           onClick={handleLogout}
           disabled={isLoggingOut}

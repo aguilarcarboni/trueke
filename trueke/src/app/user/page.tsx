@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@/utils/supabase/auth'
+import { getUserProfile } from '@/utils/supabase/tables/profile'
 import { redirect } from 'next/navigation'
 import { UserPageClient } from '@/app/user/user-page-client'
 
@@ -15,7 +16,9 @@ export default async function UserPage() {
   if (user.isAdmin) {
     redirect('/admin')
   }
+
+  // Fetch full profile data (includes location from address table)
+  const profile = await getUserProfile(user.id)
   
-  // Pass user data to client component
-  return <UserPageClient user={user} />
+  return <UserPageClient user={user} profile={profile} />
 }

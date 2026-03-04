@@ -13,6 +13,7 @@ import { Favorites } from "@/components/sections/favorites"
 import { Profile } from "@/components/sections/profile"
 import { ViewSwitcher } from "@/components/view-switcher"
 import type { Item } from "@/lib/data"
+import type { UserProfile } from "@/utils/supabase/tables/profile"
 
 interface UserPageClientProps {
   user: {
@@ -21,9 +22,10 @@ interface UserPageClientProps {
     name?: string
     avatar?: string
   }
+  profile: UserProfile | null
 }
 
-export function UserPageClient({ user }: UserPageClientProps) {
+export function UserPageClient({ user, profile }: UserPageClientProps) {
   const [activeSection, setActiveSection] = useState("dashboard")
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
 
@@ -61,7 +63,7 @@ export function UserPageClient({ user }: UserPageClientProps) {
       case "favorites":
         return <Favorites />
       case "profile":
-        return <Profile />
+        return <Profile profile={profile} />
       default:
         return <Dashboard onNavigate={handleSectionChange} />
     }
@@ -71,11 +73,7 @@ export function UserPageClient({ user }: UserPageClientProps) {
     <div className="flex min-h-screen bg-background">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <AppSidebar
-          activeSection={activeSection}
-          onSectionChange={handleSectionChange}
-          user={user}
-        />
+        <AppSidebar activeSection={activeSection} onSectionChange={handleSectionChange} profile={profile} />
       </div>
 
       {/* Main Content */}

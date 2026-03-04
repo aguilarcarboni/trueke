@@ -10,11 +10,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { items } from "@/lib/data"
-import type { Item, ItemState, ItemType } from "@/lib/data"
+import type { Item, ItemType } from "@/lib/data"
+import { getCurrentUserItems } from "@/utils/supabase/item"
 
 interface MyItemsProps {
   onSelectItem?: (item: Item) => void
   onCreateItem?: () => void
+}
+
+const userItems = await getCurrentUserItems()
+
+if(!userItems) {
+  console.error("No items to display!")
 }
 
 const conditionLabel: Record<string, string> = {
@@ -27,22 +34,23 @@ const conditionLabel: Record<string, string> = {
 
 const stateColors: Record<string, string> = {
   active: "bg-success/20 text-success",
-  inactive: "bg-muted/20 text-muted-foreground",
+  draft: "bg-muted/20 text-muted-foreground",
   traded: "bg-accent/20 text-accent-foreground",
-  pending: "bg-warning/20 text-warning-foreground",
+  contested: "bg-warning/20 text-warning-foreground",
 }
 
 const itemTypes = ["physical", "digital", "service"]
-const itemStates: ItemState[] = ["draft", "active", "contested", "archived"]
+const itemStates: string[] = ["draft", "active", "traded"]
 
 export function MyItems({ onSelectItem, onCreateItem }: MyItemsProps) {
+
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editFormData, setEditFormData] = useState({
     title: "",
     type: "physical" as ItemType,
-    state: "active" as ItemState,
+    state: "active" as string,
     imagePreview: "",
   })
 
@@ -302,7 +310,7 @@ export function MyItems({ onSelectItem, onCreateItem }: MyItemsProps) {
               {/* Item State */}
               <div className="space-y-2">
                 <Label htmlFor="item-state">State</Label>
-                <Select value={editFormData.state} onValueChange={(value) => handleEditFormChange("state", value as ItemState)}>
+                <Select value={editFormData.state} onValueChange={(value) => handleEditFormChange("state", value as string)}>
                   <SelectTrigger id="item-state">
                     <SelectValue />
                   </SelectTrigger>

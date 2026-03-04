@@ -11,6 +11,7 @@ import { Auctions } from "@/components/sections/auctions"
 import { Messages } from "@/components/sections/messages"
 import { Favorites } from "@/components/sections/favorites"
 import { Profile } from "@/components/sections/profile"
+import { MyItems } from "@/components/sections/my-items"
 import { ViewSwitcher } from "@/components/view-switcher"
 import type { Item } from "@/lib/data"
 
@@ -62,6 +63,8 @@ export function UserPageClient({ user }: UserPageClientProps) {
         return <Favorites />
       case "profile":
         return <Profile />
+      case "my-items":
+        return <MyItems />
       default:
         return <Dashboard onNavigate={handleSectionChange} />
     }

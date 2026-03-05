@@ -26,7 +26,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { items, exchanges, COUNTRIES } from "@/lib/data"
+import { items, exchanges } from "@/lib/data"
 import { updateProfileAction } from "@/app/user/actions"
 import { EditProfileDialog } from "@/components/edit-profile-dialog"
 import type { UserProfile } from "@/utils/supabase/tables/profile"

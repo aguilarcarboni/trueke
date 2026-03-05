@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { MobileHeader } from "@/components/mobile-header"
 import { Dashboard } from "@/components/sections/dashboard"
@@ -12,7 +12,7 @@ import { Messages } from "@/components/sections/messages"
 import { Favorites } from "@/components/sections/favorites"
 import { Profile } from "@/components/sections/profile"
 import { ViewSwitcher } from "@/components/view-switcher"
-import type { Item } from "@/lib/data"
+import type { Item } from "@/lib/types"
 import type { UserProfile } from "@/utils/supabase/tables/profile"
 
 interface UserPageClientProps {
@@ -28,6 +28,16 @@ interface UserPageClientProps {
 export function UserPageClient({ user, profile }: UserPageClientProps) {
   const [activeSection, setActiveSection] = useState("dashboard")
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
+
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  if (!isMounted) {
+    return null
+  }
 
   const handleSectionChange = (section: string) => {
     setActiveSection(section)
@@ -46,7 +56,7 @@ export function UserPageClient({ user, profile }: UserPageClientProps) {
 
   const renderSection = () => {
     if (activeSection === "item-detail" && selectedItem) {
-      return <ItemDetail item={selectedItem} onBack={handleBackToMarketplace} />
+      return <ItemDetail item={selectedItem} onBack={handleBackToMarketplace} currentUserId={user.id} />
     }
 
     switch (activeSection) {
@@ -55,7 +65,7 @@ export function UserPageClient({ user, profile }: UserPageClientProps) {
       case "marketplace":
         return <Marketplace onSelectItem={handleSelectItem} />
       case "exchanges":
-        return <Exchanges />
+        return <Exchanges currentUserId={user.id} />
       case "auctions":
         return <Auctions />
       case "messages":
@@ -81,7 +91,7 @@ export function UserPageClient({ user, profile }: UserPageClientProps) {
         <MobileHeader
           activeSection={activeSection}
           onSectionChange={handleSectionChange}
-          user={user}
+          profile={profile}
         />
         <main className="p-4 lg:p-8">
           {renderSection()}

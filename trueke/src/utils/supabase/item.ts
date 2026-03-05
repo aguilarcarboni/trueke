@@ -34,3 +34,28 @@ export async function getCurrentUserItems() {
     return null
   }
 }
+
+export async function getCurrentItemImage(itemId: string) {
+  try {
+
+    // Create Supabase client
+    const supabase = await createClient()
+
+    // Query items owned by user, excluding deleted items
+    const { data: items, error } = await supabase
+      .from('item_media')
+      .select('*')
+      .eq('item_id', itemId)
+      .order('display_order', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching item images:', error)
+      return null
+    }
+
+    return items
+  } catch (error) {
+    console.error('Get current item images error:', error)
+    return null
+  }
+}

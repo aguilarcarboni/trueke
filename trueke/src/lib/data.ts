@@ -21,10 +21,10 @@ export interface Item {
   id: string
   title: string
   description: string
-  condition: string
+  condition: ItemCondition
   category: string
-  type: string
-  state: string
+  type: ItemType
+  state: ItemState
   images: string[]
   owner: User
   createdAt: string
@@ -169,7 +169,7 @@ export const items: Item[] = [
     id: "i1",
     title: "Vintage Canon AE-1 Camera",
     description: "Classic 35mm film camera in excellent working condition. Includes 50mm f/1.8 lens and leather carrying case.",
-    condition: "good",
+    condition: "used",
     category: "Electronics",
     type: "physical",
     state: "active",
@@ -221,7 +221,7 @@ export const items: Item[] = [
     id: "i5",
     title: "Vinyl Record Collection - Jazz Classics",
     description: "Set of 12 classic jazz vinyl records including Miles Davis, John Coltrane, and Thelonious Monk.",
-    condition: "good",
+    condition: "like-new",
     category: "Music",
     type: "physical",
     state: "active",
@@ -236,7 +236,7 @@ export const items: Item[] = [
     description: "Professional logo design with 3 concepts and unlimited revisions. Delivered in all standard formats.",
     condition: "like-new",
     category: "Services",
-    type: "service",
+    type: "physical",
     state: "active",
     images: ["https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400&h=300&fit=crop"],
     owner: users[2],
@@ -247,7 +247,7 @@ export const items: Item[] = [
     id: "i7",
     title: "Mountain Bike - Trek Marlin 7",
     description: "Lightweight trail bike, great for beginners and intermediate riders. Recently serviced.",
-    condition: "fair",
+    condition: "used",
     category: "Sports",
     type: "physical",
     state: "active",
@@ -260,7 +260,7 @@ export const items: Item[] = [
     id: "i8",
     title: "Espresso Machine - Breville Barista",
     description: "Semi-automatic espresso machine with built-in grinder. Makes cafe-quality espresso at home.",
-    condition: "good",
+    condition: "used",
     category: "Home",
     type: "physical",
     state: "active",

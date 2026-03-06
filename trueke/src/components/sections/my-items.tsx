@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Item } from "@/lib/data"
+import { Item, ItemCondition, ItemType, ItemState, User } from "@/lib/data"
 import { Plus, Trash2, Edit, Eye, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -57,10 +57,10 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
   const [updateMessage, setUpdateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [editFormData, setEditFormData] = useState({
     title: "",
-    type: "physical",
-    state: "draft",
+    type: "physical" as ItemType,
+    state: "draft" as ItemState,
     category: "",
-    condition: "new" as 'new' | 'like new' | 'used' | 'heavily used' | 'broken',
+    condition: "new" as ItemCondition,
     description: "",
     imagePreviews: [] as string[],
   })
@@ -88,7 +88,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
       type: item.type,
       state: item.state,
       category: item.category,
-      condition: item.condition as 'new' | 'like new' | 'used' | 'heavily used' | 'broken',
+      condition: item.condition,
       description: item.description || "",
       imagePreviews: item.images || [],
     })
@@ -156,6 +156,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                   category: editFormData.category,
                   condition: editFormData.condition,
                   description: editFormData.description,
+                  images: editFormData.imagePreviews,
                 }
               : item
           )

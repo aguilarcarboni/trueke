@@ -71,21 +71,23 @@ export interface CancelExchangeRequest {
 }
 
 // ============================================
-// Item Types
+// Item Types - Re-exported from item-constants.ts
 // ============================================
 
-export type ItemCondition = "like-new" | "good" | "fair" | "worn" | "bad"
-export type ItemType = "physical" | "digital" | "service"
-export type ItemState = "draft" | "active" | "contested" | "archived"
+// Re-export types from the centralized constants file
+export type { ItemCondition, ItemType, ItemStatus } from './item-constants'
+
+// Legacy alias for backward compatibility
+export type ItemState = import('./item-constants').ItemStatus
 
 export interface Item {
     item_id: string
     title: string
     description: string
-    condition: ItemCondition
+    condition: import('./item-constants').ItemCondition
     category: string
-    type: ItemType
-    state: ItemState
+    item_type: import('./item-constants').ItemType
+    status: import('./item-constants').ItemStatus
     images: string[]
     owner_user_id: string
     owner_name: string
@@ -94,6 +96,7 @@ export interface Item {
     owner_rating?: number
     owner_totalTrades?: number
     owner_joinedDate?: string
-    created_at: string
+    last_date_uploaded: string
+    date_bought?: string
     metadata?: Record<string, string>
 }

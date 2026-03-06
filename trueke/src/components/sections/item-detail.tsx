@@ -8,30 +8,16 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { TradeProposalDialog } from "@/components/trade-proposal-dialog"
+import { getConditionLabel, getConditionStyle, getStatusLabel } from "@/lib/item-constants"
 import type { Item } from "@/lib/types"
 
+// Temporary placeholder image for items without photos SHOULD BE REPLACED WITH A PROPER ASSET
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%23e5e7eb" viewBox="0 0 200 200"%3E%3Crect width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" dy=".3em" text-anchor="middle" fill="%236b7280" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E'
 
 interface ItemDetailProps {
   item: Item
   onBack: () => void
   currentUserId: string
-}
-
-const conditionLabel: Record<string, string> = {
-  "like-new": "Like New",
-  good: "Good",
-  fair: "Fair",
-  worn: "Worn",
-  bad: "Bad",
-}
-
-const conditionColor: Record<string, string> = {
-  "like-new": "bg-success text-success-foreground",
-  good: "bg-primary text-primary-foreground",
-  fair: "bg-warning text-warning-foreground",
-  worn: "bg-accent text-accent-foreground",
-  bad: "bg-destructive text-primary-foreground",
 }
 
 export function ItemDetail({ item, onBack, currentUserId }: ItemDetailProps) {
@@ -84,13 +70,13 @@ export function ItemDetail({ item, onBack, currentUserId }: ItemDetailProps) {
                   <h1 className="text-2xl font-bold text-card-foreground">{item.title}</h1>
                   <div className="flex flex-wrap items-center gap-2 mt-2">
                     <Badge variant="secondary">{item.category}</Badge>
-                    <Badge variant="outline" className="capitalize">{item.type}</Badge>
-                    <Badge className={conditionColor[item.condition]}>
-                      {conditionLabel[item.condition]}
+                    <Badge variant="outline" className="capitalize">{item.item_type}</Badge>
+                    <Badge className={getConditionStyle(item.condition)}>
+                      {getConditionLabel(item.condition)}
                     </Badge>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-sm capitalize">{item.state}</Badge>
+                <Badge variant="outline" className="text-sm capitalize">{getStatusLabel(item.status)}</Badge>
               </div>
 
               <Separator />
@@ -202,7 +188,7 @@ export function ItemDetail({ item, onBack, currentUserId }: ItemDetailProps) {
           <Card>
             <CardContent className="pt-6">
               <p className="text-xs text-muted-foreground">
-                Listed on {new Date(item.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                Listed on {new Date(item.last_date_uploaded).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
               </p>
             </CardContent>
           </Card>

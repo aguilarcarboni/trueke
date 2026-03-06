@@ -8,18 +8,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { categories } from "@/lib/data"
+import { ITEM_CONDITIONS, ITEM_CONDITION_LABELS } from "@/lib/item-constants"
 import { useState } from "react"
 
 interface CreateItemProps {
   onBack: () => void
-}
-
-const conditionLabel: Record<string, string> = {
-  "like-new": "Like New",
-  good: "Good",
-  fair: "Fair",
-  worn: "Worn",
-  bad: "Bad",
 }
 
 export function CreateItem({ onBack }: CreateItemProps) {
@@ -27,7 +20,7 @@ export function CreateItem({ onBack }: CreateItemProps) {
     title: "",
     description: "",
     category: "Electronics",
-    condition: "like-new",
+    condition: "like new",
     images: [] as string[],
   })
 
@@ -91,9 +84,9 @@ export function CreateItem({ onBack }: CreateItemProps) {
                     <SelectValue placeholder="Select condition" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(conditionLabel).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
+                    {ITEM_CONDITIONS.map((condition) => (
+                      <SelectItem key={condition} value={condition}>
+                        {ITEM_CONDITION_LABELS[condition]}
                       </SelectItem>
                     ))}
                   </SelectContent>

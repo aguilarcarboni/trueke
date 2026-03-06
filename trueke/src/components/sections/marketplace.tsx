@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { getMarketplaceItems } from "@/app/actions/exchange-actions"
+import { getConditionLabel } from "@/lib/item-constants"
 import type { Item } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 
@@ -17,14 +18,6 @@ const PLACEHOLDER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/20
 
 interface MarketplaceProps {
   onSelectItem: (item: Item) => void
-}
-
-const conditionLabel: Record<string, string> = {
-  "like-new": "Like New",
-  good: "Good",
-  fair: "Fair",
-  worn: "Worn",
-  bad: "Bad",
 }
 
 // Get unique categories from items
@@ -176,7 +169,7 @@ export function Marketplace({ onSelectItem }: MarketplaceProps) {
                   </div>
                   <div className="absolute top-2 right-2">
                     <Badge variant="outline" className="bg-card/90 text-card-foreground backdrop-blur-sm capitalize text-xs border-0">
-                      {item.type}
+                      {item.item_type}
                     </Badge>
                   </div>
                 </div>
@@ -192,7 +185,7 @@ export function Marketplace({ onSelectItem }: MarketplaceProps) {
                       <span className="text-xs text-muted-foreground">{item.owner_name}</span>
                     </div>
                     <Badge variant="secondary" className="text-xs capitalize">
-                      {conditionLabel[item.condition]}
+                      {getConditionLabel(item.condition)}
                     </Badge>
                   </div>
                 </div>
@@ -224,8 +217,8 @@ export function Marketplace({ onSelectItem }: MarketplaceProps) {
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold text-card-foreground">{item.title}</h3>
                       <div className="flex gap-1.5 shrink-0">
-                        <Badge variant="secondary" className="capitalize text-xs">{item.type}</Badge>
-                        <Badge variant="outline" className="capitalize text-xs">{conditionLabel[item.condition]}</Badge>
+                        <Badge variant="secondary" className="capitalize text-xs">{item.item_type}</Badge>
+                        <Badge variant="outline" className="capitalize text-xs">{getConditionLabel(item.condition)}</Badge>
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{item.description}</p>

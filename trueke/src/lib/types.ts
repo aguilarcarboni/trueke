@@ -21,6 +21,7 @@ export type {
     ItemCondition,
     ItemType,
     ItemState,
+    ItemStatus,
 } from './exchangeTypes'
 
 // ============================================

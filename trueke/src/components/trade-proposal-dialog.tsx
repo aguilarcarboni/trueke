@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { createExchangeProposal, getMyItems } from "@/app/actions/exchange-actions"
 import { useToast } from "@/hooks/use-toast"
+import { getConditionLabel, getConditionBadgeStyle } from "@/lib/item-constants"
 import type { CreateExchangeRequest } from "@/lib/types"
 
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%23e5e7eb" viewBox="0 0 200 200"%3E%3Crect width="200" height="200"/%3E%3Ctext x="50%" y="50%" dy=".3em" text-anchor="middle" fill="%236b7280" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E'
@@ -48,14 +49,6 @@ interface TradeProposalDialogProps {
   onBack?: () => void
 }
 
-const conditionColor: Record<string, string> = {
-  "like-new": "bg-success/10 text-success border-success/20",
-  good: "bg-primary/10 text-primary border-primary/20",
-  fair: "bg-warning/10 text-warning border-warning/20",
-  worn: "bg-accent/10 text-accent-foreground border-accent/20",
-  bad: "bg-destructive/10 text-destructive border-destructive/20",
-}
-
 // Helper component for item hover preview
 function ItemPreview({ item }: { item: Item }) {
   return (
@@ -73,14 +66,8 @@ function ItemPreview({ item }: { item: Item }) {
         <div className="flex flex-col gap-1">
           <p className="text-xs text-muted-foreground">{item.category}</p>
           <div className="flex gap-2 flex-wrap">
-            <Badge className={`text-xs border ${
-              item.condition === 'like-new' ? 'bg-success/10 text-success border-success/20' :
-              item.condition === 'good' ? 'bg-primary/10 text-primary border-primary/20' :
-              item.condition === 'fair' ? 'bg-warning/10 text-warning border-warning/20' :
-              item.condition === 'worn' ? 'bg-accent/10 text-accent-foreground border-accent/20' :
-              'bg-destructive/10 text-destructive border-destructive/20'
-            }`}>
-              {item.condition}
+            <Badge className={`text-xs border ${getConditionBadgeStyle(item.condition)}`}>
+              {getConditionLabel(item.condition)}
             </Badge>
           </div>
         </div>
@@ -394,8 +381,8 @@ export function TradeProposalDialog({
                               <Badge variant="secondary" className="text-xs">
                                 {item.category}
                               </Badge>
-                              <Badge className={`text-xs border ${conditionColor[item.condition]}`}>
-                                {item.condition}
+                              <Badge className={`text-xs border ${getConditionBadgeStyle(item.condition)}`}>
+                                {getConditionLabel(item.condition)}
                               </Badge>
                             </div>
                           </div>

@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { items, exchanges } from "@/lib/data"
 import { EditProfileDialog } from "@/components/edit-profile-dialog"
+import { getConditionLabel, getStatusLabel } from "@/lib/item-constants"
 import type { UserProfile } from "@/utils/supabase/tables/profile"
 
 interface ProfileProps {
@@ -164,10 +165,10 @@ export function Profile({ profile }: ProfileProps) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {item.category} &middot; {item.condition}
+                        {item.category} &middot; {getConditionLabel(item.condition)}
                       </p>
                     </div>
-                    <Badge variant="outline" className="capitalize text-xs">{item.state}</Badge>
+                    <Badge variant="outline" className="capitalize text-xs">{getStatusLabel(item.state)}</Badge>
                   </div>
                 ))}
               </div>

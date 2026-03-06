@@ -1,8 +1,8 @@
 // Static mock data for Trueke marketplace
 
-export type ItemCondition = "like-new" | "good" | "fair" | "worn" | "bad"
-export type ItemType = "physical" | "digital" | "service"
-export type ItemState = "draft" | "active" | "contested" | "archived"
+export type ItemCondition = "new" | "like-new" | "used" | "heavily used" | "broken"
+export type ItemType = "physical" | "digital" 
+export type ItemState = "draft" | "active" | "contested" | "traded" | "deleted"
 export type OfferState = "open" | "accepted" | "rejected" | "expired" | "cancelled"
 
 export interface User {
@@ -21,14 +21,21 @@ export interface Item {
   id: string
   title: string
   description: string
-  condition: ItemCondition
+  condition: string
   category: string
-  type: ItemType
-  state: ItemState
+  type: string
+  state: string
   images: string[]
   owner: User
   createdAt: string
   metadata?: Record<string, string>
+}
+
+export interface ItemImage {
+  url: string
+  media_type: string
+  display_order: number
+  item: Item
 }
 
 export interface Exchange {

@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@/utils/supabase/auth'
+import { getCurrentUserItems } from '@/utils/supabase/item'
 import { redirect } from 'next/navigation'
 import { UserPageClient } from '@/app/user/user-page-client'
 
@@ -16,6 +17,9 @@ export default async function UserPage() {
     redirect('/admin')
   }
   
-  // Pass user data to client component
-  return <UserPageClient user={user} />
+  // Fetch user items from database
+  const userItems = await getCurrentUserItems()
+  
+  // Pass user data and items to client component
+  return <UserPageClient user={user} userItems={userItems} />
 }

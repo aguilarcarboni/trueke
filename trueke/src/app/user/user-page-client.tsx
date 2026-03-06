@@ -22,9 +22,10 @@ interface UserPageClientProps {
     name?: string
     avatar?: string
   }
+  userItems: any[] | null
 }
 
-export function UserPageClient({ user }: UserPageClientProps) {
+export function UserPageClient({ user, userItems }: UserPageClientProps) {
   const [activeSection, setActiveSection] = useState("dashboard")
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
 
@@ -64,7 +65,7 @@ export function UserPageClient({ user }: UserPageClientProps) {
       case "profile":
         return <Profile />
       case "my-items":
-        return <MyItems />
+        return <MyItems userItems={userItems} />
       default:
         return <Dashboard onNavigate={handleSectionChange} />
     }

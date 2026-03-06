@@ -1,7 +1,72 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
+import { Item, ItemImage, User } from '@/lib/data'
 
-export async function getCurrentUserItems() {
+
+function mapDatabaseItemToItem(dbItem: any, owner?: User): Item {
+  return {
+    id: dbItem.item_id,
+    title: dbItem.title,
+    description: dbItem.description || "",
+    condition: dbItem.condition,
+    category: dbItem.category,
+    type: dbItem.item_type,
+    state: dbItem.status,
+    images: dbItem.item_media?.map((media: any) => media.url) || [],
+    owner: owner || {
+      id: dbItem.owner_user_id,
+      name: "Unknown User",
+      avatar: "",
+      location: "",
+      rating: 0,
+      bio: "",
+      joinedDate: "",
+      totalTrades: 0,
+    },
+    createdAt: dbItem.last_date_uploaded || new Date().toISOString(),
+  }
+}
+
+
+function mapDatabaseMediaToItemImage(dbMedia: any, item?: Item): ItemImage {
+  return {
+    url: dbMedia.url,
+    media_type: dbMedia.media_type,
+    display_order: dbMedia.display_order,
+    item: item || ({} as Item),
+  }
+}
+
+/**
+ * Fetch images for multiple items by their IDs
+ * Used internally by getCurrentUserItems to avoid N+1 queries
+ */
+async function getCurrentItemImages(itemIds: string[]) {
+  try {
+    // Create Supabase client
+    const supabase = await createClient()
+
+    // Fetch all images for the given item IDs
+    const { data: allImages, error } = await supabase
+      .from('item_media')
+      .select('item_id, url, media_type, display_order')
+      .in('item_id', itemIds)
+      .order('item_id', { ascending: true })
+      .order('display_order', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching item images:', error)
+      return null
+    }
+
+    return allImages
+  } catch (error) {
+    console.error('Get current item images error:', error)
+    return null
+  }
+}
+
+export async function getCurrentUserItems(): Promise<Item[] | null> {
   try {
     // Get session from cookies
     const cookieStore = await cookies()
@@ -41,19 +106,8 @@ export async function getCurrentUserItems() {
     const itemIds = items.map((item: any) => item.item_id)
     console.log('Item IDs:', itemIds)
 
-    // Fetch all images for these items
-    const { data: allImages, error: imagesError } = await supabase
-      .from('item_media')
-      .select('item_id, url, media_type, display_order')
-      .in('item_id', itemIds)
-      .order('item_id', { ascending: true })
-      .order('display_order', { ascending: true })
-
-    if (imagesError) {
-      console.error('Error fetching item images:', imagesError)
-      // Return items without images if image fetch fails
-      return items.map((item: any) => ({ ...item, item_media: [] }))
-    }
+    // Fetch all images for these items using the helper function
+    const allImages = await getCurrentItemImages(itemIds)
 
     console.log('Fetched images:', allImages?.length ?? 0)
 
@@ -83,34 +137,14 @@ export async function getCurrentUserItems() {
 
     console.log('Items with images attached:', itemsWithImages.length)
 
-    return itemsWithImages
+    // Map database items to Item interface
+    const mappedItems: Item[] = itemsWithImages.map((dbItem: any) =>
+      mapDatabaseItemToItem(dbItem)
+    )
+
+    return mappedItems
   } catch (error) {
     console.error('Get current user items error:', error)
-    return null
-  }
-}
-
-export async function getCurrentItemImage(itemId: string) {
-  try {
-
-    // Create Supabase client
-    const supabase = await createClient()
-
-    // Query items owned by user, excluding deleted items
-    const { data: items, error } = await supabase
-      .from('item_media')
-      .select('*')
-      .eq('item_id', itemId)
-      .order('display_order', { ascending: true })
-
-    if (error) {
-      console.error('Error fetching item images:', error)
-      return null
-    }
-
-    return items
-  } catch (error) {
-    console.error('Get current item images error:', error)
     return null
   }
 }

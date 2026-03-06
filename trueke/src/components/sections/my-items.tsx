@@ -12,6 +12,15 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { updateItem } from "@/app/items/actions"
 
+const dummyImages = [
+  "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400&h=300&fit=crop",
+  "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=300&fit=crop",
+  "https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?w=400&h=300&fit=crop",
+  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=300&fit=crop",
+  "https://images.unsplash.com/photo-1539375665275-f9de415ef9ac?w=400&h=300&fit=crop",
+  "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400&h=300&fit=crop",
+]
+
 interface MyItemsProps {
   userItems: Item[] | null
   onSelectItem?: (item: Item) => void
@@ -42,6 +51,8 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
   const [myItems, setMyItems] = useState<Item[]>(userItems || [])
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [viewingItem, setViewingItem] = useState<Item | null>(null)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [updateMessage, setUpdateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [editFormData, setEditFormData] = useState({
@@ -51,7 +62,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
     category: "",
     condition: "new" as 'new' | 'like new' | 'used' | 'heavily used' | 'broken',
     description: "",
-    imagePreview: "",
+    imagePreviews: [] as string[],
   })
 
   // Sync myItems when userItems prop changes
@@ -65,9 +76,13 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
     console.log("Deleting item:", itemId)
   }
 
+  const handleViewClick = (item: Item) => {
+    setViewingItem(item)
+    setIsViewDialogOpen(true)
+  }
+
   const handleEditClick = (item: Item) => {
     setEditingItem(item)
-    const firstImage = item.images && item.images.length > 0 ? item.images[0] : ""
     setEditFormData({
       title: item.title,
       type: item.type,
@@ -75,7 +90,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
       category: item.category,
       condition: item.condition as 'new' | 'like new' | 'used' | 'heavily used' | 'broken',
       description: item.description || "",
-      imagePreview: firstImage,
+      imagePreviews: item.images || [],
     })
     setIsEditDialogOpen(true)
   }
@@ -88,17 +103,26 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
+    const files = e.target.files
+    if (!files) return
+    
+    Array.from(files).forEach((file) => {
       const reader = new FileReader()
       reader.onloadend = () => {
         setEditFormData((prev) => ({
           ...prev,
-          imagePreview: reader.result as string,
+          imagePreviews: [...prev.imagePreviews, reader.result as string],
         }))
       }
       reader.readAsDataURL(file)
-    }
+    })
+  }
+
+  const handleRemoveImage = (index: number) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      imagePreviews: prev.imagePreviews.filter((_, i) => i !== index),
+    }))
   }
 
   const handleSaveEdit = async () => {
@@ -209,7 +233,9 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
       ) : (
         <div className={viewMode === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3" : "space-y-3"}>
           {myItems.map((item) => {
-            const firstImage = item.images && item.images.length > 0 ? item.images[0] : "/placeholder-image.png"
+            // const firstImage = item.images && item.images.length > 0 ? item.images[0] : "/placeholder-image.png"
+            // const mockImages = ["/api/placeholder/400/300", "/api/placeholder/400/301", "/api/placeholder/400/302"]
+            // const firstImage = mockImages[Math.floor(Math.random() * mockImages.length)]
             return (
             <Card key={item.id}>
               <CardContent className="p-0">
@@ -217,10 +243,16 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                   <div className="flex flex-col">
                     {/* Image */}
                     <div className="relative w-full overflow-hidden rounded-t-lg bg-muted h-40">
-                      <img src={firstImage} alt={item.title} className="h-full w-full object-cover" />
-                      <Badge className={`absolute top-2 right-2 ${statusColors[item.state] || ""}`}>
-                        {item.state.charAt(0).toUpperCase() + item.state.slice(1)}
-                      </Badge>
+                      {/* <img src={firstImage} alt={item.title} className="h-full w-full object-cover" /> */}
+                    <img src={dummyImages[0]} alt={item.title} className="h-full w-full object-cover" />
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        {item.images && item.images.length > 1 && (
+                          <Badge variant="secondary" className="text-xs">{item.images.length} images</Badge>
+                        )}
+                        <Badge className={statusColors[item.state] || ""}>
+                          {item.state.charAt(0).toUpperCase() + item.state.slice(1)}
+                        </Badge>
+                      </div>
                     </div>
                     {/* Content */}
                     <div className="flex-1 p-4">
@@ -235,7 +267,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                       </Badge>
                       <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{item.description || "No description"}</p>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="flex-1 gap-1">
+                        <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => handleViewClick(item)}>
                           <Eye className="h-3.5 w-3.5" />
                           View
                         </Button>
@@ -261,7 +293,8 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                   </div>
                 ) : (
                   <div className="flex items-center gap-4 p-4">
-                    <img src={firstImage} alt={item.title} className="h-16 w-16 rounded object-cover flex-shrink-0" />
+                    {/* <img src={firstImage} alt={item.title} className="h-16 w-16 rounded object-cover flex-shrink-0" /> */}
+                    <img src={dummyImages[0]} alt={item.title} className="h-16 w-16 rounded object-cover flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-foreground truncate">{item.title}</h3>
@@ -275,7 +308,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                       <p className="text-sm text-muted-foreground line-clamp-1">{item.description || "No description"}</p>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
-                      <Button size="icon" variant="ghost" className="h-8 w-8">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleViewClick(item)}>
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEditClick(item)}>
@@ -294,6 +327,114 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
         </div>
       )}
 
+      {/* View Item Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Item Details</DialogTitle>
+          </DialogHeader>
+
+          {viewingItem && (
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Item Image */}
+              {/* {viewingItem.images && viewingItem.images.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Image</Label>
+                  <div className="w-full h-48 rounded-lg bg-muted overflow-hidden">
+                    <img src={viewingItem.images[0]} alt={viewingItem.title} className="w-full h-full object-cover" />
+                  </div>
+                </div>
+              )} */}
+              <div className="space-y-2">
+                <Label>Image</Label>
+                <div className="w-full h-48 rounded-lg bg-muted overflow-hidden">
+                  <img src={dummyImages[0]} alt={viewingItem.title} className="w-full h-full object-cover" />
+                </div>
+              </div>
+
+              {/* Title */}
+              <div className="space-y-1">
+                <Label className="text-muted-foreground">Title</Label>
+                <p className="text-foreground font-medium">{viewingItem.title}</p>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1">
+                <Label className="text-muted-foreground">Description</Label>
+                <p className="text-foreground text-sm whitespace-pre-wrap">{viewingItem.description || "No description"}</p>
+              </div>
+
+              {/* Category */}
+              <div className="space-y-1">
+                <Label className="text-muted-foreground">Category</Label>
+                <p className="text-foreground">{viewingItem.category}</p>
+              </div>
+
+              {/* Type */}
+              <div className="space-y-1">
+                <Label className="text-muted-foreground">Type</Label>
+                <p className="text-foreground capitalize">{viewingItem.type}</p>
+              </div>
+
+              {/* Condition */}
+              <div className="space-y-1">
+                <Label className="text-muted-foreground">Condition</Label>
+                <div>
+                  <Badge variant="secondary">{conditionLabel[viewingItem.condition]}</Badge>
+                </div>
+              </div>
+
+              {/* State/Status */}
+              <div className="space-y-1">
+                <Label className="text-muted-foreground">Status</Label>
+                <div>
+                  <Badge className={statusColors[viewingItem.state] || ""}>
+                    {viewingItem.state.charAt(0).toUpperCase() + viewingItem.state.slice(1)}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Created Date */}
+              <div className="space-y-1">
+                <Label className="text-muted-foreground">Created</Label>
+                <p className="text-foreground text-sm">{new Date(viewingItem.createdAt).toLocaleDateString()}</p>
+              </div>
+
+
+              {/* Additional Images */}
+              {/* {viewingItem.images && viewingItem.images.length > 1 && (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">All Images</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {viewingItem.images.map((url, index) => (
+                      <div key={index} className="w-full h-20 rounded-lg bg-muted overflow-hidden">
+                        <img src={url} alt={`Image ${index + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )} */}
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">All Images ({viewingItem.images?.length || 0})</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {dummyImages.slice(0, viewingItem.images?.length || 0).map((url, index) => (
+                    <div key={index} className="w-full h-20 rounded-lg bg-muted overflow-hidden">
+                      <img src={url} alt={`Image ${index + 1}`} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Item Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -305,27 +446,57 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
             <div className="space-y-4">
               {/* Image Preview and Upload */}
               <div className="space-y-2">
-                <Label>Item Image</Label>
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-24 h-24 rounded-lg bg-muted overflow-hidden">
-                    {editFormData.imagePreview && (
-                      <img src={editFormData.imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                    )}
+                <Label>Item Images</Label>
+                <div className="space-y-3">
+                  {/* Image Previews Grid */}
+                  {/* {editFormData.imagePreviews.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {editFormData.imagePreviews.map((preview, index) => (
+                        <div key={index} className="relative group">
+                          <div className="w-full h-20 rounded-lg bg-muted overflow-hidden">
+                            <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(index)}
+                            className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
+                          >
+                            <X className="h-5 w-5 text-white" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )} */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {dummyImages.slice(0, editFormData.imagePreviews.length).map((url, index) => (
+                      <div key={index} className="relative group">
+                        <div className="w-full h-20 rounded-lg bg-muted overflow-hidden">
+                          <img src={url} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
+                        >
+                          <X className="h-5 w-5 text-white" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex-1">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      id="image-upload"
-                    />
-                    <Label htmlFor="image-upload" className="cursor-pointer">
-                      <Button variant="outline" type="button" asChild>
-                        <span>Change Image</span>
-                      </Button>
-                    </Label>
-                  </div>
+                  {/* Upload Input */}
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="image-upload"
+                  />
+                  <Label htmlFor="image-upload" className="cursor-pointer">
+                    <Button variant="outline" type="button" asChild>
+                      <span>Add Images</span>
+                    </Button>
+                  </Label>
                 </div>
               </div>
 

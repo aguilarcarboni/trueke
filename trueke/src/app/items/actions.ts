@@ -4,23 +4,109 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { Item } from '@/lib/data'
 
+
+export async function createItem(
+  payload: {
+    title: string
+    description: string
+    category: string
+    type: 'physical' | 'digital'
+    condition: 'new' | 'like new' | 'used' | 'heavily used' | 'broken'
+    imageUrls?: string[]
+  }
+) {
+  try {
+    const cookieStore = await cookies()
+    const userId = cookieStore.get('user_id')
+
+    if (!userId) {
+      return { status: 403, error: 'Unauthorized: Not authenticated' }
+    }
+
+    const errors: Record<string, string> = {}
+    
+    if (!payload.title?.trim()) {
+      errors.title = 'Title is required'
+    }
+    
+    if (!payload.description?.trim()) {
+      errors.description = 'Description is required'
+    }
+    
+    if (!payload.imageUrls || payload.imageUrls.length === 0) {
+      errors.images = 'At least one image is required'
+    }
+
+    if (!payload.category?.trim()) {
+      errors.category = 'Category is required'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return { status: 400, error: 'Validation failed', details: errors }
+    }
+
+    const supabase = await createClient()
+
+    const { data: createdItem, error: createError } = await supabase
+      .from('item')
+      .insert([
+        {
+          owner_user_id: userId.value,
+          title: payload.title.trim(),
+          description: payload.description.trim(),
+          category: payload.category.trim(),
+          item_type: payload.type,
+          condition: payload.condition,
+          status: 'draft', 
+          last_date_uploaded: new Date().toISOString(), 
+        }
+      ])
+      .select()
+      .single()
+
+    if (createError || !createdItem) {
+      console.error('Error creating item:', createError)
+      return { status: 500, error: 'Failed to create item' }
+    }
+
+    if (payload.imageUrls && payload.imageUrls.length > 0) {
+      const mediaInserts = payload.imageUrls.map((url, index) => ({
+        item_id: createdItem.item_id,
+        url: url,
+        media_type: '.jpg', 
+        display_order: index + 1
+      }))
+
+      const { error: mediaError } = await supabase
+        .from('item_media')
+        .insert(mediaInserts)
+
+      if (mediaError) {
+        console.error('Error inserting item media:', mediaError)
+        return { status: 201, data: { id: createdItem.item_id, itemId: createdItem.item_id } }
+      }
+    }
+
+    return { status: 201, data: { id: createdItem.item_id, itemId: createdItem.item_id } }
+  } catch (error) {
+    console.error('Create item error:', error)
+    return { status: 500, error: 'An error occurred while creating the item' }
+  }
+}
+
 export async function updateItem(
   itemId: string,
   updates: Partial<Omit<Item, 'id' | 'owner' | 'createdAt' | 'images'>>
 ) {
   try {
-    // Get session from cookies to verify user is authenticated
     const cookieStore = await cookies()
     const userId = cookieStore.get('user_id')
 
     if (!userId) {
       return { error: 'Not authenticated' }
     }
-
-    // Create Supabase client
     const supabase = await createClient()
 
-    // First, verify that the user owns this item
     const { data: item, error: fetchError } = await supabase
       .from('item')
       .select('owner_user_id')
@@ -35,7 +121,6 @@ export async function updateItem(
       return { error: 'Unauthorized: You do not own this item' }
     }
 
-    // Update only the provided fields, mapping Item interface to database schema
     const updateData: any = {}
     
     if (updates.title !== undefined) updateData.title = updates.title
@@ -46,7 +131,6 @@ export async function updateItem(
     if (updates.description !== undefined) updateData.description = updates.description
     if (updates.metadata !== undefined) updateData.metadata = updates.metadata
 
-    // Perform the update
     const { data, error } = await supabase
       .from('item')
       .update(updateData)

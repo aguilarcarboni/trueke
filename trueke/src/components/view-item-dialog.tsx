@@ -114,6 +114,34 @@ export function ViewItemDialog({ open, onOpenChange, item }: ViewItemDialogProps
               <p className="text-foreground text-sm">{new Date(item.createdAt).toLocaleDateString()}</p>
             </div>
 
+            {/* Location */}
+            {item.address && (
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Location</Label>
+                <div className="text-foreground text-sm space-y-1">
+                  {item.address.addressLine1 && (
+                    <p>{item.address.addressLine1}</p>
+                  )}
+                  {item.address.addressLine2 && (
+                    <p>{item.address.addressLine2}</p>
+                  )}
+                  <p>
+                    {[
+                      item.address.muniDistrict,
+                      item.address.city,
+                      item.address.province,
+                    ].filter(Boolean).join(", ")}
+                  </p>
+                  <p>
+                    {[
+                      item.address.zipCode,
+                      item.address.countryCode,
+                    ].filter(Boolean).join(" ")}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Additional Images */}
             {item.images && item.images.length > 1 && (
               <div className="space-y-2">

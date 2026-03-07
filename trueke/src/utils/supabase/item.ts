@@ -1,9 +1,9 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
-import { Item, ItemImage, User } from '@/lib/data'
+import { Item, ItemImage, ItemAddress, User } from '@/lib/data'
 
 
-function mapDatabaseItemToItem(dbItem: any, owner?: User): Item {
+function mapDatabaseItemToItem(dbItem: any, owner?: User, address?: ItemAddress | null): Item {
   return {
     id: dbItem.item_id,
     title: dbItem.title,
@@ -24,6 +24,7 @@ function mapDatabaseItemToItem(dbItem: any, owner?: User): Item {
       totalTrades: 0,
     },
     createdAt: dbItem.last_date_uploaded || new Date().toISOString(),
+    address: address ?? null,
   }
 }
 
@@ -63,6 +64,69 @@ async function getCurrentItemImages(itemIds: string[]) {
   } catch (error) {
     console.error('Get current item images error:', error)
     return null
+  }
+}
+
+/**
+ * Fetch current addresses for multiple items by their IDs
+ * Used internally by getCurrentUserItems to avoid N+1 queries
+ */
+async function getCurrentItemAddresses(itemIds: string[]) {
+  try {
+    const supabase = await createClient()
+
+    // Fetch current item_address links
+    const { data: itemAddressLinks, error: linkError } = await supabase
+      .from('item_address')
+      .select('item_id, address_id')
+      .in('item_id', itemIds)
+      .eq('is_current', true)
+
+    if (linkError || !itemAddressLinks || itemAddressLinks.length === 0) {
+      return {}
+    }
+
+    // Get unique address IDs
+    const addressIds = [...new Set(itemAddressLinks.map((link: any) => link.address_id))]
+
+    // Fetch all addresses
+    const { data: addresses, error: addrError } = await supabase
+      .from('address')
+      .select('address_id, country_code, address_line1, address_line2, muni_district, canton_city, province_state, zip_code')
+      .in('address_id', addressIds)
+
+    if (addrError || !addresses) {
+      return {}
+    }
+
+    // Create address lookup map
+    const addressMap: Record<string, any> = {}
+    addresses.forEach((addr: any) => {
+      addressMap[addr.address_id] = addr
+    })
+
+    // Map item_id to address
+    const itemAddressMap: Record<string, ItemAddress> = {}
+    itemAddressLinks.forEach((link: any) => {
+      const addr = addressMap[link.address_id]
+      if (addr) {
+        itemAddressMap[link.item_id] = {
+          addressId: addr.address_id,
+          countryCode: addr.country_code ?? "",
+          addressLine1: addr.address_line1 ?? "",
+          addressLine2: addr.address_line2 ?? "",
+          muniDistrict: addr.muni_district ?? "",
+          city: addr.canton_city ?? "",
+          province: addr.province_state ?? "",
+          zipCode: addr.zip_code ?? "",
+        }
+      }
+    })
+
+    return itemAddressMap
+  } catch (error) {
+    console.error('Get current item addresses error:', error)
+    return {}
   }
 }
 
@@ -109,7 +173,11 @@ export async function getCurrentUserItems(): Promise<Item[] | null> {
     // Fetch all images for these items using the helper function
     const allImages = await getCurrentItemImages(itemIds)
 
+    // Fetch all addresses for these items
+    const addressesByItemId = await getCurrentItemAddresses(itemIds)
+
     console.log('Fetched images:', allImages?.length ?? 0)
+    console.log('Fetched addresses:', Object.keys(addressesByItemId).length)
 
     // Map images to items by item_id
     const imagesByItemId: Record<string, any[]> = {}
@@ -139,7 +207,7 @@ export async function getCurrentUserItems(): Promise<Item[] | null> {
 
     // Map database items to Item interface
     const mappedItems: Item[] = itemsWithImages.map((dbItem: any) =>
-      mapDatabaseItemToItem(dbItem)
+      mapDatabaseItemToItem(dbItem, undefined, addressesByItemId[dbItem.item_id] ?? null)
     )
 
     return mappedItems

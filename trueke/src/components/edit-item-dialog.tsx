@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { updateItem } from "@/app/items/actions"
+import { updateItem, updateItemAddress } from "@/app/items/actions"
 import { Country, State, City } from "country-state-city"
 
 // Validation patterns for location fields
@@ -45,7 +45,7 @@ const conditionLabel: Record<string, string> = {
 }
 
 const itemTypes = ["physical", "digital"]
-const itemStatuses: string[] = ["draft", "active", "traded", "contested"]
+const itemStatuses: string[] = ["draft", "active"]
 
 interface EditItemDialogProps {
   open: boolean
@@ -82,7 +82,15 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
         condition: item.condition,
         description: item.description || "",
         imagePreviews: item.images || [],
-        address: (item as any).address ? { ...(item as any).address } : { ...EMPTY_ADDRESS },
+        address: item.address ? { 
+          countryCode: item.address.countryCode,
+          addressLine1: item.address.addressLine1,
+          addressLine2: item.address.addressLine2,
+          muniDistrict: item.address.muniDistrict,
+          city: item.address.city,
+          province: item.address.province,
+          zipCode: item.address.zipCode,
+        } : { ...EMPTY_ADDRESS },
       })
       setStateCode("")
       setFieldErrors({})
@@ -154,6 +162,7 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
     setUpdateMessage(null)
 
     try {
+      // Update item basic info
       const result = await updateItem(item.id, {
         title: editFormData.title,
         type: editFormData.type,
@@ -165,22 +174,43 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
 
       if (result.error) {
         setUpdateMessage({ type: 'error', text: result.error })
-      } else {
-        const updatedItem: Item = {
-          ...item,
-          title: editFormData.title,
-          type: editFormData.type,
-          state: editFormData.state,
-          category: editFormData.category,
-          condition: editFormData.condition,
-          description: editFormData.description,
-          images: editFormData.imagePreviews,
-        }
-        
-        onItemUpdated?.(updatedItem)
-        setUpdateMessage({ type: 'success', text: 'Item updated successfully!' })
-        onOpenChange(false)
+        return
       }
+
+      // Update item address
+      const addressResult = await updateItemAddress(item.id, {
+        countryCode: editFormData.address.countryCode,
+        addressLine1: editFormData.address.addressLine1,
+        addressLine2: editFormData.address.addressLine2,
+        muniDistrict: editFormData.address.muniDistrict,
+        city: editFormData.address.city,
+        province: editFormData.address.province,
+        zipCode: editFormData.address.zipCode,
+      })
+
+      if (addressResult.error) {
+        setUpdateMessage({ type: 'error', text: addressResult.error })
+        return
+      }
+
+      const updatedItem: Item = {
+        ...item,
+        title: editFormData.title,
+        type: editFormData.type,
+        state: editFormData.state,
+        category: editFormData.category,
+        condition: editFormData.condition,
+        description: editFormData.description,
+        images: editFormData.imagePreviews,
+        address: {
+          addressId: item.address?.addressId ?? null,
+          ...editFormData.address,
+        },
+      }
+      
+      onItemUpdated?.(updatedItem)
+      setUpdateMessage({ type: 'success', text: 'Item updated successfully!' })
+      onOpenChange(false)
     } catch (error) {
       setUpdateMessage({ type: 'error', text: 'Failed to update item. Please try again.' })
       console.error('Error saving item:', error)

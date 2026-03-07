@@ -17,6 +17,17 @@ export interface User {
   role?: "user" | "admin"
 }
 
+export interface ItemAddress {
+  addressId: string | null
+  countryCode: string
+  addressLine1: string
+  addressLine2: string
+  muniDistrict: string
+  city: string        // canton_city
+  province: string    // province_state
+  zipCode: string
+}
+
 export interface Item {
   id: string
   title: string
@@ -29,6 +40,7 @@ export interface Item {
   owner: User
   createdAt: string
   metadata?: Record<string, string>
+  address?: ItemAddress | null
 }
 
 export interface ItemImage {

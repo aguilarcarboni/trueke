@@ -14,6 +14,7 @@ import { Profile } from "@/components/sections/profile"
 import { MyItems } from "@/components/sections/my-items"
 import { ViewSwitcher } from "@/components/view-switcher"
 import type { Item } from "@/lib/data"
+import type { UserProfile } from "@/utils/supabase/tables/profile"
 
 interface UserPageClientProps {
   user: {
@@ -22,10 +23,11 @@ interface UserPageClientProps {
     name?: string
     avatar?: string
   }
+  profile: UserProfile | null
   userItems: any[] | null
 }
 
-export function UserPageClient({ user, userItems }: UserPageClientProps) {
+export function UserPageClient({ user, profile, userItems }: UserPageClientProps) {
   const [activeSection, setActiveSection] = useState("dashboard")
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
 
@@ -63,7 +65,7 @@ export function UserPageClient({ user, userItems }: UserPageClientProps) {
       case "favorites":
         return <Favorites />
       case "profile":
-        return <Profile />
+        return <Profile profile={profile} />
       case "my-items":
         return <MyItems userItems={userItems} />
       default:
@@ -78,7 +80,7 @@ export function UserPageClient({ user, userItems }: UserPageClientProps) {
         <AppSidebar
           activeSection={activeSection}
           onSectionChange={handleSectionChange}
-          user={user}
+          profile={profile}
         />
       </div>
 

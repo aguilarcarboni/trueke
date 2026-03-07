@@ -1,8 +1,10 @@
 // Static mock data for Trueke marketplace
 
-export type ItemCondition = "like-new" | "good" | "fair" | "worn" | "bad"
-export type ItemType = "physical" | "digital" | "service"
-export type ItemState = "draft" | "active" | "contested" | "archived"
+// Import and re-export types from the centralized constants file (aligned with DB schema)
+import type { ItemCondition, ItemType, ItemStatus } from './item-constants'
+export type { ItemCondition, ItemType, ItemStatus }
+// Legacy alias for backward compatibility
+export type ItemState = ItemStatus
 export type OfferState = "open" | "accepted" | "rejected" | "expired" | "cancelled"
 
 export interface User {
@@ -24,7 +26,7 @@ export interface Item {
   condition: ItemCondition
   category: string
   type: ItemType
-  state: ItemState
+  state: ItemStatus
   images: string[]
   owner: User
   createdAt: string
@@ -162,7 +164,7 @@ export const items: Item[] = [
     id: "i1",
     title: "Vintage Canon AE-1 Camera",
     description: "Classic 35mm film camera in excellent working condition. Includes 50mm f/1.8 lens and leather carrying case.",
-    condition: "good",
+    condition: "used",
     category: "Electronics",
     type: "physical",
     state: "active",
@@ -175,7 +177,7 @@ export const items: Item[] = [
     id: "i2",
     title: "Handmade Leather Messenger Bag",
     description: "Artisan-crafted genuine leather messenger bag. Perfect for laptops up to 15 inches.",
-    condition: "like-new",
+    condition: "like new",
     category: "Fashion",
     type: "physical",
     state: "active",
@@ -188,7 +190,7 @@ export const items: Item[] = [
     id: "i3",
     title: "Mechanical Keyboard - Cherry MX Blue",
     description: "Custom-built mechanical keyboard with Cherry MX Blue switches, PBT keycaps, and RGB backlighting.",
-    condition: "like-new",
+    condition: "like new",
     category: "Electronics",
     type: "physical",
     state: "active",
@@ -201,7 +203,7 @@ export const items: Item[] = [
     id: "i4",
     title: "Web Development Course",
     description: "Complete full-stack web development course with React, Node.js, and PostgreSQL. 40+ hours of content.",
-    condition: "like-new",
+    condition: "like new",
     category: "Education",
     type: "digital",
     state: "active",
@@ -214,7 +216,7 @@ export const items: Item[] = [
     id: "i5",
     title: "Vinyl Record Collection - Jazz Classics",
     description: "Set of 12 classic jazz vinyl records including Miles Davis, John Coltrane, and Thelonious Monk.",
-    condition: "good",
+    condition: "used",
     category: "Music",
     type: "physical",
     state: "active",
@@ -227,9 +229,9 @@ export const items: Item[] = [
     id: "i6",
     title: "Logo Design Service",
     description: "Professional logo design with 3 concepts and unlimited revisions. Delivered in all standard formats.",
-    condition: "like-new",
+    condition: "new",
     category: "Services",
-    type: "service",
+    type: "digital",
     state: "active",
     images: ["https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400&h=300&fit=crop"],
     owner: users[2],
@@ -240,7 +242,7 @@ export const items: Item[] = [
     id: "i7",
     title: "Mountain Bike - Trek Marlin 7",
     description: "Lightweight trail bike, great for beginners and intermediate riders. Recently serviced.",
-    condition: "fair",
+    condition: "heavily used",
     category: "Sports",
     type: "physical",
     state: "active",
@@ -253,7 +255,7 @@ export const items: Item[] = [
     id: "i8",
     title: "Espresso Machine - Breville Barista",
     description: "Semi-automatic espresso machine with built-in grinder. Makes cafe-quality espresso at home.",
-    condition: "good",
+    condition: "used",
     category: "Home",
     type: "physical",
     state: "active",

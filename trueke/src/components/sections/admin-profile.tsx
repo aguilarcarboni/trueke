@@ -18,6 +18,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { Textarea } from "@/components/ui/textarea"
+import { getConditionLabel, getStatusLabel } from "@/lib/item-constants"
 import {
   Dialog,
   DialogContent,
@@ -26,7 +27,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { items, exchanges, COUNTRIES } from "@/lib/data"
+import { items, exchanges } from "@/lib/data"
 import { updateProfileAction } from "@/app/user/actions"
 import { EditProfileDialog } from "@/components/edit-profile-dialog"
 import type { UserProfile } from "@/utils/supabase/tables/profile"
@@ -233,10 +234,10 @@ export function AdminProfile({ profile }: ProfileProps) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {item.category} &middot; {item.condition}
+                        {item.category} &middot; {getConditionLabel(item.condition)}
                       </p>
                     </div>
-                    <Badge variant="outline" className="capitalize text-xs">{item.state}</Badge>
+                    <Badge variant="outline" className="capitalize text-xs">{getStatusLabel(item.state)}</Badge>
                   </div>
                 ))}
               </div>

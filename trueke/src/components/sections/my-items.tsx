@@ -6,26 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { items } from "@/lib/data"
+import { getConditionLabel, getStatusLabel, getStatusStyle } from "@/lib/item-constants"
 import type { Item } from "@/lib/data"
 
 interface MyItemsProps {
   onSelectItem?: (item: Item) => void
   onCreateItem?: () => void
-}
-
-const conditionLabel: Record<string, string> = {
-  "like-new": "Like New",
-  good: "Good",
-  fair: "Fair",
-  worn: "Worn",
-  bad: "Bad",
-}
-
-const stateColors: Record<string, string> = {
-  active: "bg-success/20 text-success",
-  inactive: "bg-muted/20 text-muted-foreground",
-  traded: "bg-accent/20 text-accent-foreground",
-  pending: "bg-warning/20 text-warning-foreground",
 }
 
 export function MyItems({ onSelectItem, onCreateItem }: MyItemsProps) {
@@ -100,8 +86,8 @@ export function MyItems({ onSelectItem, onCreateItem }: MyItemsProps) {
                     {/* Image */}
                     <div className="relative w-full overflow-hidden rounded-t-lg bg-muted h-40">
                       <img src={item.images[0]} alt={item.title} className="h-full w-full object-cover" />
-                      <Badge className={`absolute top-2 right-2 ${stateColors[item.state] || ""}`}>
-                        {item.state.charAt(0).toUpperCase() + item.state.slice(1)}
+                      <Badge className={`absolute top-2 right-2 ${getStatusStyle(item.state)}`}>
+                        {getStatusLabel(item.state)}
                       </Badge>
                     </div>
                     {/* Content */}
@@ -113,7 +99,7 @@ export function MyItems({ onSelectItem, onCreateItem }: MyItemsProps) {
                         </div>
                       </div>
                       <Badge variant="secondary" className="mb-3">
-                        {conditionLabel[item.condition] || item.condition}
+                        {getConditionLabel(item.condition)}
                       </Badge>
                       <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{item.description}</p>
                       <div className="flex gap-2">
@@ -142,12 +128,12 @@ export function MyItems({ onSelectItem, onCreateItem }: MyItemsProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-foreground truncate">{item.title}</h3>
-                        <Badge className={stateColors[item.state] || ""}>
-                          {item.state.charAt(0).toUpperCase() + item.state.slice(1)}
+                        <Badge className={getStatusStyle(item.state)}>
+                          {getStatusLabel(item.state)}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mb-1">
-                        {item.category} • {conditionLabel[item.condition] || item.condition}
+                        {item.category} • {getConditionLabel(item.condition)}
                       </p>
                       <p className="text-sm text-muted-foreground line-clamp-1">{item.description}</p>
                     </div>

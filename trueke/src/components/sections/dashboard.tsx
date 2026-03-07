@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { dashboardStats, notifications, items, exchanges, currentUser } from "@/lib/data"
+import { getConditionLabel, ITEM_TYPE_LABELS } from "@/lib/item-constants"
 
 interface DashboardProps {
   onNavigate: (section: string) => void
@@ -75,10 +76,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.category} &middot; {item.condition}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.category} &middot; {getConditionLabel(item.condition)}</p>
                   </div>
                   <Badge variant="secondary" className="capitalize shrink-0">
-                    {item.type}
+                    {ITEM_TYPE_LABELS[item.type as keyof typeof ITEM_TYPE_LABELS] ?? item.type}
                   </Badge>
                 </div>
               ))}

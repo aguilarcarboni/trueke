@@ -158,26 +158,19 @@ export async function getCurrentUserItems(): Promise<Item[] | null> {
       return null
     }
 
-    console.log('Fetched items:', items?.length ?? 0)
-
     // If no items, return empty array
     if (!items || items.length === 0) {
-      console.log('No items found for user')
       return []
     }
 
     // Extract all item IDs
     const itemIds = items.map((item: any) => item.item_id)
-    console.log('Item IDs:', itemIds)
 
     // Fetch all images for these items using the helper function
     const allImages = await getCurrentItemImages(itemIds)
 
     // Fetch all addresses for these items
     const addressesByItemId = await getCurrentItemAddresses(itemIds)
-
-    console.log('Fetched images:', allImages?.length ?? 0)
-    console.log('Fetched addresses:', Object.keys(addressesByItemId).length)
 
     // Map images to items by item_id
     const imagesByItemId: Record<string, any[]> = {}
@@ -195,15 +188,11 @@ export async function getCurrentUserItems(): Promise<Item[] | null> {
       })
     }
 
-    console.log('Images by Item ID:', imagesByItemId)
-
     // Attach images to each item
     const itemsWithImages = items.map((item: any) => ({
       ...item,
       item_media: imagesByItemId[item.item_id] || [],
     }))
-
-    console.log('Items with images attached:', itemsWithImages.length)
 
     // Map database items to Item interface
     const mappedItems: Item[] = itemsWithImages.map((dbItem: any) =>

@@ -131,7 +131,6 @@ export async function updateItem(
       return { error: 'Failed to update item' }
     }
 
-    console.log('Item updated successfully:', data)
     return { success: true, data }
   } catch (error) {
     console.error('Update item error:', error)

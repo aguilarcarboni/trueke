@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Placeholder component for items without images
 function ImagePlaceholder({ className = "" }: { className?: string }) {
@@ -40,13 +41,14 @@ interface ViewItemDialogProps {
 export function ViewItemDialog({ open, onOpenChange, item }: ViewItemDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="flex flex-col w-full max-w-lg max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Item Details</DialogTitle>
         </DialogHeader>
 
         {item && (
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          <ScrollArea className="flex-1 overflow-y-auto pr-4">
+            <div className="space-y-4 py-1">
             {/* Item Image */}
             <div className="space-y-2">
               <Label>Image</Label>
@@ -164,10 +166,11 @@ export function ViewItemDialog({ open, onOpenChange, item }: ViewItemDialogProps
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          </ScrollArea>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>

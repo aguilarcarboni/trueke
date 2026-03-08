@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { notifications } from "@/lib/data"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import type { UserProfile } from "@/utils/supabase/tables/profile"
 import { logout } from "@/app/login/actions"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -23,12 +24,7 @@ import { toast } from "sonner"
 interface AppSidebarProps {
   activeSection: string
   onSectionChange: (section: string) => void
-  user: {
-    id: string
-    email?: string
-    name?: string
-    avatar?: string
-  }
+  profile: UserProfile | null
 }
 
 const navItems = [
@@ -42,7 +38,21 @@ const navItems = [
   { id: "favorites", label: "Favorites", icon: Heart },
 ]
 
-export function AppSidebar({ activeSection, onSectionChange, user }: AppSidebarProps) {
+export function AppSidebar({ activeSection, onSectionChange, profile }: AppSidebarProps) {
+  const displayName = profile
+    ? `${profile.firstName} ${profile.lastName}`.trim() || profile.username
+    : "—"
+  const initials = displayName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+  const locationSummary = profile?.address
+    ? [profile.address.city, profile.address.province, profile.address.countryCode]
+        .filter(Boolean)
+        .join(", ")
+    : ""
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const unread = notifications.filter((n) => !n.read).length
@@ -63,10 +73,6 @@ export function AppSidebar({ activeSection, onSectionChange, user }: AppSidebarP
       setIsLoggingOut(false)
     }
   }
-
-  const initials = user.name
-    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
-    : user.email?.charAt(0).toUpperCase() || "U"
 
   return (
     <aside className="fixed left-0 top-0 z-30 flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
@@ -142,12 +148,15 @@ export function AppSidebar({ activeSection, onSectionChange, user }: AppSidebarP
           className="flex w-full items-center gap-3 rounded-lg transition-colors hover:bg-sidebar-accent px-2 py-1.5"
         >
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatar} alt={user.name || user.email} />
-            <AvatarFallback>{initials}</AvatarFallback>
+            <AvatarImage src={profile?.profilePictureUrl || undefined} alt={displayName} />
+            <AvatarFallback className="text-xs text-muted-foreground">{initials}</AvatarFallback>
           </Avatar>
-          <div className="flex-1 text-left">
-            <p className="text-sm font-medium leading-none">{user.name || "User"}</p>
-            <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{user.email}</p>
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-sm font-medium leading-none truncate">{displayName || profile?.username}</p>
+            <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{profile?.email}</p>
+            {locationSummary && (
+              <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{locationSummary}</p>
+            )}
           </div>
         </button>
         <button

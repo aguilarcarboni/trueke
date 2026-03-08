@@ -8,12 +8,16 @@
 -------------------------- USERS ----------------------------
 --==========================================================--
 INSERT INTO "user" (user_id, email, username, first_name, last_name, password_hash, status, end_ban_date_time, is_admin) VALUES
-    ('00000000-0000-0000-0000-000000000001', 'alice@example.com',  'alice_trader',  'Alice', 'Walker',   'hashed_pw_alice', 'active',   NULL,   FALSE),
-    ('00000000-0000-0000-0000-000000000002', 'bob@example.com',    'bob_swap',      'Bob',   'Marley',   'hashed_pw_bob',   'active',   NULL,   FALSE),
-    ('00000000-0000-0000-0000-000000000003', 'carol@example.com',  'carol_barter',  'Carol', 'Danvers',  'hashed_pw_carol', 'active',   NULL,   FALSE),
-    ('00000000-0000-0000-0000-000000000004', 'dave@example.com',   'dave_deals',    'Dave',  'Grohl',    'hashed_pw_dave',  'active',   NULL,   FALSE),
-    ('00000000-0000-0000-0000-000000000005', 'eve@example.com',    'eve_exchange',  'Eve',   'Online',   'hashed_pw_eve',   'active',   NULL,   TRUE),
-    ('00000000-0000-0000-0000-000000000006', 'frank@example.com',  'frank_bans',    'Frank', 'Castle',   'hashed_pw_frank', 'banned',   NOW() + INTERVAL '30 days',   FALSE);
+    ('00000000-0000-0000-0000-000000000001', 'alice@example.com',  'alice_trader',  'Alice', 'Walker',   '$2b$10$ZdqzXWTK36WyVuO93uIgYOREj/fdn42Pk7UDjlRIvJNMMgI3hfOA6', 'active',   NULL,   FALSE),
+    ('00000000-0000-0000-0000-000000000002', 'bob@example.com',    'bob_swap',      'Bob',   'Marley',   '$2b$10$ZdqzXWTK36WyVuO93uIgYOREj/fdn42Pk7UDjlRIvJNMMgI3hfOA6',   'active',   NULL,   FALSE),
+    ('00000000-0000-0000-0000-000000000003', 'carol@example.com',  'carol_barter',  'Carol', 'Danvers',  '$2b$10$ZdqzXWTK36WyVuO93uIgYOREj/fdn42Pk7UDjlRIvJNMMgI3hfOA6', 'active',   NULL,   FALSE),
+    ('00000000-0000-0000-0000-000000000004', 'dave@example.com',   'dave_deals',    'Dave',  'Grohl',    '$2b$10$ZdqzXWTK36WyVuO93uIgYOREj/fdn42Pk7UDjlRIvJNMMgI3hfOA6',  'active',   NULL,   FALSE),
+    ('00000000-0000-0000-0000-000000000005', 'eve@example.com',    'eve_exchange',  'Eve',   'Online',   '$2b$10$ZdqzXWTK36WyVuO93uIgYOREj/fdn42Pk7UDjlRIvJNMMgI3hfOA6',   'active',   NULL,   TRUE),
+    ('00000000-0000-0000-0000-000000000006', 'frank@example.com',  'frank_bans',    'Frank', 'Castle',   '$2b$10$ZdqzXWTK36WyVuO93uIgYOREj/fdn42Pk7UDjlRIvJNMMgI3hfOA6', 'banned',   NOW() + INTERVAL '30 days',   FALSE),
+    ('00000000-0000-0000-0000-000000000007', 'testuser@example.com',     'testuser',     'Test', 'User',     '$2b$10$ZdqzXWTK36WyVuO93uIgYOREj/fdn42Pk7UDjlRIvJNMMgI3hfOA6', 'active',   NULL, FALSE),
+    ('00000000-0000-0000-0000-000000000008', 'testbanned@example.com',   'testbanned',   'Test', 'Banned',   '$2b$10$ZdqzXWTK36WyVuO93uIgYOREj/fdn42Pk7UDjlRIvJNMMgI3hfOA6', 'banned',   NOW() + INTERVAL '7 days',  FALSE),
+    ('00000000-0000-0000-0000-000000000009', 'testadmin@example.com',    'testadmin',    'Test', 'Admin',    '$2b$10$ZdqzXWTK36WyVuO93uIgYOREj/fdn42Pk7UDjlRIvJNMMgI3hfOA6', 'active',   NULL,                          TRUE),
+    ('00000000-0000-0000-0000-000000000010', 'testinactive@example.com', 'testinactive', 'Test', 'Inactive', '$2b$10$ZdqzXWTK36WyVuO93uIgYOREj/fdn42Pk7UDjlRIvJNMMgI3hfOA6', 'inactive', NULL,                          FALSE);
 
 --==========================================================--
 ------------------------ ADDRESSES --------------------------
@@ -24,7 +28,8 @@ INSERT INTO "address" (address_id, country_code, address_line1, canton_city, pro
     ('aa000000-0000-0000-0000-000000000003', 'CR', 'Av. Central 100',   'San José',      'San José',      '10101'),
     ('aa000000-0000-0000-0000-000000000004', 'CR', 'Calle 5, No. 20',   'Heredia',       'Heredia',       '40101'),
     ('aa000000-0000-0000-0000-000000000005', 'US', '300 Lake Shore Dr', 'Chicago',       'Illinois',      '60601'),
-    ('aa000000-0000-0000-0000-000000000006', 'CR', 'Barrio Corazón',    'Cartago',       'Cartago',       '30101');
+    ('aa000000-0000-0000-0000-000000000006', 'CR', 'Barrio Corazón',    'Cartago',       'Cartago',       '30101'),
+    ('aa000000-0000-0000-0000-000000000007', 'CR', 'Condominio La Escondida', 'Pozos', 'Santa Ana', 'San José', '10903');
 
 --==========================================================--
 --------------------- USER ADDRESSES ------------------------
@@ -35,19 +40,12 @@ INSERT INTO "address" (address_id, country_code, address_line1, canton_city, pro
 -- Alice: old address (Chicago), then current (New York)
 INSERT INTO user_address (user_id, address_id, is_current, active_start_time, deactivated_time) VALUES
     ('00000000-0000-0000-0000-000000000001', 'aa000000-0000-0000-0000-000000000005', FALSE, NOW() - INTERVAL '6 months', NOW() - INTERVAL '1 month');
-INSERT INTO user_address (user_id, address_id, is_current, active_start_time) VALUES
-    ('00000000-0000-0000-0000-000000000001', 'aa000000-0000-0000-0000-000000000001', TRUE, NOW() - INTERVAL '1 month');
 
--- Bob: current (Los Angeles)
 INSERT INTO user_address (user_id, address_id, is_current, active_start_time) VALUES
-    ('00000000-0000-0000-0000-000000000002', 'aa000000-0000-0000-0000-000000000002', TRUE, NOW() - INTERVAL '3 months');
-
--- Carol: current (San José)
-INSERT INTO user_address (user_id, address_id, is_current, active_start_time) VALUES
-    ('00000000-0000-0000-0000-000000000003', 'aa000000-0000-0000-0000-000000000003', TRUE, NOW() - INTERVAL '5 months');
-
--- Dave: current (Heredia)
-INSERT INTO user_address (user_id, address_id, is_current, active_start_time) VALUES
+    ('00000000-0000-0000-0000-000000000001', 'aa000000-0000-0000-0000-000000000001', TRUE, NOW() - INTERVAL '1 month'),
+    ('00000000-0000-0000-0000-000000000007', 'aa000000-0000-0000-0000-000000000007', TRUE, NOW() - INTERVAL '1 month'),
+    ('00000000-0000-0000-0000-000000000002', 'aa000000-0000-0000-0000-000000000002', TRUE, NOW() - INTERVAL '3 months'),
+    ('00000000-0000-0000-0000-000000000003', 'aa000000-0000-0000-0000-000000000003', TRUE, NOW() - INTERVAL '5 months'),
     ('00000000-0000-0000-0000-000000000004', 'aa000000-0000-0000-0000-000000000004', TRUE, NOW() - INTERVAL '2 months');
 
 --==========================================================--

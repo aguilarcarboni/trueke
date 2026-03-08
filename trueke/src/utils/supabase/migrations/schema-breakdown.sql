@@ -1,10 +1,12 @@
 --=========================================================--
 --------------- DROP TRIGGERS & FUNCTIONS -------------------
 --=========================================================--
+DROP TRIGGER IF EXISTS trg_enforce_current_user_address_not_deactivated ON user_address;
 DROP TRIGGER IF EXISTS trg_set_previous_address_inactive_user_address ON user_address;
 DROP TRIGGER IF EXISTS trg_set_previous_address_inactive_item_address ON item_address;
 DROP TRIGGER IF EXISTS trg_update_item_last_date_uploaded ON item_media;
 
+DROP FUNCTION IF EXISTS enforce_current_user_address_not_deactivated();
 DROP FUNCTION IF EXISTS set_previous_address_inactive_user_address();
 DROP FUNCTION IF EXISTS set_previous_address_inactive_item_address();
 DROP FUNCTION IF EXISTS update_item_last_date_uploaded();

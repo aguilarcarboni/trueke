@@ -1,8 +1,10 @@
 // Static mock data for Trueke marketplace
 
-export type ItemCondition = "new" | "like-new" | "used" | "heavily used" | "broken"
-export type ItemType = "physical" | "digital" 
-export type ItemState = "draft" | "active" | "contested" | "traded" | "deleted"
+// Import and re-export types from the centralized constants file (aligned with DB schema)
+import type { ItemCondition, ItemType, ItemStatus } from './item-constants'
+export type { ItemCondition, ItemType, ItemStatus }
+// Legacy alias for backward compatibility
+export type ItemState = ItemStatus
 export type OfferState = "open" | "accepted" | "rejected" | "expired" | "cancelled"
 
 export interface User {
@@ -35,7 +37,7 @@ export interface Item {
   condition: ItemCondition
   category: string
   type: ItemType
-  state: ItemState
+  state: ItemStatus
   images: string[]
   owner: User
   createdAt: string
@@ -194,7 +196,7 @@ export const items: Item[] = [
     id: "i2",
     title: "Handmade Leather Messenger Bag",
     description: "Artisan-crafted genuine leather messenger bag. Perfect for laptops up to 15 inches.",
-    condition: "like-new",
+    condition: "like new",
     category: "Fashion",
     type: "physical",
     state: "active",
@@ -207,7 +209,7 @@ export const items: Item[] = [
     id: "i3",
     title: "Mechanical Keyboard - Cherry MX Blue",
     description: "Custom-built mechanical keyboard with Cherry MX Blue switches, PBT keycaps, and RGB backlighting.",
-    condition: "like-new",
+    condition: "like new",
     category: "Electronics",
     type: "physical",
     state: "active",
@@ -220,7 +222,7 @@ export const items: Item[] = [
     id: "i4",
     title: "Web Development Course",
     description: "Complete full-stack web development course with React, Node.js, and PostgreSQL. 40+ hours of content.",
-    condition: "like-new",
+    condition: "like new",
     category: "Education",
     type: "digital",
     state: "active",
@@ -246,7 +248,7 @@ export const items: Item[] = [
     id: "i6",
     title: "Logo Design Service",
     description: "Professional logo design with 3 concepts and unlimited revisions. Delivered in all standard formats.",
-    condition: "like-new",
+    condition: "new",
     category: "Services",
     type: "physical",
     state: "active",

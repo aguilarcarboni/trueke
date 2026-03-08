@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ViewItemDialog } from "@/components/view-item-dialog"
 import { EditItemDialog } from "@/components/edit-item-dialog"
+import { items } from "@/lib/data"
+import { getConditionLabel, getStatusLabel, getStatusStyle } from "@/lib/item-constants"
+import type { Item } from "@/lib/data"
 
 // Placeholder component for items without images
 function ImagePlaceholder({ className = "" }: { className?: string }) {

@@ -19,6 +19,17 @@ export interface User {
   role?: "user" | "admin"
 }
 
+export interface ItemAddress {
+  addressId: string | null
+  countryCode: string
+  addressLine1: string
+  addressLine2: string
+  muniDistrict: string
+  city: string        // canton_city
+  province: string    // province_state
+  zipCode: string
+}
+
 export interface Item {
   id: string
   title: string
@@ -31,6 +42,14 @@ export interface Item {
   owner: User
   createdAt: string
   metadata?: Record<string, string>
+  address?: ItemAddress | null
+}
+
+export interface ItemImage {
+  url: string
+  media_type: string
+  display_order: number
+  item: Item
 }
 
 export interface Exchange {
@@ -216,7 +235,7 @@ export const items: Item[] = [
     id: "i5",
     title: "Vinyl Record Collection - Jazz Classics",
     description: "Set of 12 classic jazz vinyl records including Miles Davis, John Coltrane, and Thelonious Monk.",
-    condition: "used",
+    condition: "like-new",
     category: "Music",
     type: "physical",
     state: "active",
@@ -231,7 +250,7 @@ export const items: Item[] = [
     description: "Professional logo design with 3 concepts and unlimited revisions. Delivered in all standard formats.",
     condition: "new",
     category: "Services",
-    type: "digital",
+    type: "physical",
     state: "active",
     images: ["https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400&h=300&fit=crop"],
     owner: users[2],
@@ -242,7 +261,7 @@ export const items: Item[] = [
     id: "i7",
     title: "Mountain Bike - Trek Marlin 7",
     description: "Lightweight trail bike, great for beginners and intermediate riders. Recently serviced.",
-    condition: "heavily used",
+    condition: "used",
     category: "Sports",
     type: "physical",
     state: "active",

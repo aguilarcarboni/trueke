@@ -235,7 +235,7 @@ export const items: Item[] = [
     id: "i5",
     title: "Vinyl Record Collection - Jazz Classics",
     description: "Set of 12 classic jazz vinyl records including Miles Davis, John Coltrane, and Thelonious Monk.",
-    condition: "like-new",
+    condition: "like new",
     category: "Music",
     type: "physical",
     state: "active",

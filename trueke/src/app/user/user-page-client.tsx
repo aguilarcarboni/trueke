@@ -13,7 +13,6 @@ import { Favorites } from "@/components/sections/favorites"
 import { Profile } from "@/components/sections/profile"
 import { MyItems } from "@/components/sections/my-items"
 import { ViewSwitcher } from "@/components/view-switcher"
-import type { Item } from "@/lib/data"
 import type { Item } from "@/lib/types"
 import type { UserProfile } from "@/utils/supabase/tables/profile"
 

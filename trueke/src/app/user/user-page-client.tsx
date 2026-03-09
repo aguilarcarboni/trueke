@@ -11,7 +11,9 @@ import { Auctions } from "@/components/sections/auctions"
 import { Messages } from "@/components/sections/messages"
 import { Favorites } from "@/components/sections/favorites"
 import { Profile } from "@/components/sections/profile"
+import { MyItems } from "@/components/sections/my-items"
 import { ViewSwitcher } from "@/components/view-switcher"
+import type { Item } from "@/lib/data"
 import type { Item } from "@/lib/types"
 import type { UserProfile } from "@/utils/supabase/tables/profile"
 
@@ -23,9 +25,10 @@ interface UserPageClientProps {
     avatar?: string
   }
   profile: UserProfile | null
+  userItems: any[] | null
 }
 
-export function UserPageClient({ user, profile }: UserPageClientProps) {
+export function UserPageClient({ user, profile, userItems }: UserPageClientProps) {
   const [activeSection, setActiveSection] = useState("dashboard")
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
 
@@ -74,6 +77,8 @@ export function UserPageClient({ user, profile }: UserPageClientProps) {
         return <Favorites />
       case "profile":
         return <Profile profile={profile} />
+      case "my-items":
+        return <MyItems userItems={userItems} />
       default:
         return <Dashboard onNavigate={handleSectionChange} />
     }

@@ -219,6 +219,7 @@ export default function LoginPage() {
                 type="button"
                 variant="link"
                 className="px-1 text-primary hover:underline"
+                onClick={() => router.push("/register")}
                 disabled={isLoading}
               >
                 Sign up

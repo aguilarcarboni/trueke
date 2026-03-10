@@ -72,7 +72,51 @@ export async function GET(_request: Request, context: RouteContext) {
       )
     }
 
-    // 4) Return payload
+    // 4) Fetch current item address (if available)
+    let address = null
+    const { data: itemAddressLink, error: itemAddressError } = await (supabase as any)
+      .from("item_address")
+      .select("address_id")
+      .eq("item_id", item.item_id)
+      .eq("is_current", true)
+      .maybeSingle()
+
+    if (itemAddressError) {
+      console.error("Item address link fetch error:", itemAddressError)
+      return NextResponse.json(
+        { error: "Failed to fetch item address" },
+        { status: 500 }
+      )
+    }
+
+    if (itemAddressLink?.address_id) {
+      const { data: addressRow, error: addressError } = await (supabase as any)
+        .from("address")
+        .select(`
+          address_id,
+          country_code,
+          address_line1,
+          address_line2,
+          muni_district,
+          canton_city,
+          province_state,
+          zip_code
+        `)
+        .eq("address_id", itemAddressLink.address_id)
+        .single()
+
+      if (addressError) {
+        console.error("Address fetch error:", addressError)
+        return NextResponse.json(
+          { error: "Failed to fetch address details" },
+          { status: 500 }
+        )
+      }
+
+      address = addressRow
+    }
+
+    // 5) Return payload
     return NextResponse.json({
       item: {
         item_id: item.item_id,
@@ -93,6 +137,7 @@ export async function GET(_request: Request, context: RouteContext) {
         last_name: owner.last_name,
         profile_picture_url: owner.profile_picture_url,
       },
+      address,
     })
   } catch (error) {
     console.error("Unexpected item detail API error:", error)

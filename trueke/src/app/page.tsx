@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { MobileHeader } from "@/components/mobile-header"
 import { Dashboard } from "@/components/sections/dashboard"
@@ -15,13 +15,34 @@ import { Favorites } from "@/components/sections/favorites"
 import { Profile } from "@/components/sections/profile"
 import { Admin } from "@/components/sections/admin"
 import type { Item } from "@/lib/data"
-import { useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
+
+const validSections = new Set([
+  "dashboard",
+  "marketplace",
+  "my-items",
+  "create-item",
+  "exchanges",
+  "auctions",
+  "messages",
+  "favorites",
+  "profile",
+  "admin",
+])
 
 export default function Home() {
-  const router = useRouter()
-  
+  const searchParams = useSearchParams()
   const [activeSection, setActiveSection] = useState("dashboard")
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
+
+  useEffect(() => {
+    const section = searchParams.get("section")
+    if (!section || !validSections.has(section)) {
+      return
+    }
+    setActiveSection(section)
+    setSelectedItem(null)
+  }, [searchParams])
 
   const handleSectionChange = (section: string) => {
     setActiveSection(section)
@@ -83,4 +104,3 @@ export default function Home() {
     </div>
   )
 }
-

@@ -40,7 +40,13 @@ export function CreateItem({ onBack }: CreateItemProps) {
     category: "Electronics",
     condition: "like new",
     itemType: "physical",
-    approxLocation: "",
+    countryCode: "CR",
+    addressLine1: "",
+    addressLine2: "",
+    muniDistrict: "",
+    cantonCity: "",
+    provinceState: "",
+    zipCode: "",
     dateBought: "",
     image: null as File | null,
   });
@@ -52,11 +58,30 @@ export function CreateItem({ onBack }: CreateItemProps) {
     e.preventDefault();
     setSubmitError("");
     setIsSubmitting(true);
+    const normalizedCountryCode = formData.countryCode.trim().toUpperCase();
+    const normalizedAddress = {
+      country_code: normalizedCountryCode,
+      address_line1: formData.addressLine1.trim(),
+      address_line2: formData.addressLine2.trim(),
+      muni_district: formData.muniDistrict.trim(),
+      canton_city: formData.cantonCity.trim(),
+      province_state: formData.provinceState.trim(),
+      zip_code: formData.zipCode.trim(),
+    };
+
+    if (normalizedCountryCode.length !== 2) {
+      setSubmitError("Country code must be exactly 2 letters (for example, CR or US).");
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
+      let createdItemId: string | null = null;
+      let createdAddressId: string | null = null;
+
       // Since auth is not integrated yet in this branch,
       // use a seeded user id temporarily.
-      const { data, error } = await supabase
+      const { data: itemData, error: itemError } = await supabase
         .from("item")
         .insert({
           owner_user_id: "f1d36273-3359-4eab-9968-bb180ce23246",
@@ -70,14 +95,68 @@ export function CreateItem({ onBack }: CreateItemProps) {
         .select("item_id")
         .single();
 
-      if (error) {
-        console.error("Insert failed:", error);
-        setSubmitError(error.message);
+      if (itemError) {
+        console.error("Item insert failed:", itemError);
+        setSubmitError(itemError.message);
         setIsSubmitting(false);
         return;
       }
 
-      router.push(`/items/${data.item_id}`);
+      createdItemId = itemData.item_id;
+
+      const { data: matchingAddressRows, error: addressLookupError } = await supabase
+        .from("address")
+        .select("address_id")
+        .match(normalizedAddress)
+        .limit(1);
+
+      if (addressLookupError) {
+        await supabase.from("item").delete().eq("item_id", createdItemId);
+        console.error("Address lookup failed:", addressLookupError);
+        setSubmitError(addressLookupError.message);
+        setIsSubmitting(false);
+        return;
+      }
+
+      let addressId = matchingAddressRows?.[0]?.address_id as string | undefined;
+
+      if (!addressId) {
+        const { data: insertedAddress, error: addressInsertError } = await supabase
+          .from("address")
+          .insert(normalizedAddress)
+          .select("address_id")
+          .single();
+
+        if (addressInsertError) {
+          await supabase.from("item").delete().eq("item_id", createdItemId);
+          console.error("Address insert failed:", addressInsertError);
+          setSubmitError(addressInsertError.message);
+          setIsSubmitting(false);
+          return;
+        }
+
+        addressId = insertedAddress.address_id;
+        createdAddressId = insertedAddress.address_id;
+      }
+
+      const { error: itemAddressError } = await supabase.from("item_address").insert({
+        item_id: createdItemId,
+        address_id: addressId,
+        is_current: true,
+      });
+
+      if (itemAddressError) {
+        await supabase.from("item").delete().eq("item_id", createdItemId);
+        if (createdAddressId) {
+          await supabase.from("address").delete().eq("address_id", createdAddressId);
+        }
+        console.error("Item address insert failed:", itemAddressError);
+        setSubmitError(itemAddressError.message);
+        setIsSubmitting(false);
+        return;
+      }
+
+      router.push(`/items/${createdItemId}?created=1`);
     } catch (err) {
       console.error("Unexpected submit error:", err);
       setSubmitError("Something went wrong while creating the item.");
@@ -209,21 +288,101 @@ export function CreateItem({ onBack }: CreateItemProps) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="approxLocation">Approx. Location *</Label>
-              <Input
-                id="approxLocation"
-                placeholder="Ex: San José, Escazú, or nearby area"
-                value={formData.approxLocation}
-                onChange={(e) =>
-                  setFormData({ ...formData, approxLocation: e.target.value })
-                }
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                This field is shown in the form now for AC coverage. Backend
-                storage can be wired once the DB is updated.
-              </p>
+            <div className="space-y-4 rounded-md border border-border p-4">
+              <Label className="text-base">Item Address *</Label>
+
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="countryCode">Country Code *</Label>
+                  <Input
+                    id="countryCode"
+                    placeholder="CR"
+                    maxLength={2}
+                    value={formData.countryCode}
+                    onChange={(e) =>
+                      setFormData({ ...formData, countryCode: e.target.value.toUpperCase() })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="zipCode">Zip Code *</Label>
+                  <Input
+                    id="zipCode"
+                    placeholder="10101"
+                    value={formData.zipCode}
+                    onChange={(e) =>
+                      setFormData({ ...formData, zipCode: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="addressLine1">Address Line 1</Label>
+                <Input
+                  id="addressLine1"
+                  placeholder="Street and number"
+                  value={formData.addressLine1}
+                  onChange={(e) =>
+                    setFormData({ ...formData, addressLine1: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="addressLine2">Address Line 2</Label>
+                <Input
+                  id="addressLine2"
+                  placeholder="Apartment, floor, etc. (optional)"
+                  value={formData.addressLine2}
+                  onChange={(e) =>
+                    setFormData({ ...formData, addressLine2: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="grid gap-6 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="muniDistrict">Municipality / District</Label>
+                  <Input
+                    id="muniDistrict"
+                    placeholder="Escazu Centro"
+                    value={formData.muniDistrict}
+                    onChange={(e) =>
+                      setFormData({ ...formData, muniDistrict: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cantonCity">Canton / City *</Label>
+                  <Input
+                    id="cantonCity"
+                    placeholder="San Jose"
+                    value={formData.cantonCity}
+                    onChange={(e) =>
+                      setFormData({ ...formData, cantonCity: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="provinceState">Province / State *</Label>
+                  <Input
+                    id="provinceState"
+                    placeholder="San Jose"
+                    value={formData.provinceState}
+                    onChange={(e) =>
+                      setFormData({ ...formData, provinceState: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

@@ -12,6 +12,7 @@ import { Messages } from "@/components/sections/messages"
 import { Favorites } from "@/components/sections/favorites"
 import { Profile } from "@/components/sections/profile"
 import { MyItems } from "@/components/sections/my-items"
+import { CreateItem } from "@/components/sections/create-item"
 import { ViewSwitcher } from "@/components/view-switcher"
 import type { Item } from "@/lib/types"
 import type { UserProfile } from "@/utils/supabase/tables/profile"
@@ -56,6 +57,11 @@ export function UserPageClient({ user, profile, userItems }: UserPageClientProps
     setActiveSection("marketplace")
   }
 
+  const handleBackToMyItems = () => {
+    setSelectedItem(null)
+    setActiveSection("my-items")
+  }
+
   const renderSection = () => {
     if (activeSection === "item-detail" && selectedItem) {
       return <ItemDetail item={selectedItem} onBack={handleBackToMarketplace} currentUserId={user.id} />
@@ -77,7 +83,9 @@ export function UserPageClient({ user, profile, userItems }: UserPageClientProps
       case "profile":
         return <Profile profile={profile} />
       case "my-items":
-        return <MyItems userItems={userItems} />
+        return <MyItems userItems={userItems} onCreateItem={() => handleSectionChange("create-item")} />
+      case "create-item":
+        return <CreateItem onBack={handleBackToMyItems} />
       default:
         return <Dashboard onNavigate={handleSectionChange} />
     }

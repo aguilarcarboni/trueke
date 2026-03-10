@@ -1,101 +1,31 @@
-'use client'
+import { getCurrentUser } from "@/utils/supabase/auth"
+import { redirect } from "next/navigation"
 
-import { useEffect, useState } from "react"
-import { AppSidebar } from "@/components/app-sidebar"
-import { MobileHeader } from "@/components/mobile-header"
-import { Dashboard } from "@/components/sections/dashboard"
-import { Marketplace } from "@/components/sections/marketplace"
-import { MyItems } from "@/components/sections/my-items"
-import { CreateItem } from "@/components/sections/create-item"
-import { ItemDetail } from "@/components/sections/item-detail"
-import { Exchanges } from "@/components/sections/exchanges"
-import { Auctions } from "@/components/sections/auctions"
-import { Messages } from "@/components/sections/messages"
-import { Favorites } from "@/components/sections/favorites"
-import { Profile } from "@/components/sections/profile"
-import { Admin } from "@/components/sections/admin"
-import type { Item } from "@/lib/data"
-import { useSearchParams } from "next/navigation"
+type SearchParams = {
+  section?: string | string[]
+}
 
-const validSections = new Set([
-  "dashboard",
-  "marketplace",
-  "my-items",
-  "create-item",
-  "exchanges",
-  "auctions",
-  "messages",
-  "favorites",
-  "profile",
-  "admin",
-])
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: SearchParams | Promise<SearchParams>
+}) {
+  const user = await getCurrentUser()
+  const params = searchParams ? await searchParams : {}
+  const rawSection = params.section
+  const section = Array.isArray(rawSection) ? rawSection[0] : rawSection
 
-export default function Home() {
-  const searchParams = useSearchParams()
-  const [activeSection, setActiveSection] = useState("dashboard")
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
-
-  useEffect(() => {
-    const section = searchParams.get("section")
-    if (!section || !validSections.has(section)) {
-      return
-    }
-    setActiveSection(section)
-    setSelectedItem(null)
-  }, [searchParams])
-
-  const handleSectionChange = (section: string) => {
-    setActiveSection(section)
-    setSelectedItem(null)
+  if (!user) {
+    redirect("/login")
   }
 
-  const handleSelectItem = (item: Item) => {
-    setSelectedItem(item)
-    setActiveSection("item-detail")
+  if (user.isAdmin) {
+    redirect("/admin")
   }
 
-  const handleBackToMyItems = () => {
-    setSelectedItem(null)
-    setActiveSection("my-items")
+  if (section) {
+    redirect(`/user?section=${encodeURIComponent(section)}`)
   }
 
-  const renderSection = () => {
-    if (activeSection === "item-detail" && selectedItem) {
-      return <ItemDetail item={selectedItem} onBack={handleBackToMyItems} />
-    }
-
-    switch (activeSection) {
-      case "dashboard":
-        return <Dashboard onNavigate={handleSectionChange} />
-      case "marketplace":
-        return <Marketplace onSelectItem={handleSelectItem} />
-      case "my-items":
-        return <MyItems onSelectItem={handleSelectItem} onCreateItem={() => handleSectionChange("create-item")} />
-      case "create-item":
-        return <CreateItem onBack={handleBackToMyItems} />
-      case "exchanges":
-        return <Exchanges />
-      case "auctions":
-        return <Auctions />
-      case "messages":
-        return <Messages />
-      case "favorites":
-        return <Favorites />
-      case "profile":
-        return <Profile />
-      case "admin":
-        return <Admin />
-      default:
-        return <Dashboard onNavigate={handleSectionChange} />
-    }
-  }
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Redirecting...</p>
-      </div>
-    </div>
-  )
+  redirect("/user")
 }

@@ -8,30 +8,19 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { TradeProposalDialog } from "@/components/trade-proposal-dialog"
-import type { Item } from "@/lib/data"
+import { getConditionLabel, getConditionStyle, getStatusLabel } from "@/lib/item-constants"
+import type { Item } from "@/lib/types"
+
+// Temporary placeholder image for items without photos SHOULD BE REPLACED WITH A PROPER ASSET
+const PLACEHOLDER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%23e5e7eb" viewBox="0 0 200 200"%3E%3Crect width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" dy=".3em" text-anchor="middle" fill="%236b7280" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E'
 
 interface ItemDetailProps {
   item: Item
   onBack: () => void
+  currentUserId: string
 }
 
-const conditionLabel: Record<string, string> = {
-  "like-new": "Like New",
-  good: "Good",
-  fair: "Fair",
-  worn: "Worn",
-  bad: "Bad",
-}
-
-const conditionColor: Record<string, string> = {
-  "like-new": "bg-success text-success-foreground",
-  good: "bg-primary text-primary-foreground",
-  fair: "bg-warning text-warning-foreground",
-  worn: "bg-accent text-accent-foreground",
-  bad: "bg-destructive text-primary-foreground",
-}
-
-export function ItemDetail({ item, onBack }: ItemDetailProps) {
+export function ItemDetail({ item, onBack, currentUserId }: ItemDetailProps) {
   const [isTradeDialogOpen, setIsTradeDialogOpen] = useState(false)
 
   return (
@@ -47,6 +36,7 @@ export function ItemDetail({ item, onBack }: ItemDetailProps) {
         open={isTradeDialogOpen}
         onOpenChange={setIsTradeDialogOpen}
         requestedItem={item}
+        currentUserId={currentUserId}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -56,7 +46,7 @@ export function ItemDetail({ item, onBack }: ItemDetailProps) {
           <Card className="overflow-hidden">
             <div className="relative aspect-[16/10]">
               <img
-                src={item.images[0]}
+                src={item.images?.[0] || PLACEHOLDER_IMAGE}
                 alt={item.title}
                 className="h-full w-full object-cover"
                 crossOrigin="anonymous"
@@ -80,13 +70,13 @@ export function ItemDetail({ item, onBack }: ItemDetailProps) {
                   <h1 className="text-2xl font-bold text-card-foreground">{item.title}</h1>
                   <div className="flex flex-wrap items-center gap-2 mt-2">
                     <Badge variant="secondary">{item.category}</Badge>
-                    <Badge variant="outline" className="capitalize">{item.type}</Badge>
-                    <Badge className={conditionColor[item.condition]}>
-                      {conditionLabel[item.condition]}
+                    <Badge variant="outline" className="capitalize">{item.item_type}</Badge>
+                    <Badge className={getConditionStyle(item.condition)}>
+                      {getConditionLabel(item.condition)}
                     </Badge>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-sm capitalize">{item.state}</Badge>
+                <Badge variant="outline" className="text-sm capitalize">{getStatusLabel(item.status)}</Badge>
               </div>
 
               <Separator />
@@ -126,15 +116,17 @@ export function ItemDetail({ item, onBack }: ItemDetailProps) {
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={item.owner.avatar} alt={item.owner.name} />
-                  <AvatarFallback>{item.owner.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={item.owner_avatar || ""} alt={item.owner_name} />
+                  <AvatarFallback>{item.owner_name?.charAt(0) || "O"}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-semibold text-card-foreground">{item.owner.name}</p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <MapPin className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">{item.owner.location}</span>
-                  </div>
+                  <p className="font-semibold text-card-foreground">{item.owner_name}</p>
+                  {item.owner_location && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <MapPin className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">{item.owner_location}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -142,18 +134,20 @@ export function ItemDetail({ item, onBack }: ItemDetailProps) {
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-1">
                     <Star className="h-4 w-4 text-warning fill-warning" />
-                    <span className="text-sm font-bold text-foreground">{item.owner.rating}</span>
+                    <span className="text-sm font-bold text-foreground">{item.owner_rating || 0}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">Rating</p>
                 </div>
                 <Separator orientation="vertical" className="h-8" />
                 <div className="text-center">
-                  <span className="text-sm font-bold text-foreground">{item.owner.totalTrades}</span>
+                  <span className="text-sm font-bold text-foreground">{item.owner_totalTrades || 0}</span>
                   <p className="text-xs text-muted-foreground mt-0.5">Trades</p>
                 </div>
                 <Separator orientation="vertical" className="h-8" />
                 <div className="text-center">
-                  <span className="text-sm font-bold text-foreground">{item.owner.joinedDate.split("-")[0]}</span>
+                  <span className="text-sm font-bold text-foreground">
+                    {item.owner_joinedDate ? new Date(item.owner_joinedDate).getFullYear() : "N/A"}
+                  </span>
                   <p className="text-xs text-muted-foreground mt-0.5">Joined</p>
                 </div>
               </div>
@@ -161,32 +155,40 @@ export function ItemDetail({ item, onBack }: ItemDetailProps) {
           </Card>
 
           {/* Actions */}
-          <Card>
-            <CardContent className="pt-6 space-y-3">
-              <Button 
-                className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={() => setIsTradeDialogOpen(true)}
-              >
-                <ArrowLeftRight className="h-4 w-4" />
-                Propose Trade
-              </Button>
-              <Button variant="outline" className="w-full gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Send Message
-              </Button>
-              <Separator />
-              <Button variant="ghost" className="w-full gap-2 text-muted-foreground text-sm">
-                <Flag className="h-4 w-4" />
-                Report Item
-              </Button>
-            </CardContent>
-          </Card>
+          {item.owner_user_id !== currentUserId ? (
+            <Card>
+              <CardContent className="pt-6 space-y-3">
+                <Button 
+                  className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={() => setIsTradeDialogOpen(true)}
+                >
+                  <ArrowLeftRight className="h-4 w-4" />
+                  Propose Trade
+                </Button>
+                <Button variant="outline" className="w-full gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Send Message
+                </Button>
+                <Separator />
+                <Button variant="ghost" className="w-full gap-2 text-muted-foreground text-sm">
+                  <Flag className="h-4 w-4" />
+                  Report Item
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-sm text-muted-foreground">This is your item</p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Listed date */}
           <Card>
             <CardContent className="pt-6">
               <p className="text-xs text-muted-foreground">
-                Listed on {new Date(item.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                Listed on {new Date(item.last_date_uploaded).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
               </p>
             </CardContent>
           </Card>

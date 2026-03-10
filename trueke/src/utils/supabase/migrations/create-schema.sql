@@ -377,6 +377,23 @@ ON item_media(item_id, display_order);
 --=========================================================--
 --------------- CREATE TRIGGERS & FUNCTIONS -----------------
 --=========================================================--
+-- Ensure current user addresses always have deactivated_time set to NULL
+CREATE OR REPLACE FUNCTION enforce_current_user_address_not_deactivated()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.is_current THEN
+        NEW.deactivated_time := NULL;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to call the function before inserting or updating a user address
+CREATE OR REPLACE TRIGGER trg_enforce_current_user_address_not_deactivated
+BEFORE INSERT OR UPDATE ON user_address
+FOR EACH ROW
+EXECUTE FUNCTION enforce_current_user_address_not_deactivated();
+
 -- Whenever a new address is inputted automatically set it as the current address for the user and deactivate any previous current address
 CREATE OR REPLACE FUNCTION set_previous_address_inactive_user_address()
 RETURNS TRIGGER AS $$

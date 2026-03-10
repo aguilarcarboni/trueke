@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { notifications } from "@/lib/data"
 import { AppSidebar } from "./app-sidebar"
+import type { UserProfile } from "@/utils/supabase/tables/profile"
 
 interface MobileHeaderProps {
   activeSection: string
   onSectionChange: (section: string) => void
+  profile: UserProfile | null
 }
 
-export function MobileHeader({ activeSection, onSectionChange }: MobileHeaderProps) {
+export function MobileHeader({ activeSection, onSectionChange, profile }: MobileHeaderProps) {
   const unread = notifications.filter((n) => !n.read).length
 
   return (
@@ -25,7 +27,11 @@ export function MobileHeader({ activeSection, onSectionChange }: MobileHeaderPro
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0">
-            <AppSidebar activeSection={activeSection} onSectionChange={onSectionChange} />
+            <AppSidebar
+              activeSection={activeSection}
+              onSectionChange={onSectionChange}
+              profile={profile}
+            />
           </SheetContent>
         </Sheet>
         <div className="flex items-center gap-2">

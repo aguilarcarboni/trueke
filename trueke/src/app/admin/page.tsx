@@ -1,26 +1,15 @@
-"use client"
+import { getCurrentUser } from '@/utils/supabase/auth'
+import { getUserProfile } from '@/utils/supabase/tables/profile'
+import { redirect } from 'next/navigation'
+import { AdminPageClient } from './admin-page-client'
 
-import { AdminSidebar } from "@/components/admin-sidebar"
-import { Admin } from "@/components/sections/admin"
-import { ViewSwitcher } from "@/components/view-switcher"
+export default async function AdminPage() {
+  const user = await getCurrentUser()
 
-export default function AdminPage() {
-  return (
-    <div className="flex min-h-screen bg-background">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:block">
-        <AdminSidebar activeSection="admin" onSectionChange={() => {}} />
-      </div>
+  if (!user) redirect('/login')
+  if (!user.isAdmin) redirect('/user')
 
-      {/* Main Content */}
-      <div className="flex-1 lg:ml-64">
-        <main className="p-4 lg:p-8">
-          <Admin />
-        </main>
-      </div>
+  const profile = await getUserProfile(user.id)
 
-      {/* View Switcher for Demo */}
-      <ViewSwitcher currentView="admin" />
-    </div>
-  )
+  return <AdminPageClient user={user} profile={profile} />
 }

@@ -1,34 +1,19 @@
-"use client";
+"use client"
 
-import { ChevronLeft } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { categories } from "@/lib/data";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import { ChevronLeft } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { categories } from "@/lib/data"
+import { ITEM_CONDITIONS, ITEM_CONDITION_LABELS } from "@/lib/item-constants"
+import { useState } from "react"
 
 interface CreateItemProps {
   onBack: () => void;
 }
-
-const conditionLabel: Record<string, string> = {
-  new: "New",
-  "like new": "Like New",
-  used: "Used",
-  "heavily used": "Heavily Used",
-  broken: "Broken",
-};
 
 export function CreateItem({ onBack }: CreateItemProps) {
   const router = useRouter();
@@ -39,93 +24,8 @@ export function CreateItem({ onBack }: CreateItemProps) {
     description: "",
     category: "Electronics",
     condition: "like new",
-    itemType: "physical",
-    countryCode: "CR",
-    addressLine1: "",
-    addressLine2: "",
-    muniDistrict: "",
-    cantonCity: "",
-    provinceState: "",
-    zipCode: "",
-    dateBought: "",
-    image: null as File | null,
-  });
-
-  const [submitError, setSubmitError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitError("");
-    setIsSubmitting(true);
-    const normalizedCountryCode = formData.countryCode.trim().toUpperCase();
-    const normalizedAddress = {
-      country_code: normalizedCountryCode,
-      address_line1: formData.addressLine1.trim(),
-      address_line2: formData.addressLine2.trim(),
-      muni_district: formData.muniDistrict.trim(),
-      canton_city: formData.cantonCity.trim(),
-      province_state: formData.provinceState.trim(),
-      zip_code: formData.zipCode.trim(),
-    };
-
-    if (normalizedCountryCode.length !== 2) {
-      setSubmitError("Country code must be exactly 2 letters (for example, CR or US).");
-      setIsSubmitting(false);
-      return;
-    }
-
-    try {
-      let createdItemId: string | null = null;
-      let createdAddressId: string | null = null;
-
-      // Since auth is not integrated yet in this branch,
-      // use a seeded user id temporarily.
-      const { data: itemData, error: itemError } = await supabase
-        .from("item")
-        .insert({
-          owner_user_id: "f1d36273-3359-4eab-9968-bb180ce23246",
-          title: formData.title,
-          description: formData.description,
-          category: formData.category,
-          condition: formData.condition,
-          item_type: formData.itemType,
-          date_bought: formData.dateBought || null,
-        })
-        .select("item_id")
-        .single();
-
-      if (itemError) {
-        console.error("Item insert failed:", itemError);
-        setSubmitError(itemError.message);
-        setIsSubmitting(false);
-        return;
-      }
-
-      createdItemId = itemData.item_id;
-
-      const { data: matchingAddressRows, error: addressLookupError } = await supabase
-        .from("address")
-        .select("address_id")
-        .match(normalizedAddress)
-        .limit(1);
-
-      if (addressLookupError) {
-        await supabase.from("item").delete().eq("item_id", createdItemId);
-        console.error("Address lookup failed:", addressLookupError);
-        setSubmitError(addressLookupError.message);
-        setIsSubmitting(false);
-        return;
-      }
-
-      let addressId = matchingAddressRows?.[0]?.address_id as string | undefined;
-
-      if (!addressId) {
-        const { data: insertedAddress, error: addressInsertError } = await supabase
-          .from("address")
-          .insert(normalizedAddress)
-          .select("address_id")
-          .single();
+    images: [] as string[],
+  })
 
         if (addressInsertError) {
           await supabase.from("item").delete().eq("item_id", createdItemId);
@@ -266,9 +166,9 @@ export function CreateItem({ onBack }: CreateItemProps) {
                     <SelectValue placeholder="Select condition" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(conditionLabel).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
+                    {ITEM_CONDITIONS.map((condition) => (
+                      <SelectItem key={condition} value={condition}>
+                        {ITEM_CONDITION_LABELS[condition]}
                       </SelectItem>
                     ))}
                   </SelectContent>

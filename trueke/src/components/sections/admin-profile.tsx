@@ -1,24 +1,71 @@
 "use client"
 
-import { useState } from "react"
-import { Star, MapPin, Calendar, Edit, Shield } from "lucide-react"
+import { useState, useTransition } from "react"
+import { Star, MapPin, Calendar, Edit, Shield, Save, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
-import { items, exchanges } from "@/lib/data"
-import { EditProfileDialog } from "@/components/edit-profile-dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { getConditionLabel, getStatusLabel } from "@/lib/item-constants"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { items, exchanges } from "@/lib/data"
+import { updateProfileAction } from "@/app/user/actions"
+import { EditProfileDialog } from "@/components/edit-profile-dialog"
 import type { UserProfile } from "@/utils/supabase/tables/profile"
 
 interface ProfileProps {
   profile: UserProfile | null
 }
 
-export function Profile({ profile }: ProfileProps) {
+export function AdminProfile({ profile }: ProfileProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({})
+  const [shakingFields, setShakingFields] = useState<Record<string, boolean>>({})
+
+  const triggerShake = (field: string) => {
+    setShakingFields((prev) => ({ ...prev, [field]: true }))
+    setTimeout(() => setShakingFields((prev) => ({ ...prev, [field]: false })), 400)
+  }
+
+  const emptyAddress = {
+    countryCode: "",
+    addressLine1: "",
+    addressLine2: "",
+    muniDistrict: "",
+    city: "",
+    province: "",
+    zipCode: "",
+  }
+
+  const [form, setForm] = useState({
+    firstName: profile?.firstName ?? "",
+    lastName: profile?.lastName ?? "",
+    username: profile?.username ?? "",
+    bio: profile?.bio ?? "",
+    profilePictureUrl: profile?.profilePictureUrl ?? "",
+    address: profile?.address ? { ...profile.address } : emptyAddress,
+  })
 
   const displayName = profile
     ? `${profile.firstName} ${profile.lastName}`.trim() || profile.username
@@ -34,7 +81,50 @@ export function Profile({ profile }: ProfileProps) {
     .slice(0, 2)
     .toUpperCase()
 
+  const handleOpenDialog = () => {
+    // Re-sync form with latest saved profile values
+    setForm({
+      firstName: profile?.firstName ?? "",
+      lastName: profile?.lastName ?? "",
+      username: profile?.username ?? "",
+      bio: profile?.bio ?? "",
+      profilePictureUrl: profile?.profilePictureUrl ?? "",
+      address: profile?.address ? { ...profile.address } : emptyAddress,
+    })
+    setError(null)
+    setDialogOpen(true)
+  }
 
+  const handleSave = () => {
+    // Validate required fields
+    const hasAnyAddressField = Object.values(form.address).some((v) => v.trim() !== "")
+    const errors: Record<string, boolean> = {
+      firstName: !form.firstName.trim(),
+      lastName: !form.lastName.trim(),
+      username: !form.username.trim(),
+      ...(hasAnyAddressField && {
+        city: !form.address.city.trim(),
+        province: !form.address.province.trim(),
+        zipCode: !form.address.zipCode.trim(),
+        countryCode: !form.address.countryCode.trim(),
+      }),
+    }
+    if (Object.values(errors).some(Boolean)) {
+      setFieldErrors(errors)
+      return
+    }
+    setFieldErrors({})
+    setError(null)
+    startTransition(async () => {
+      const result = await updateProfileAction(form)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setDialogOpen(false)
+        window.location.reload()
+      }
+    })
+  }
 
   return (
     <>
@@ -73,27 +163,6 @@ export function Profile({ profile }: ProfileProps) {
                 <p className="text-sm text-muted-foreground leading-relaxed wrap-break-word">{profile.bio}</p>
               )}
             </div>
-            
-            {/* Static 5-star rating for now */} 
-            <div className="flex items-center justify-center gap-1">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} className="h-5 w-5 text-muted" />
-              ))}
-            </div>
-              
-
-            <Separator />
-
-            <div className="grid grid-cols-2 gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold text-foreground">{completedExchanges.length}</p>
-                <p className="text-xs text-muted-foreground">Total Trades</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{userItems.length}</p>
-                <p className="text-xs text-muted-foreground">Active Listings</p>
-              </div>
-            </div>
 
             {profile?.createdAt && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground justify-center">
@@ -107,7 +176,7 @@ export function Profile({ profile }: ProfileProps) {
               </div>
             )}
 
-            <Button className="w-full gap-2" onClick={() => setDialogOpen(true)}>
+            <Button className="w-full gap-2" onClick={handleOpenDialog}>
               <Edit className="h-4 w-4" />
               Edit Profile
             </Button>
@@ -210,7 +279,7 @@ export function Profile({ profile }: ProfileProps) {
       </div>
     </div>
 
-    {/* Edit Profile Dialog - Prompted to the User */}
+    {/* Edit Profile Dialog - Prompted to the Admin */}
     <EditProfileDialog open={dialogOpen} onOpenChange={setDialogOpen} profile={profile} />
     </>
   )

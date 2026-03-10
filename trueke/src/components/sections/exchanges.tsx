@@ -16,8 +16,9 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { TradeProposalDialog } from "@/components/trade-proposal-dialog"
-import { getAvailableItems, getUserExchanges } from "@/app/actions/exchange-actions"
+import { getAvailableItems, getUserExchanges, acceptExchange, rejectExchange, cancelExchange } from "@/app/actions/exchange-actions"
 import { useToast } from "@/hooks/use-toast"
+import { getFriendlyErrorMessage } from "@/lib/error-messages"
 
 // Temporary placeholder image for items without photos SHOULD BE REPLACED WITH A PROPER ASSET
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%23e5e7eb" viewBox="0 0 200 200"%3E%3Crect width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" dy=".3em" text-anchor="middle" fill="%236b7280" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E'
@@ -57,6 +58,7 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
   const [availableItems, setAvailableItems] = useState<Item[]>([])
   const [userExchanges, setUserExchanges] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   // Load data on component mount
   useEffect(() => {
@@ -71,6 +73,11 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
           setAvailableItems(itemsResult.data)
         } else {
           console.warn('Failed to load available items:', itemsResult.error)
+          toast({
+            title: "Couldn't load marketplace items",
+            description: getFriendlyErrorMessage(itemsResult.error),
+            variant: "destructive",
+          })
         }
         
         // Get user's exchanges
@@ -81,12 +88,17 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
           setUserExchanges(exchangesResult.data)
         } else {
           console.warn('Failed to load exchanges:', exchangesResult.error)
+          toast({
+            title: "Couldn't load your exchanges",
+            description: getFriendlyErrorMessage(exchangesResult.error),
+            variant: "destructive",
+          })
         }
       } catch (error) {
         console.error("Error loading exchanges:", error)
         toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to load exchanges",
+          title: "Connection error",
+          description: "We couldn't reach the server. Please check your connection and try again.",
           variant: "destructive",
         })
       } finally {
@@ -125,6 +137,110 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
   const handleBackToSelection = () => {
     setIsTradeDialogOpen(false)
     setIsSelectingItem(true)
+  }
+
+  // Reload exchanges after any action
+  const reloadExchanges = async () => {
+    const exchangesResult = await getUserExchanges(currentUserId)
+    if (exchangesResult.success && exchangesResult.data) {
+      setUserExchanges(exchangesResult.data)
+    }
+  }
+
+  const handleAcceptExchange = async (exchangeId: string) => {
+    setActionLoading(exchangeId)
+    try {
+      const result = await acceptExchange({
+        exchange_id: exchangeId,
+        accepting_user_id: currentUserId,
+      })
+      if (result.success) {
+        toast({
+          title: "Trade accepted! \uD83E\uDD1D",
+          description: "The trade has been accepted. Both parties can now arrange the exchange.",
+        })
+        await reloadExchanges()
+      } else {
+        toast({
+          title: "Couldn't accept trade",
+          description: getFriendlyErrorMessage(result.error),
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error accepting exchange:", error)
+      toast({
+        title: "Connection error",
+        description: "We couldn't reach the server. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleRejectExchange = async (exchangeId: string) => {
+    setActionLoading(exchangeId)
+    try {
+      const result = await rejectExchange({
+        exchange_id: exchangeId,
+        rejecting_user_id: currentUserId,
+      })
+      if (result.success) {
+        toast({
+          title: "Trade rejected",
+          description: "The trade proposal has been rejected.",
+        })
+        await reloadExchanges()
+      } else {
+        toast({
+          title: "Couldn't reject trade",
+          description: getFriendlyErrorMessage(result.error),
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error rejecting exchange:", error)
+      toast({
+        title: "Connection error",
+        description: "We couldn't reach the server. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleCancelExchange = async (exchangeId: string) => {
+    setActionLoading(exchangeId)
+    try {
+      const result = await cancelExchange({
+        exchange_id: exchangeId,
+        initiator_user_id: currentUserId,
+      })
+      if (result.success) {
+        toast({
+          title: "Proposal cancelled",
+          description: "Your trade proposal has been cancelled.",
+        })
+        await reloadExchanges()
+      } else {
+        toast({
+          title: "Couldn't cancel proposal",
+          description: getFriendlyErrorMessage(result.error),
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error cancelling exchange:", error)
+      toast({
+        title: "Connection error",
+        description: "We couldn't reach the server. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   return (
@@ -260,20 +376,47 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
 
                   {/* Actions */}
                   <div className="flex gap-2">
-                    {ex.status === "pending" && (
+                    {ex.status === "pending" && ex.initiator_id !== currentUserId && (
                       <>
-                        <Button size="sm" variant="default" className="gap-1">
-                          <Check className="h-4 w-4" />
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="gap-1"
+                          disabled={actionLoading === ex.exchange_id}
+                          onClick={() => handleAcceptExchange(ex.exchange_id)}
+                        >
+                          {actionLoading === ex.exchange_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Check className="h-4 w-4" />
+                          )}
                           Accept
                         </Button>
-                        <Button size="sm" variant="outline" className="gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1"
+                          disabled={actionLoading === ex.exchange_id}
+                          onClick={() => handleRejectExchange(ex.exchange_id)}
+                        >
                           <X className="h-4 w-4" />
                           Reject
                         </Button>
                       </>
                     )}
-                    {ex.status !== "accepted" && ex.status !== "rejected" && (
-                      <Button size="sm" variant="ghost" className="gap-1">
+                    {ex.status === "pending" && ex.initiator_id === currentUserId && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1"
+                        disabled={actionLoading === ex.exchange_id}
+                        onClick={() => handleCancelExchange(ex.exchange_id)}
+                      >
+                        {actionLoading === ex.exchange_id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <X className="h-4 w-4" />
+                        )}
                         Cancel
                       </Button>
                     )}

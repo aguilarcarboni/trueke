@@ -24,6 +24,7 @@ import { Separator } from "@/components/ui/separator"
 import { createExchangeProposal, getMyItems } from "@/app/actions/exchange-actions"
 import { useToast } from "@/hooks/use-toast"
 import { getConditionLabel, getConditionBadgeStyle } from "@/lib/item-constants"
+import { getFriendlyErrorMessage } from "@/lib/error-messages"
 import type { CreateExchangeRequest } from "@/lib/types"
 
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%23e5e7eb" viewBox="0 0 200 200"%3E%3Crect width="200" height="200"/%3E%3Ctext x="50%" y="50%" dy=".3em" text-anchor="middle" fill="%236b7280" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E'
@@ -102,8 +103,8 @@ export function TradeProposalDialog({
           setMyItems(result.data)
         } else {
           toast({
-            title: "Error",
-            description: "Failed to load your items",
+            title: "Couldn't load your items",
+            description: getFriendlyErrorMessage(result.error),
             variant: "destructive",
           })
         }
@@ -130,7 +131,7 @@ export function TradeProposalDialog({
     if (selectedItems.length === 0) {
       toast({
         title: "No items selected",
-        description: "Please select at least one item to trade.",
+        description: "Pick at least one item from your collection to offer in this trade.",
         variant: "destructive",
       })
       return
@@ -138,10 +139,20 @@ export function TradeProposalDialog({
 
     // Validate expiration days
     const expirationNum = parseInt(expirationDays, 10)
-    if (isNaN(expirationNum) || expirationNum < 1) {
+    if (isNaN(expirationNum) || expirationDays.trim() === "") {
       toast({
         title: "Invalid expiration",
-        description: "Expiration must be at least 1 day.",
+        description: "Please enter a valid number of days for the proposal expiration.",
+        variant: "destructive",
+      })
+      return
+    }
+    if (expirationNum <= 0) {
+      toast({
+        title: "Invalid expiration",
+        description: expirationNum < 0
+          ? "Negative days are not allowed. Please enter at least 1 day."
+          : "The expiration can't be 0 days. Please enter at least 1 day.",
         variant: "destructive",
       })
       return
@@ -166,8 +177,8 @@ export function TradeProposalDialog({
 
       if (result.success) {
         toast({
-          title: "Success",
-          description: "Trade proposal sent successfully!",
+          title: "Trade proposal sent! \uD83C\uDF89",
+          description: "Your proposal has been sent. You'll be notified when the other user responds.",
         })
         
         // Reset and close
@@ -179,16 +190,16 @@ export function TradeProposalDialog({
       } else {
         console.error("Error response:", result.error)
         toast({
-          title: "Error",
-          description: result.error || "Failed to send trade proposal.",
+          title: "Couldn't send proposal",
+          description: getFriendlyErrorMessage(result.error),
           variant: "destructive",
         })
       }
     } catch (error) {
       console.error("Error submitting trade proposal:", error)
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        title: "Connection error",
+        description: "We couldn't reach the server. Please check your connection and try again.",
         variant: "destructive",
       })
     } finally {
@@ -424,7 +435,19 @@ export function TradeProposalDialog({
               type="number"
               min="1"
               value={expirationDays}
-              onChange={(e) => setExpirationDays(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value
+                // Only allow positive numbers or empty (for typing)
+                if (val === "" || /^\d+$/.test(val)) {
+                  setExpirationDays(val)
+                }
+              }}
+              onKeyDown={(e) => {
+                // Block minus sign and 'e' (scientific notation) at keyboard level
+                if (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "+" || e.key === ".") {
+                  e.preventDefault()
+                }
+              }}
               placeholder="7"
               className="w-full"
             />

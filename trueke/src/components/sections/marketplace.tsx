@@ -12,6 +12,7 @@ import { getMarketplaceItems } from "@/app/actions/exchange-actions"
 import { getConditionLabel } from "@/lib/item-constants"
 import type { Item } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
+import { getFriendlyErrorMessage } from "@/lib/error-messages"
 
 // Temporary placeholder image for items without photos SHOULD BE REPLACED WITH A PROPER ASSET
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%23e5e7eb" viewBox="0 0 200 200"%3E%3Crect width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" dy=".3em" text-anchor="middle" fill="%236b7280" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E'
@@ -42,8 +43,8 @@ export function Marketplace({ onSelectItem }: MarketplaceProps) {
         setAllItems(result.data || [])
       } else {
         toast({
-          title: "Error",
-          description: result.error || "Failed to load marketplace items",
+          title: "Couldn't load marketplace",
+          description: getFriendlyErrorMessage(result.error),
           variant: "destructive",
         })
       }

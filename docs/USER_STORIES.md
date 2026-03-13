@@ -439,18 +439,20 @@ AC4: I can modify which of my items are being requested.
 AC5: I can include an optional message explaining my counteroffer.
 AC6: After submitting, the original proposal status changes and the counteroffer becomes the active proposal.
 AC7: The original proposer is notified of the counteroffer.
-
-> **Note:** The detailed storage model for counteroffers (how each counteroffer is persisted as a distinct record and displayed in the negotiation timeline) is defined in [OFFER-1.2] Counteroffer History. This story covers the user action of making a counteroffer.
+AC8: I can see the full history of offers and counteroffers in the exchange, showing who proposed what and when.
+AC9: The most recent counteroffer is clearly distinguished from older ones.
 
 **Comments:**
 
+- **Consolidation note:** AC8–AC9 absorb the scope of the former [OFFER-1.2] "Counteroffer History." The offer-handling epic was removed; counteroffer tracking now lives here where it belongs.
 - The `notification_type` enum already includes `'counter_offer'`, indicating this feature was planned from the database design phase.
 - The current exchange flow only supports: create → accept/reject/cancel. There is no counteroffer action.
-- Architecturally, a counteroffer can be implemented as a new `exchange` record that references the original exchange (a `parent_exchange_id` column may be needed on the `exchange` table).
+- Architecturally, a counteroffer can be implemented as a new `exchange` record that references the original exchange (a `parent_exchange_id` column may be needed on the `exchange` table). The history (AC8) is then a chain of exchange records linked by parent IDs: `SELECT * FROM exchange WHERE parent_exchange_id = $1 OR exchange_id = $1 ORDER BY creation_date ASC`.
 - Alternatively, the counteroffer can simply be a new independent exchange proposal from the receiving user to the initiating user, with the original proposal auto-rejected. This is simpler but loses the negotiation thread.
 - The `CreateExchangeRequest` type in `exchangeTypes.ts` would need an optional `parent_exchange_id` field if threading is desired.
 - The `trade-proposal-dialog.tsx` component needs a variation mode for counteroffers that pre-populates context from the original proposal.
 - A new DB function `create_counter_offer` or an extended `create_exchange_proposal` with a parent reference is recommended.
+- History is preserved even after the exchange is resolved (accepted, rejected, expired).
 
 ---
 
@@ -488,159 +490,61 @@ AC5: Once the exchange is fully completed, items transition from "Contested" to 
 
 ---
 
-### [MSG-1.1] Messaging Between Exchange Users
+### [MSG-1.1] 1:1 Messaging Between Exchange Users
 
 **Status:** New
 
 **Description**
 
-Exchange Messaging.
+Direct Messaging Tied to Exchanges.
 As a user involved in an exchange
-I want to send and receive messages with the other participants
-So that I can discuss trade details, negotiate terms, and coordinate the exchange
+I want a private conversation to be created automatically when a trade proposal is sent, so that I can message the other person to discuss details, negotiate terms, and coordinate the trade
 
 **Acceptance Criteria:** JIRA
 
-AC1: When I am a participant in an exchange, I can access a messaging thread tied to that exchange.
-AC2: I can send text messages to the other participants in the exchange.
-AC3: Messages appear for all participants.
-AC4: I can see the full message history of a conversation.
-AC5: I can see who sent each message.
-
-> **Prerequisite:** [OFFER-1.1] Offers Initiate a Negotiation — defines how and when the messaging thread is automatically created when an exchange proposal is submitted. This story covers what users can do within an existing thread.
+AC1: When I send a trade proposal, a private conversation between me and the other user is created automatically.
+AC2: The initial proposal details (items offered, items requested, and any message I included) appear as the first entry in the conversation.
+AC3: From the conversation, I can send text messages to the other user.
+AC4: I can see the full message history of the conversation, including who sent each message and when.
+AC5: Conversations are always between exactly two people (1:1). There are no group conversations.
+AC6: I can access my conversations from the Messages section and also from the exchange detail view — both lead to the same thread.
+AC7: If I have unread messages, I see an indicator (e.g., a count badge) so I know to check.
 
 **Comments:**
 
+- **Consolidation note:** This story absorbs the scope of the former [OFFER-1.1] "Offers Initiate a Negotiation" — the concept that a proposal auto-creates a conversation is now AC1–AC2 of this story. The "Offer Handling" epic was removed to eliminate confusion between messaging and offer management. All messaging logic lives here.
 - The DB already has a full messaging infrastructure: the `negotiation` table acts as a conversation container, `negotiation_participant` tracks members, and `message` stores individual messages with `sender_user_id`, `content`, `created_at`, `is_edited`, and `is_deleted` (soft-delete).
+- **Linking exchange ↔ conversation:** Currently there is no FK between `exchange` and `negotiation`. A `negotiation_id` column on the `exchange` table (or vice versa) is needed. The `create_exchange_proposal` RPC should be extended to also create a `negotiation` + two `negotiation_participant` entries in the same transaction. The `CreateExchangeRequest.message` field becomes the first message in the auto-created conversation.
 - The `messages.tsx` component currently renders entirely from mock data (`conversations` from `data.ts`). The input field and send button are non-functional (no server action wired).
-- **Open question for PO (scope):** Should every exchange automatically create a negotiation/conversation, or should messaging be accessible independently from the marketplace (e.g., message a user before proposing a trade)? The current UI has a standalone "Messages" sidebar section separate from exchanges. The DB schema supports both: negotiations can exist independently or be linked via `exchange` → `negotiation_id` (though this FK does not currently exist on the `exchange` table—it would need to be added).
-- Real-time messaging would ideally use Supabase Realtime (Postgres changes listener) or a WebSocket-based approach. For MVP, polling or page-refresh is acceptable.
 - New server actions needed: `sendMessage`, `getConversationMessages`, `getMyConversations`.
-- Unread messages are indicated with a count badge.
+- Real-time messaging would ideally use Supabase Realtime (Postgres changes listener). For MVP, polling or page-refresh is acceptable.
+- **Scope note:** Messaging is tied to exchanges only. Users cannot start a conversation with someone without first sending a trade proposal.
 
 ---
 
-### [MSG-1.2] Negotiation Privacy Control
+### [MSG-1.2] Conversation Privacy
 
 **Status:** New
 
 **Description**
 
-Negotiation Privacy.
+Conversation Privacy.
 As a user
-I want my conversations to be private by default
-So that only the participants can see the messages exchanged
+I want all my conversations to be private
+So that only the two participants can see the messages exchanged
 
 **Acceptance Criteria:** JIRA
 
-AC1: All conversations and negotiations are private by default—only participants can view them.
-AC2: A participant can choose to make a negotiation public (e.g., for transparency in group exchanges or marketplace visibility).
-AC3: When a negotiation is public, any logged-in user can view (but not send messages in) the thread.
-AC4: The privacy setting is visible to all participants before they agree to make it public.
-AC5: A public negotiation can be reverted to private by any participant.
+AC1: All conversations are private — only the two participants can view and send messages.
+AC2: No other user can see or access a conversation they are not part of.
+AC3: If a conversation is linked to an exchange, only the two users involved in that exchange can access it.
 
 **Comments:**
 
-- The `negotiation` table already has an `is_public BOOLEAN NOT NULL DEFAULT FALSE` column—this maps directly to the requirement.
-- The `negotiation_participant` table enforces who can send messages: only registered participants may create messages (should be validated in the `sendMessage` server action).
-- For public viewing, the query to fetch messages should check: if the requesting user is a participant → full access; else if `is_public = true` → read-only access; else → access denied.
-- No UI exists for toggling privacy. A toggle or setting in the conversation header is needed.
-- **Open question for PO:** Is this feature critical for MVP, or can all conversations remain private for now? Public negotiations add complexity to the access control layer.
-
----
-
-## EPIC: Offer Handling *(new)*
-
----
-
-### [OFFER-1.1] Offers Initiate a Negotiation
-
-**Status:** New
-
-**Description**
-
-Offer-Negotiation Linking.
-As a user
-I want my trade offer to automatically start a negotiation
-So that I can communicate with the other party as soon as I make a proposal
-
-**Acceptance Criteria:** JIRA
-
-AC1: When I submit a trade offer/exchange proposal, a negotiation (conversation) is automatically created for all participants.
-AC2: The negotiation includes all users involved in the exchange.
-AC3: The initial offer message/details are visible as the first entry in the negotiation thread.
-AC4: I am automatically redirected to or notified about the newly created conversation after submitting the offer.
-AC5: The negotiation is linked to the exchange so both can be accessed from either context.
-
-**Comments:**
-
-- The DB schema has both `exchange` and `negotiation` as separate entities. Currently there is no FK linking them directly. A `negotiation_id` column on the `exchange` table or an `exchange_id` column on the `negotiation` table is needed to establish the link.
-- The `create_exchange_proposal` RPC function would need to be extended to also create a `negotiation` record and associated `negotiation_participant` entries as part of the same transaction.
-- The `CreateExchangeRequest` type already has a `message` field—this could become the first message in the auto-created negotiation.
-- This ties closely to [MSG-1.1] and [MSG-1.2]. The negotiation should be accessible from the Exchanges section and the Messages section.
-- Consider adding a `related_negotiation_id` to the exchange or vice versa so the UI can navigate between them.
-
----
-
-### [OFFER-1.2] Counteroffer History
-
-**Status:** New
-
-**Description**
-
-Counteroffer History Tracking.
-As a user
-I want every counteroffer in a negotiation to be stored and visible in its history
-So that I can review the negotiation progression and previously proposed terms
-
-**Acceptance Criteria:** JIRA
-
-AC1: Every counteroffer is stored as a distinct record in the negotiation history.
-AC2: I can view the full timeline of offers and counteroffers in a negotiation.
-AC3: Each entry in the history shows: who made the offer, what items were proposed, the date/time, and the outcome (accepted, rejected, expired, superseded).
-AC4: The most recent offer is highlighted or positioned at the top.
-AC5: History is preserved even after the negotiation is resolved.
-
-**Comments:**
-
-- Currently, counteroffers do not exist in the codebase (see [EXCH-3.1] for the counteroffer user story itself).
-- If counteroffers are modeled as new `exchange` records with a `parent_exchange_id`, the history is naturally a chain of exchange records linked by parent IDs.
-- Alternatively, counteroffers could be stored as structured messages within the `negotiation`/`message` tables (JSON payload with item IDs and direction). This keeps the conversation and offer history in one place.
-- The `notification_type` enum includes `'counter_offer'`, enabling automated notifications when a counteroffer is made.
-- A DB query to retrieve the full offer chain: `SELECT * FROM exchange WHERE negotiation_id = $1 ORDER BY creation_date ASC` (assuming the negotiation link from [OFFER-1.1] is implemented).
-- **Recommendation:** Whichever approach is chosen, ensure a clear "version" or "sequence number" is associated with each offer for display ordering.
-
----
-
-### [OFFER-1.3] Negotiation Status Lifecycle
-
-**Status:** New
-
-**Description**
-
-Negotiation Status Management.
-As a user
-I want to see the current status of my negotiations
-So that I know which ones are active, resolved, or expired
-
-**Acceptance Criteria:** JIRA
-
-AC1: Each negotiation has a visible status: Open, Accepted, Rejected, Expired, or Cancelled.
-AC2: When a negotiation is created, it starts in "Open" status.
-AC3: When all parties accept a final offer, the negotiation transitions to "Accepted."
-AC4: When any party rejects the final offer, the negotiation transitions to "Rejected."
-AC5: If no action is taken within the configured time limit, the negotiation transitions to "Expired."
-AC6: Either party can cancel the negotiation, transitioning it to "Cancelled."
-AC7: The status is clearly displayed in the negotiations list and detail views.
-
-**Comments:**
-
-- The `negotiation` table has a `status` column with enum `negotiation_status`: `'active' | 'inactive' | 'deleted'`. These values do NOT match the required statuses (Open, Accepted, Rejected, Expired, Cancelled).
-- **Decision needed:** Either (a) alter the `negotiation_status` enum to match the required lifecycle (`'open' | 'accepted' | 'rejected' | 'expired' | 'cancelled'`), or (b) derive the negotiation status from the linked exchange's status. Option (b) is simpler but couples the two entities.
-- If option (a), a DB migration is needed: `ALTER TYPE negotiation_status RENAME VALUE 'active' TO 'open'; ALTER TYPE negotiation_status ADD VALUE 'accepted'; ...` etc.
-- For expiration (AC5), a mechanism is needed: either a cron job (Supabase pg_cron) that periodically marks expired negotiations, or lazy evaluation at query time (check `expiration_date < NOW()` and update on read).
-- The `exchange` table already has `expiration_date` on proposals—this could be shared or mirrored on the negotiation.
-- The UI needs a negotiations list view (separate from or combined with the exchanges list) that displays the status with appropriate styling.
+- The `negotiation` table already has an `is_public BOOLEAN NOT NULL DEFAULT FALSE` column. Since all exchanges are 1:1 and there are no group conversations, this value should always remain `FALSE`.
+- The `negotiation_participant` table enforces who can send messages: only the two registered participants may create or view messages (validated in the `sendMessage` and `getConversationMessages` server actions).
+- For the server actions, the query to fetch messages should check: if the requesting user is a participant → allow; else → access denied.
+- The former [MSG-1.2] had ACs about making conversations public or toggling visibility. Those were removed because: (a) exchanges are direct 1:1 only, (b) there are no group exchanges, and (c) privacy is always enforced with no exceptions.
 
 ---
 
@@ -673,7 +577,7 @@ AC5: The meeting appears in the exchange detail view and in a dedicated meetings
 - The `meeting_invitee` table tracks invitees with `meeting_id`, `user_id`, and `rsvp_status` (enum: `'accepted' | 'declined' | 'pending' | 'overdue'`).
 - The `notification_type` enum includes `'meeting_invite'` and `'meeting_rsvp'`.
 - No meeting-related server actions or UI exist currently—this is entirely new functionality.
-- The meeting must reference a `negotiation_id` (NOT NULL FK), so the offer-negotiation linking from [OFFER-1.1] is a prerequisite.
+- The meeting must reference a `negotiation_id` (NOT NULL FK), so the exchange-conversation linking from [MSG-1.1] AC1 is a prerequisite.
 - A new `createMeeting` server action is needed that inserts into `meeting` and bulk-inserts into `meeting_invitee` for all participants.
 
 ---

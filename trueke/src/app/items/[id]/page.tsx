@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, Plus, UserRound } from "lucide-react"
-import { AppSidebar } from "@/components/app-sidebar"
-import { MobileHeader } from "@/components/mobile-header"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -165,12 +163,8 @@ export default function ItemPage() {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <div className="hidden lg:block">
-        <AppSidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
-      </div>
 
       <div className="flex flex-col flex-1 min-w-0 lg:ml-64">
-        <MobileHeader activeSection={activeSection} onSectionChange={handleSectionChange} />
 
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <div className="mx-auto max-w-5xl space-y-6">

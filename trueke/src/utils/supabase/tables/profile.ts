@@ -22,10 +22,10 @@ export interface UserProfile {
   firstName: string
   lastName: string
   bio: string
-  profilePictureUrl: string
+  profile_picture_url: string
   address: UserAddress | null
   isAdmin: boolean
-  createdAt: string
+  created_at: string
   status: string
 }
 
@@ -45,9 +45,12 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 
   const { data: user, error } = await supabase
     .from("user")
-    .select("*")
+    .select(
+      "user_id,email,username,first_name,last_name,bio,profile_picture_url,is_admin,created_at,status"
+    )
     .eq("user_id", userId)
-    .single()
+    .limit(1)
+    .maybeSingle()
 
   if (error || !user) return null
 
@@ -60,10 +63,10 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     firstName: user.first_name,
     lastName: user.last_name,
     bio: user.bio || "",
-    profilePictureUrl: user.profile_picture_url || "",
+    profile_picture_url: user.profile_picture_url || "",
     address,
     isAdmin: user.is_admin,
-    createdAt: user.created_at,
+    created_at: user.created_at,
     status: user.status,
   }
 }

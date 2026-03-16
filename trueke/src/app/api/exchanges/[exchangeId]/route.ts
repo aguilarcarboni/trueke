@@ -8,10 +8,10 @@ import type { ApiResponse } from '@/lib/types'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { exchangeId: string } }
+  { params }: { params: Promise<{ exchangeId: string }> }
 ) {
   try {
-    const { exchangeId } = params
+    const { exchangeId } = await params
 
     if (!exchangeId) {
       return NextResponse.json<ApiResponse<null>>(
@@ -76,10 +76,10 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { exchangeId: string } }
+  { params }: { params: Promise<{ exchangeId: string }> }
 ) {
   try {
-    const { exchangeId } = params
+    const { exchangeId } = await params
     const body = await request.json()
     const { action, user_id } = body
 

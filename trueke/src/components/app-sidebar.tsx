@@ -1,177 +1,88 @@
-"use client"
+'use client'
 
-import { useState } from "react"
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
-  Home,
-  ShoppingBag,
-  ArrowLeftRight,
+  Sidebar as SidebarRoot,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
+import Account from './auth/Account'
+import {
   Gavel,
-  MessageSquare,
-  Bell,
   Heart,
+  LayoutDashboard,
+  MessageSquare,
   Package,
-  Plus,
-  LogOut,
-  Loader2,
-} from "lucide-react"
-import { notifications } from "@/lib/data"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import type { UserProfile } from "@/utils/supabase/tables/profile"
-import { logout } from "@/app/login/actions"
-import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+  Repeat,
+  Shield,
+  Store,
+  User,
+} from 'lucide-react'
 
 interface AppSidebarProps {
-  activeSection: string
-  onSectionChange: (section: string) => void
-  profile: UserProfile | null
+  isAdmin?: boolean
 }
 
-const navItems = [
-  { id: "dashboard", label: "Dashboard", icon: Home },
-  { id: "marketplace", label: "Marketplace", icon: ShoppingBag },
-  { id: "my-items", label: "My Items", icon: Package },
-  { id: "create-item", label: "Create Item", icon: Plus },
-  { id: "exchanges", label: "Exchanges", icon: ArrowLeftRight },
-  { id: "auctions", label: "Auctions", icon: Gavel },
-  { id: "messages", label: "Messages", icon: MessageSquare },
-  { id: "favorites", label: "Favorites", icon: Heart },
-]
+const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
+  
+  const pathname = usePathname()
 
-export function AppSidebar({ activeSection, onSectionChange, profile }: AppSidebarProps) {
-  const displayName = profile
-    ? `${profile.firstName} ${profile.lastName}`.trim() || profile.username
-    : "—"
-  const initials = displayName
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase()
-  const locationSummary = profile?.address
-    ? [profile.address.city, profile.address.province, profile.address.countryCode]
-        .filter(Boolean)
-        .join(", ")
-    : ""
-  const router = useRouter()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const unread = notifications.filter((n) => !n.read).length
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true)
-    try {
-      const result = await logout()
-      if (result?.error) {
-        toast.error(result.error)
-        return
-      }
-      router.replace("/")
-      router.refresh()
-    } catch {
-      toast.error("Failed to sign out. Please try again.")
-    } finally {
-      setIsLoggingOut(false)
-    }
-  }
+  const userRoutes = [
+    { name: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, scopeId: 'dashboard' },
+    { name: 'Marketplace', url: '/marketplace', icon: Store, scopeId: 'marketplace' },
+    { name: 'Exchanges', url: '/exchanges', icon: Repeat, scopeId: 'exchanges' },
+    { name: 'Auctions', url: '/auctions', icon: Gavel, scopeId: 'auctions' },
+    { name: 'Messages', url: '/messages', icon: MessageSquare, scopeId: 'messages' },
+    { name: 'Favorites', url: '/favorites', icon: Heart, scopeId: 'favorites' },
+    { name: 'Profile', url: '/profile', icon: User, scopeId: 'profile' },
+    { name: 'My Items', url: '/my-items', icon: Package, scopeId: 'my-items' }
+  ]
+  const adminRoutes = [
+    { name: 'Admin Dashboard', url: '/dashboard', icon: Shield, scopeId: 'admin-dashboard' },
+    { name: 'Admin Profile', url: '/profile', icon: User, scopeId: 'admin-profile' },
+  ]
+  const routes = isAdmin ? adminRoutes : userRoutes
 
   return (
-    <aside className="fixed left-0 top-0 z-30 flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-bold text-lg">
-          T
+    <SidebarRoot collapsible="icon" className="bg-background text-foreground">
+      <SidebarHeader className="border-b border-muted">
+        <div className="flex w-full items-center gap-3">
+          <SidebarTrigger />
         </div>
-        <span className="text-xl font-bold tracking-tight">Trueke</span>
-      </div>
+      </SidebarHeader>
 
-      {/* Search */}
-      {/*Comment out for now, redundant
-      if we already have the "Marketplace button in the 
-      navegation bar"
-      <div className="px-4 pb-3">
-        <button
-          onClick={() => onSectionChange("marketplace")}
-          className="flex w-full items-center gap-2 rounded-lg bg-sidebar-accent/50 px-3 py-2 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent"
-        >
-          <Search className="h-4 w-4" />
-          <span>Search items...</span>
-        </button>
-      </div>*/}
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3">
-        <div className="space-y-1">
-          {navItems.map((item) => {
-            const isActive = activeSection === item.id
-            return (
-              <button
-                key={item.id}
-                onClick={() => onSectionChange(item.id)}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                }`}
-              >
-                <item.icon className="h-4.5 w-4.5" />
-                <span>{item.label}</span>
-                {item.id === "messages" && unread > 0 && (
-                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent text-accent-foreground text-xs font-semibold">
-                    {unread}
+      <SidebarContent>
+        <SidebarMenu>
+          {routes.map((item) => (
+            <SidebarMenuItem key={item.scopeId}>
+              <SidebarMenuButton asChild isActive={pathname.startsWith(item.url)}>
+                <Link href={item.url} className="flex items-center gap-2">
+                  <item.icon className="h-4 w-4" />
+                  <span className="truncate group-data-[state=collapsed]/sidebar:hidden">
+                    {item.name}
                   </span>
-                )}
-              </button>
-            )
-          })}
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarContent>
+
+      <SidebarFooter className="border-t border-muted">
+        <div className="w-full group-data-[state=collapsed]/sidebar:justify-center">
+          <Account />
         </div>
-      </nav>
-
-      {/* Notifications shortcut */}
-      <div className="border-t border-sidebar-border px-3 py-2">
-        <button
-          onClick={() => onSectionChange("dashboard")}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          <Bell className="h-4.5 w-4.5" />
-          <span>Notifications</span>
-          {unread > 0 && (
-            <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs font-semibold">
-              {unread}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* User */}
-      <div className="border-t border-sidebar-border px-4 py-4 space-y-2">
-        <button
-          onClick={() => onSectionChange("profile")}
-          className="flex w-full items-center gap-3 rounded-lg transition-colors hover:bg-sidebar-accent px-2 py-1.5"
-        >
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={profile?.profilePictureUrl || undefined} alt={displayName} />
-            <AvatarFallback className="text-xs text-muted-foreground">{initials}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0 text-left">
-            <p className="text-sm font-medium leading-none truncate">{displayName || profile?.username}</p>
-            <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{profile?.email}</p>
-            {locationSummary && (
-              <p className="text-xs text-sidebar-foreground/50 mt-0.5 truncate">{locationSummary}</p>
-            )}
-          </div>
-        </button>
-        <button
-          onClick={handleLogout}
-          disabled={isLoggingOut}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-sidebar-accent transition-colors disabled:opacity-50"
-        >
-          {isLoggingOut ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <LogOut className="h-4 w-4" />
-          )}
-          <span>{isLoggingOut ? "Signing out..." : "Log out"}</span>
-        </button>
-      </div>
-    </aside>
+      </SidebarFooter>
+      <SidebarRail />
+    </SidebarRoot>
   )
 }
+
+export default AppSidebar

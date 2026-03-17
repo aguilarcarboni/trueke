@@ -1,15 +1,10 @@
 'use client'
+import "../globals.css";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import "../globals.css";
-import LoadingComponent from "@/components/misc/LoadingComponent";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/app-sidebar";
-import { useEffect, useState } from "react";
-import { Admin } from "@/components/sections/admin/admin";
-import { AdminProfile } from "@/components/sections/admin/admin-profile";
-import { getProfileAction } from "@/app/actions/profile-actions";
-import type { UserProfile } from "@/utils/supabase/tables/profile";
+import { useEffect } from "react";
 
 export default function Layout({
   children,
@@ -19,27 +14,30 @@ export default function Layout({
 
   const { data: session, status} = useSession()
   const router = useRouter()
+  const pathname = usePathname()
   const isAdmin = Boolean(session?.user?.is_admin)
   
   useEffect(() => {
     if (status === "loading") return
 
     if (!session?.user) {
-      router.push("/login")
+      router.replace("/login")
       return
-    } else {
-      router.push("/dashboard")
     }
-  }, [session])
+
+    if (pathname === "/") {
+      router.replace("/dashboard")
+    }
+  }, [status, session, pathname, router])
 
   return (
-    <div className="flex flex-col scrollbar-hide h-full w-full scroll-smooth">
+    <div className="flex min-h-screen w-full flex-col scrollbar-hide scroll-smooth">
       {session?.user &&
         <SidebarProvider>
-          <div className="flex h-full w-full scroll-smooth">
+          <div className="flex min-h-screen w-full scroll-smooth">
             <AppSidebar isAdmin={isAdmin} />
             <SidebarInset>
-              <div className="flex-1 p-5">
+              <div className="flex min-h-full flex-1 flex-col p-5">
                 {children}
               </div>
             </SidebarInset>

@@ -1,16 +1,12 @@
 "use client"
 
 import { Heart, Plus, MoreHorizontal } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { items, users } from "@/lib/data"
 
 export function Favorites() {
-  const favoriteItems = items.slice(0, 4)
-  const frequentUsers = users.slice(1, 4)
 
   const customLists = [
     { name: "Want to Trade", count: 3 },
@@ -19,7 +15,7 @@ export function Favorites() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-full w-full flex-1 flex-col space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Favorites & Lists</h1>
@@ -40,55 +36,11 @@ export function Favorites() {
 
         <TabsContent value="items" className="mt-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {favoriteItems.map((item) => (
-              <Card key={item.id} className="group overflow-hidden cursor-pointer transition-all hover:shadow-md">
-                <div className="relative aspect-[4/3] overflow-hidden">
-                  <img
-                    src={item.images[0]}
-                    alt={item.title}
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                    crossOrigin="anonymous"
-                  />
-                  <button className="absolute top-2 right-2 rounded-full bg-card/90 p-1.5 backdrop-blur-sm transition-colors hover:bg-destructive hover:text-destructive-foreground">
-                    <Heart className="h-4 w-4 fill-current text-destructive" />
-                  </button>
-                </div>
-                <CardContent className="pt-3 pb-4">
-                  <p className="text-sm font-medium text-card-foreground truncate">{item.title}</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <Avatar className="h-5 w-5">
-                      <AvatarImage src={item.owner.avatar} alt={item.owner.name} />
-                      <AvatarFallback className="text-[10px]">{item.owner.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs text-muted-foreground">{item.owner.name}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
           </div>
         </TabsContent>
 
         <TabsContent value="users" className="mt-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {frequentUsers.map((user) => (
-              <Card key={user.id} className="transition-all hover:shadow-md">
-                <CardContent className="pt-6 flex items-center gap-4">
-                  <Avatar className="h-14 w-14 shrink-0">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-card-foreground">{user.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{user.location}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="text-xs">{user.totalTrades} trades</Badge>
-                      <span className="text-xs text-muted-foreground">Rating: {user.rating}</span>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm">Message</Button>
-                </CardContent>
-              </Card>
-            ))}
           </div>
         </TabsContent>
 

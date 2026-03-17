@@ -3,9 +3,11 @@ import { Suspense } from 'react'
 
 const SignInPage = () => {
   return (
-    <Suspense fallback={null}>
-      <SignIn />
-    </Suspense>
+    <div className="flex min-h-screen w-full items-center justify-center p-4">
+      <Suspense fallback={null}>
+        <SignIn />
+      </Suspense>
+    </div>
   )
 }
 

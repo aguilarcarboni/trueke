@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Country, State, City } from 'country-state-city'
+import { Country } from 'country-state-city'
 
 // -- Validation patterns --
 export const LETTERS_ONLY    = /^[a-zA-Z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff\s'\-]+$/

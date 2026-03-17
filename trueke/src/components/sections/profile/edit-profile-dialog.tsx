@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { Save, Loader2 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -15,11 +15,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { updateProfileAction } from "@/app/actions/profile-actions"
-import type { UserProfile } from "@/utils/supabase/tables/profile"
-import { AddressSchema, LETTERS_ONLY, ALPHANUMERIC, EMPTY_ADDRESS } from "@/lib/address-types"
-import type { AddressFormData } from "@/lib/address-types"
-import { AddressForm } from "@/components/sections/address/address-form"
+import { updateProfileAction } from "@/app/actions/profile"
+import type { UserProfile } from "@/lib/entities/profile"
+import { AddressSchema, LETTERS_ONLY, ALPHANUMERIC, EMPTY_ADDRESS } from "@/lib/entities/address"
+import type { AddressFormData } from "@/lib/entities/address"
+import { AddressForm } from "@/components/misc/address-form"
 import { useSession } from "next-auth/react"
 
 interface EditProfileDialogProps {
@@ -49,7 +49,15 @@ export function EditProfileDialog({
     let address: AddressFormData = { ...EMPTY_ADDRESS }
     if (profile?.address) {
       const { addressId: _id, ...addr } = profile.address
-      address = addr
+      address = {
+        countryCode: addr.countryCode ?? "",
+        addressLine1: addr.addressLine1 ?? "",
+        addressLine2: addr.addressLine2 ?? "",
+        muniDistrict: addr.muniDistrict ?? "",
+        city: addr.city ?? "",
+        province: addr.province ?? "",
+        zipCode: addr.zipCode ?? "",
+      }
     }
     return {
       firstName: profile?.firstName ?? "",
@@ -64,13 +72,18 @@ export function EditProfileDialog({
   const [form, setForm] = useState(buildForm)
   const { data: session } = useSession()
 
+  useEffect(() => {
+    if (!open) return
+    setForm(buildForm())
+    setAddressKey((k) => k + 1)
+  }, [open, profile])
+
   // Re-sync when dialog opens; incrementing addressKey remounts AddressForm to reset its internal state
   const handleOpenChange = (next: boolean) => {
     if (next) {
-      setForm(buildForm())
-      setAddressKey((k) => k + 1)
       setError(null)
       setFieldErrors({})
+      setShakingFields({})
     }
     onOpenChange(next)
   }
@@ -266,7 +279,7 @@ export function EditProfileDialog({
         
         {/* Place action buttons in footer so they're always visible */}
         <DialogFooter className="gap-2 pt-2 shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={isPending} className="gap-1.5">

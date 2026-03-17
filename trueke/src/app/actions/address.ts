@@ -1,9 +1,9 @@
 'use server'
 
-import { AddressSchema } from '@/lib/address-types'
-import type { AddressFormData, Address} from '@/lib/address-types'
+import { AddressSchema } from '@/lib/entities/address'
+import type { AddressFormData, Address} from '@/lib/entities/address'
 import type { ApiResponse } from '@/lib/types'
-import { getLinkedAddress, upsertUserAddress, createAddressRecord } from '@/utils/supabase/tables/address'
+import { getLinkedAddress, upsertUserAddress, createAddressRecord } from '@/utils/entities/address'
 
 // Returns the current linked address for a user, or null if none exists.
 export async function getUserAddress(userId: string): Promise<ApiResponse<Address | null>> {

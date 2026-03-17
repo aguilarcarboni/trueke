@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { getMarketplaceItems } from "@/app/actions/exchange-actions"
-import { getConditionLabel } from "@/lib/item-constants"
-import type { Item } from "@/lib/types"
+import { getMarketplaceItems } from "@/app/actions/exchange"
+import { getConditionLabel } from "@/lib/entities/item"
+import type { Item } from "@/lib/entities/item"
 import { useToast } from "@/hooks/use-toast"
 import { getFriendlyErrorMessage } from "@/lib/error-messages"
 import { useRouter } from "next/navigation"
@@ -63,7 +63,7 @@ export function Marketplace() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-full w-full flex-1 flex-col space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Marketplace</h1>

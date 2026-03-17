@@ -1,45 +1,11 @@
-"use client"
-
-import { useEffect, useMemo, useState } from "react"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, Plus, UserRound } from "lucide-react"
+import { getItemDetails, type ItemDetailsResponse } from "@/app/actions/item"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Skeleton } from "@/components/ui/skeleton"
-
-interface ItemResponse {
-  item: {
-    item_id: string
-    title: string
-    description: string | null
-    category: string
-    condition: string
-    status: string
-    item_type: string
-    date_bought: string | null
-    last_date_uploaded: string
-  }
-  owner: {
-    user_id: string
-    username: string
-    first_name: string
-    last_name: string
-    profile_picture_url: string | null
-  }
-  address: {
-    address_id: string
-    country_code: string
-    address_line1: string
-    address_line2: string
-    muni_district: string
-    canton_city: string
-    province_state: string
-    zip_code: string
-  } | null
-}
 
 const conditionLabel: Record<string, string> = {
   new: "New",
@@ -67,7 +33,7 @@ const statusStyles: Record<string, string> = {
 
 function formatLabel(value: string) {
   return value
-    .split(/[_\s]+/)
+    .split(/[\s_]+/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ")
 }
@@ -84,7 +50,7 @@ function formatDate(value: string | null) {
   })
 }
 
-function formatAddress(address: ItemResponse["address"]) {
+function formatAddress(address: ItemDetailsResponse["address"]) {
   if (!address) {
     return "No address assigned to this item yet."
   }
@@ -97,87 +63,38 @@ function formatAddress(address: ItemResponse["address"]) {
   return [line, locality, `${address.country_code} ${address.zip_code}`].filter(Boolean).join(" • ")
 }
 
-export default function ItemPage() {
-  const params = useParams<{ id: string }>()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [activeSection, setActiveSection] = useState("my-items")
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [data, setData] = useState<ItemResponse | null>(null)
+type ItemPageProps = {
+  params: Promise<{ id: string | string[] }>
+  searchParams?: Promise<{ created?: string | string[] }>
+}
 
-  const itemId = useMemo(() => {
-    const raw = params?.id
-    return Array.isArray(raw) ? raw[0] : raw || ""
-  }, [params])
+export default async function ItemPage({ params, searchParams }: ItemPageProps) {
+  const resolvedParams = await params
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
 
-  const showCreatedBanner = searchParams.get("created") === "1"
+  const rawItemId = resolvedParams.id
+  const itemId = Array.isArray(rawItemId) ? rawItemId[0] : rawItemId
 
-  const handleSectionChange = (section: string) => {
-    setActiveSection(section)
-    router.push(`/?section=${section}`)
-  }
+  const rawCreated = resolvedSearchParams?.created
+  const showCreatedBanner = (Array.isArray(rawCreated) ? rawCreated[0] : rawCreated) === "1"
 
-  useEffect(() => {
-    if (!itemId) {
-      return
-    }
-
-    const controller = new AbortController()
-
-    const fetchItem = async () => {
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetch(`/api/items/${itemId}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        })
-
-        if (!response.ok) {
-          const errorPayload = await response.json().catch(() => null)
-          setError(errorPayload?.error || "Failed to load this item.")
-          setData(null)
-          return
-        }
-
-        const payload = (await response.json()) as ItemResponse
-        setData(payload)
-      } catch {
-        if (!controller.signal.aborted) {
-          setError("Unable to load item details right now.")
-          setData(null)
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    fetchItem()
-
-    return () => controller.abort()
-  }, [itemId])
+  const result = await getItemDetails(itemId || "")
+  const data = result.data ?? null
+  const error = result.status === 200 ? null : result.error || "Failed to load this item."
 
   return (
     <div className="flex min-h-screen bg-background">
-
       <div className="flex flex-col flex-1 min-w-0 lg:ml-64">
-
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <div className="mx-auto max-w-5xl space-y-6">
-            <Button
-              variant="ghost"
-              className="gap-2 text-muted-foreground hover:text-foreground"
-              onClick={() => router.push("/?section=my-items")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to My Items
+            <Button variant="ghost" className="gap-2 text-muted-foreground hover:text-foreground" asChild>
+              <Link href="/marketplace">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Marketplace
+              </Link>
             </Button>
 
-            {showCreatedBanner && !isLoading && !error && data && (
+            {showCreatedBanner && !error && data && (
               <Card className="border-success/25 bg-success/10">
                 <CardContent className="flex items-center gap-3 py-4">
                   <CheckCircle2 className="h-5 w-5 text-success" />
@@ -188,41 +105,24 @@ export default function ItemPage() {
               </Card>
             )}
 
-            {isLoading && (
-              <div className="space-y-4">
-                <Card>
-                  <CardContent className="pt-6 space-y-3">
-                    <Skeleton className="h-7 w-2/5" />
-                    <Skeleton className="h-4 w-3/5" />
-                    <Skeleton className="h-16 w-full" />
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6 space-y-3">
-                    <Skeleton className="h-5 w-1/3" />
-                    <Skeleton className="h-4 w-4/5" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {!isLoading && error && (
+            {error && (
               <Card>
                 <CardContent className="pt-6 space-y-4">
                   <h1 className="text-xl font-semibold text-card-foreground">Unable to show item details</h1>
                   <p className="text-sm text-muted-foreground">{error}</p>
                   <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => router.push("/?section=my-items")}>
-                      Back to My Items
+                    <Button variant="outline" asChild>
+                      <Link href="/items">Back to My Items</Link>
                     </Button>
-                    <Button onClick={() => window.location.reload()}>Retry</Button>
+                    <Button asChild>
+                      <Link href={`/items/${encodeURIComponent(itemId || "")}`}>Retry</Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {!isLoading && !error && data && (
+            {!error && data && (
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <div className="space-y-6 lg:col-span-2">
                   <Card>
@@ -311,17 +211,17 @@ export default function ItemPage() {
 
                   <Card>
                     <CardContent className="pt-6 space-y-3">
-                      <Button className="w-full gap-2" onClick={() => router.push("/?section=create-item")}>
-                        <Plus className="h-4 w-4" />
-                        Create Another Item
+                      <Button className="w-full gap-2" asChild>
+                        <Link href="/items">
+                          <Plus className="h-4 w-4" />
+                          Create An Item
+                        </Link>
                       </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full gap-2"
-                        onClick={() => router.push("/?section=my-items")}
-                      >
-                        <CalendarDays className="h-4 w-4" />
-                        Go to My Items
+                      <Button variant="outline" className="w-full gap-2" asChild>
+                        <Link href="/items">
+                          <CalendarDays className="h-4 w-4" />
+                          Go to My Items
+                        </Link>
                       </Button>
                     </CardContent>
                   </Card>

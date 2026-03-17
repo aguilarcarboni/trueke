@@ -8,12 +8,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
-import { items, exchanges } from "@/lib/data"
 import { EditProfileDialog } from "@/components/sections/profile/edit-profile-dialog"
-import { getConditionLabel, getStatusLabel } from "@/lib/item-constants"
+import { getConditionLabel, getStatusLabel } from "@/lib/entities/item"
 import { useSession } from "next-auth/react"
-import { getProfileAction } from "@/app/actions/profile-actions"
-import type { UserProfile } from "@/utils/supabase/tables/profile"
+import { getProfileAction } from "@/app/actions/profile"
+import type { UserProfile } from "@/lib/entities/profile"
 
 export function Profile() {
   const { data: session } = useSession()
@@ -36,8 +35,8 @@ export function Profile() {
     return null
   }
 
-  const userItems = items.filter((i) => i.owner.id === (profile?.id ?? ""))
-  const completedExchanges = exchanges.filter((e) => e.status === "accepted")
+  const userItems:any[] = []
+  const exchanges: any[] = []
 
   const displayName = `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim() || profile?.username || "User"
 
@@ -93,7 +92,7 @@ export function Profile() {
 
             <div className="grid grid-cols-2 gap-4 text-center">
               <div>
-                <p className="text-2xl font-bold text-foreground">{completedExchanges.length}</p>
+                <p className="text-2xl font-bold text-foreground">{exchanges.length}</p>
                 <p className="text-xs text-muted-foreground">Total Trades</p>
               </div>
               <div>

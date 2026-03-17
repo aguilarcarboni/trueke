@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
-import type { AddressFormData, Address } from '@/lib/address-types'
+import type { AddressFormData, Address } from '@/lib/entities/address'
 
 // Fetches the current linked address for a user, or null if none exists.
 export async function getLinkedAddress(userId: string): Promise<Address | null> {

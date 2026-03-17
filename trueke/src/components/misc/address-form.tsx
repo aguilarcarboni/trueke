@@ -11,8 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { AddressSchema } from "@/lib/address-types"
-import type { AddressFormData } from "@/lib/address-types"
+import { AddressSchema } from "@/lib/entities/address"
+import type { AddressFormData } from "@/lib/entities/address"
 
 // Returns true when a non-empty value fails any Zod rule other than "required"
 function hasFormatError(field: keyof typeof AddressSchema.shape, val: string): boolean {

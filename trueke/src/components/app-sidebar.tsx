@@ -13,11 +13,12 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import Account from './auth/Account'
 import {
   Gavel,
   Heart,
   LayoutDashboard,
+  Loader2,
+  LogOut,
   MessageSquare,
   Package,
   Repeat,
@@ -25,14 +26,33 @@ import {
   Store,
   User,
 } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
+import { signOut, useSession } from 'next-auth/react'
+import { getProfileAction } from '@/app/actions/profile'
+import type { UserProfile } from '@/lib/entities/profile'
+import { useEffect, useState } from 'react'
 
 interface AppSidebarProps {
   isAdmin?: boolean
 }
 
 const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
-  
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  useEffect(() => {
+    async function fetchUserProfile() {
+      if (!session?.user?.id) {
+        setProfile(null)
+        return
+      }
+      const profile = await getProfileAction(session.user.id)
+      setProfile(profile)
+    }
+    fetchUserProfile()
+  }, [session?.user?.id])
 
   const userRoutes = [
     { name: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, scopeId: 'dashboard' },
@@ -42,13 +62,43 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
     { name: 'Messages', url: '/messages', icon: MessageSquare, scopeId: 'messages' },
     { name: 'Favorites', url: '/favorites', icon: Heart, scopeId: 'favorites' },
     { name: 'Profile', url: '/profile', icon: User, scopeId: 'profile' },
-    { name: 'My Items', url: '/my-items', icon: Package, scopeId: 'my-items' }
+    { name: 'My Items', url: '/items', icon: Package, scopeId: 'my-items' }
   ]
   const adminRoutes = [
     { name: 'Admin Dashboard', url: '/dashboard', icon: Shield, scopeId: 'admin-dashboard' },
     { name: 'Admin Profile', url: '/profile', icon: User, scopeId: 'admin-profile' },
   ]
   const routes = isAdmin ? adminRoutes : userRoutes
+
+  const displayName =
+    `${profile?.firstName ?? ''} ${profile?.lastName ?? ''}`.trim() ||
+    profile?.username ||
+    session?.user?.name ||
+    'User'
+
+  const initials =
+    displayName
+      .split(' ')
+      .filter(Boolean)
+      .map((word) => word[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'U'
+
+  const locationSummary = [
+    profile?.address?.muniDistrict,
+    profile?.address?.city,
+    profile?.address?.province,
+    profile?.address?.countryCode,
+  ]
+    .filter(Boolean)
+    .join(', ')
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    await signOut({ callbackUrl: '/' })
+    setIsLoggingOut(false)
+  }
 
   return (
     <SidebarRoot collapsible="icon" className="bg-background text-foreground">
@@ -77,7 +127,33 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
 
       <SidebarFooter className="border-t border-muted">
         <div className="w-full group-data-[state=collapsed]/sidebar:justify-center">
-          <Account />
+          <button
+            className="flex w-full items-center gap-3 rounded-lg transition-colors hover:bg-sidebar-accent px-2 py-1.5"
+          >
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={profile?.profile_picture_url || undefined} alt={displayName} />
+              <AvatarFallback className="text-xs text-muted-foreground">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium leading-none truncate">{displayName || profile?.username}</p>
+              <p className="text-xs mt-0.5 truncate">{profile?.email || session?.user?.email}</p>
+              {locationSummary && (
+                <p className="text-xs mt-0.5 truncate">{locationSummary}</p>
+              )}
+            </div>
+          </button>
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-sidebar-accent transition-colors disabled:opacity-50"
+          >
+            {isLoggingOut ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4" />
+            )}
+            <span>{isLoggingOut ? "Signing out..." : "Log out"}</span>
+          </button>
         </div>
       </SidebarFooter>
       <SidebarRail />

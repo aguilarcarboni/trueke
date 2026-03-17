@@ -13,8 +13,8 @@ export default function Layout({
 }>) {
 
   return (
-    <div className="bg-background flex text-background p-5 h-full w-full scroll-smooth">
-    {children}
+    <div className="flex min-h-full w-full flex-1 flex-col bg-background scroll-smooth">
+      {children}
     </div>
   )
 }

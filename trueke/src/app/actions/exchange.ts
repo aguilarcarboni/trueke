@@ -3,39 +3,138 @@
 import { createClient } from '@/utils/supabase/server'
 import type { 
     ApiResponse, 
+
+} from '@/lib/types'
+
+import type {
     Exchange, 
     ExchangeListItem,
     CreateExchangeRequest,
     AcceptExchangeRequest,
     RejectExchangeRequest,
     CancelExchangeRequest
-} from '@/lib/types'
+} from '@/lib/entities/exchange'
+import type { Item } from '@/lib/entities/item'
+
+type BaseItemRow = {
+    item_id: string
+    title: string
+    description: string | null
+    condition: Item['condition']
+    category: string
+    item_type: Item['item_type']
+    status: Item['status']
+    owner_user_id: string
+    last_date_uploaded: string
+    date_bought: string | null
+}
+
+async function mapItemsWithOwnerAndMedia(
+    supabase: Awaited<ReturnType<typeof createClient>>,
+    items: BaseItemRow[]
+): Promise<ApiResponse<Item[]>> {
+    if (!items || items.length === 0) {
+        return {
+            success: true,
+            data: [],
+        }
+    }
+
+    const itemIds = items.map((item) => item.item_id)
+    const ownerIds = Array.from(new Set(items.map((item) => item.owner_user_id)))
+
+    const [{ data: mediaRows, error: mediaError }, { data: ownerRows, error: ownerError }] = await Promise.all([
+        supabase
+            .from('item_media')
+            .select('item_id,url,display_order')
+            .in('item_id', itemIds)
+            .order('display_order', { ascending: true }),
+        supabase
+            .from('user')
+            .select('user_id,username,first_name,last_name,profile_picture_url')
+            .in('user_id', ownerIds),
+    ])
+
+    if (mediaError) {
+        return {
+            success: false,
+            error: mediaError.message,
+        }
+    }
+
+    if (ownerError) {
+        return {
+            success: false,
+            error: ownerError.message,
+        }
+    }
+
+    const mediaByItem = new Map<string, string[]>()
+    for (const media of mediaRows || []) {
+        const existing = mediaByItem.get(media.item_id) || []
+        existing.push(media.url)
+        mediaByItem.set(media.item_id, existing)
+    }
+
+    const ownersById = new Map(
+        (ownerRows || []).map((owner) => [
+            owner.user_id,
+            {
+                fullName: `${owner.first_name || ''} ${owner.last_name || ''}`.trim(),
+                username: owner.username,
+                avatar: owner.profile_picture_url || '',
+            },
+        ])
+    )
+
+    const mappedItems: Item[] = items.map((item) => {
+        const owner = ownersById.get(item.owner_user_id)
+        return {
+            item_id: item.item_id,
+            title: item.title,
+            description: item.description || '',
+            condition: item.condition,
+            category: item.category,
+            item_type: item.item_type,
+            status: item.status,
+            images: mediaByItem.get(item.item_id) || [],
+            owner_user_id: item.owner_user_id,
+            owner_name: owner?.fullName || owner?.username || 'Unknown User',
+            owner_avatar: owner?.avatar || '',
+            last_date_uploaded: item.last_date_uploaded,
+            date_bought: item.date_bought || undefined,
+        }
+    })
+
+    return {
+        success: true,
+        data: mappedItems,
+    }
+}
 
 /**
  * Get user's own items from database
  * Only returns active items available for trading
  */
-export async function getMyItems(userId: string): Promise<ApiResponse<any[]>> {
+export async function getMyItems(userId: string): Promise<ApiResponse<Item[]>> {
     try {
         const supabase = await createClient()
 
-        const { data, error } = await supabase
+        const { data: items, error: itemsError } = await supabase
             .from('item')
-            .select('*')
+            .select('item_id,title,description,condition,category,item_type,status,owner_user_id,last_date_uploaded,date_bought')
             .eq('owner_user_id', userId)
             .eq('status', 'active')
+            .order('last_date_uploaded', { ascending: false })
 
-        if (error) {
+        if (itemsError) {
             return {
                 success: false,
-                error: error.message,
+                error: itemsError.message,
             }
         }
 
-        return {
-            success: true,
-            data: data || [],
-        }
+        return await mapItemsWithOwnerAndMedia(supabase, (items || []) as BaseItemRow[])
     } catch (err) {
         console.error('Error fetching user items:', err)
         return {
@@ -46,71 +145,27 @@ export async function getMyItems(userId: string): Promise<ApiResponse<any[]>> {
 }
 
 /**
- * Get current user's profile from auth
- */
-export async function getCurrentUser(): Promise<ApiResponse<any>> {
-    try {
-        const supabase = await createClient()
-
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-        if (authError || !user) {
-            return {
-                success: false,
-                error: 'Not authenticated',
-            }
-        }
-
-        // Try to get user profile from database, but fallback to auth user
-        const { data: userProfile } = await supabase
-            .from('user')
-            .select('*')
-            .eq('user_id', user.id)
-            .single()
-
-        // Return user data (from profile table if exists, otherwise from auth)
-        return {
-            success: true,
-            data: userProfile || {
-                user_id: user.id,
-                email: user.email,
-                name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-                avatar: user.user_metadata?.avatar_url,
-            },
-        }
-    } catch (err) {
-        console.error('Error fetching current user:', err)
-        return {
-            success: false,
-            error: err instanceof Error ? err.message : 'An error occurred',
-        }
-    }
-}
-
-/**
  * Get all items except user's own (for marketplace/selection)
  */
-export async function getAvailableItems(userId: string): Promise<ApiResponse<any[]>> {
+export async function getAvailableItems(userId: string): Promise<ApiResponse<Item[]>> {
     try {
         const supabase = await createClient()
 
-        const { data, error } = await supabase
+        const { data: items, error: itemsError } = await supabase
             .from('item')
-            .select('*')
+            .select('item_id,title,description,condition,category,item_type,status,owner_user_id,last_date_uploaded,date_bought')
             .eq('status', 'active')
             .neq('owner_user_id', userId)
+            .order('last_date_uploaded', { ascending: false })
 
-        if (error) {
+        if (itemsError) {
             return {
                 success: false,
-                error: error.message,
+                error: itemsError.message,
             }
         }
 
-        return {
-            success: true,
-            data: data || [],
-        }
+        return await mapItemsWithOwnerAndMedia(supabase, (items || []) as BaseItemRow[])
     } catch (err) {
         console.error('Error fetching available items:', err)
         return {
@@ -123,26 +178,24 @@ export async function getAvailableItems(userId: string): Promise<ApiResponse<any
 /**
  * Get all marketplace items (all active items for public marketplace)
  */
-export async function getMarketplaceItems(): Promise<ApiResponse<any[]>> {
+export async function getMarketplaceItems(): Promise<ApiResponse<Item[]>> {
     try {
         const supabase = await createClient()
 
-        const { data, error } = await supabase
+        const { data: items, error: itemsError } = await supabase
             .from('item')
-            .select('*')
+            .select('item_id,title,description,condition,category,item_type,status,owner_user_id,last_date_uploaded,date_bought')
             .eq('status', 'active')
+            .order('last_date_uploaded', { ascending: false })
 
-        if (error) {
+        if (itemsError) {
             return {
                 success: false,
-                error: error.message,
+                error: itemsError.message,
             }
         }
 
-        return {
-            success: true,
-            data: data || [],
-        }
+        return await mapItemsWithOwnerAndMedia(supabase, (items || []) as BaseItemRow[])
     } catch (err) {
         console.error('Error fetching marketplace items:', err)
         return {

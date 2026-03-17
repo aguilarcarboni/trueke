@@ -1,7 +1,3 @@
-// ============================================
-// Exchange/Trade Proposal Types
-// ============================================
-
 export type ExchangeStatus = 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled'
 export type ExchangeRole = 'initiator' | 'member'
 export type ExchangeDirection = 'offered' | 'requested'
@@ -68,35 +64,4 @@ export interface RejectExchangeRequest {
 export interface CancelExchangeRequest {
     exchange_id: string
     initiator_user_id: string
-}
-
-// ============================================
-// Item Types - Re-exported from item-constants.ts
-// ============================================
-
-// Re-export types from the centralized constants file
-export type { ItemCondition, ItemType, ItemStatus } from './item-constants'
-
-// Legacy alias for backward compatibility
-export type ItemState = import('./item-constants').ItemStatus
-
-export interface Item {
-    item_id: string
-    title: string
-    description: string
-    condition: import('./item-constants').ItemCondition
-    category: string
-    item_type: import('./item-constants').ItemType
-    status: import('./item-constants').ItemStatus
-    images: string[]
-    owner_user_id: string
-    owner_name: string
-    owner_avatar?: string
-    owner_location?: string
-    owner_rating?: number
-    owner_totalTrades?: number
-    owner_joinedDate?: string
-    last_date_uploaded: string
-    date_bought?: string
-    metadata?: Record<string, string>
 }

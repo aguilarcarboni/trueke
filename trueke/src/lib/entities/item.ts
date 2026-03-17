@@ -1,30 +1,45 @@
-// ============================================
-// Item Constants - Aligned with DB Schema
-// ============================================
-// These types and constants match the Postgres enums in create-schema.sql
-
-// ============================================
-// Types (matching DB enums)
-// ============================================
-
-/**
- * item_condition enum: 'new', 'like new', 'used', 'heavily used', 'broken'
- */
 export type ItemCondition = 'new' | 'like new' | 'used' | 'heavily used' | 'broken'
 
-/**
- * item_type enum: 'physical', 'digital'
- */
 export type ItemType = 'physical' | 'digital'
 
-/**
- * item_status enum: 'draft', 'active', 'contested', 'traded', 'deleted'
- */
 export type ItemStatus = 'draft' | 'active' | 'contested' | 'traded' | 'deleted'
 
-// ============================================
-// Display Labels
-// ============================================
+export interface Item {
+    item_id: string
+    title: string
+    description: string
+    condition: ItemCondition
+    category: string
+    item_type: ItemType
+    status: ItemStatus
+    images: string[]
+    owner_user_id: string
+    owner_name: string
+    owner_avatar?: string
+    owner_location?: string
+    owner_rating?: number
+    owner_totalTrades?: number
+    owner_joinedDate?: string
+    last_date_uploaded: string
+    date_bought?: string
+    metadata?: Record<string, string>
+}
+
+export interface ItemAddress {
+    addressId: string | null
+    countryCode: string
+    addressLine1: string
+    addressLine2: string
+    muniDistrict: string
+    city: string
+    province: string
+    zipCode: string
+}
+
+export interface ItemWithAddress extends Item {
+    address: ItemAddress | null
+}
+
 
 export const ITEM_CONDITION_LABELS: Record<ItemCondition, string> = {
   'new': 'New',
@@ -46,10 +61,6 @@ export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
   'traded': 'Traded',
   'deleted': 'Deleted',
 }
-
-// ============================================
-// Style Classes (Tailwind CSS)
-// ============================================
 
 export const ITEM_CONDITION_STYLES: Record<ItemCondition, string> = {
   'new': 'bg-success text-success-foreground',
@@ -75,61 +86,28 @@ export const ITEM_STATUS_STYLES: Record<ItemStatus, string> = {
   'deleted': 'bg-destructive/20 text-destructive',
 }
 
-// ============================================
-// Helper Functions
-// ============================================
-
-/**
- * Get the display label for an item condition
- * Returns the condition value if not found in labels (graceful fallback)
- */
 export function getConditionLabel(condition: string): string {
   return ITEM_CONDITION_LABELS[condition as ItemCondition] ?? condition
 }
 
-/**
- * Get the style class for an item condition
- * Returns empty string if not found (graceful fallback)
- */
 export function getConditionStyle(condition: string): string {
   return ITEM_CONDITION_STYLES[condition as ItemCondition] ?? ''
 }
 
-/**
- * Get the badge style class for an item condition
- * Returns empty string if not found (graceful fallback)
- */
 export function getConditionBadgeStyle(condition: string): string {
   return ITEM_CONDITION_BADGE_STYLES[condition as ItemCondition] ?? ''
 }
 
-/**
- * Get the display label for an item status
- * Returns the status value if not found in labels (graceful fallback)
- */
 export function getStatusLabel(status: string): string {
   return ITEM_STATUS_LABELS[status as ItemStatus] ?? status
 }
 
-/**
- * Get the style class for an item status
- * Returns empty string if not found (graceful fallback)
- */
 export function getStatusStyle(status: string): string {
   return ITEM_STATUS_STYLES[status as ItemStatus] ?? ''
 }
 
-/**
- * Array of all condition values for dropdowns/selects
- */
 export const ITEM_CONDITIONS: ItemCondition[] = ['new', 'like new', 'used', 'heavily used', 'broken']
 
-/**
- * Array of all type values for dropdowns/selects
- */
 export const ITEM_TYPES: ItemType[] = ['physical', 'digital']
 
-/**
- * Array of all status values for dropdowns/selects
- */
 export const ITEM_STATUSES: ItemStatus[] = ['draft', 'active', 'contested', 'traded', 'deleted']

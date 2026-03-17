@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, ArrowLeftRight, Check, Package, Search, Loader2, ArrowLeft } from "lucide-react"
+import { ArrowLeftRight, Check, Package, Search, Loader2, ArrowLeft } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -21,26 +21,14 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { createExchangeProposal, getMyItems } from "@/app/actions/exchange-actions"
+import { createExchangeProposal, getMyItems } from "@/app/actions/exchange"
 import { useToast } from "@/hooks/use-toast"
-import { getConditionLabel, getConditionBadgeStyle } from "@/lib/item-constants"
+import { getConditionLabel, getConditionBadgeStyle } from "@/lib/entities/item"
 import { getFriendlyErrorMessage } from "@/lib/error-messages"
-import type { CreateExchangeRequest } from "@/lib/types"
+import type { CreateExchangeRequest } from "@/lib/entities/exchange"
+import type { Item } from "@/lib/entities/item"
 
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%23e5e7eb" viewBox="0 0 200 200"%3E%3Crect width="200" height="200"/%3E%3Ctext x="50%" y="50%" dy=".3em" text-anchor="middle" fill="%236b7280" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E'
-
-interface Item {
-  item_id: string
-  title: string
-  description: string
-  condition: string
-  category: string
-  images: string[]
-  owner_user_id: string
-  // Optional owner info
-  owner_name?: string
-  owner_avatar?: string
-}
 
 interface TradeProposalDialogProps {
   open: boolean

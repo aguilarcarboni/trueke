@@ -2,14 +2,19 @@
 
 import { ShoppingBag, ArrowLeftRight, CheckCircle, Star, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { dashboardStats, notifications, items, exchanges, currentUser } from "@/lib/data"
-import { getConditionLabel, ITEM_TYPE_LABELS } from "@/lib/item-constants"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { Admin } from "@/components/sections/admin/admin"
+import { Admin } from "@/components/admin/admin"
+
+const dashboardStats = {
+  activeListings: 4,
+  pendingOffers: 3,
+  completedTrades: 47,
+  averageRating: 4.8,
+}
+
 
 const statCards = [
   { label: "Active Listings", value: dashboardStats.activeListings, icon: ShoppingBag, color: "text-primary" },
@@ -28,22 +33,19 @@ export function Dashboard() {
     return null
   }
 
-  console.log(isAdmin)
-
   if (isAdmin) {
     return <Admin />
   }
 
-  const recentItems = items.slice(0, 4)
-  const pendingExchanges = exchanges.filter((e) => e.status === "open").slice(0, 3)
-  const unreadNotifs = notifications.filter((n) => !n.read)
+  const recentItems = []
+  const pendingExchanges = []
 
   return (
     <div className="space-y-8">
       {/* Welcome */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">
-          Welcome back, {currentUser.name.split(" ")[0]}
+          Welcome back, {session?.user.first_name}
         </h1>
         <p className="text-muted-foreground mt-1">
           {"Here's what's happening with your trades today."}
@@ -80,23 +82,6 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentItems.map((item) => (
-                <div key={item.id} className="flex items-center gap-4 rounded-lg border border-border p-3 transition-colors hover:bg-muted/50">
-                  <img
-                    src={item.images[0]}
-                    alt={item.title}
-                    className="h-14 w-14 rounded-lg object-cover"
-                    crossOrigin="anonymous"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.category} &middot; {getConditionLabel(item.condition)}</p>
-                  </div>
-                  <Badge variant="secondary" className="capitalize shrink-0">
-                    {ITEM_TYPE_LABELS[item.type as keyof typeof ITEM_TYPE_LABELS] ?? item.type}
-                  </Badge>
-                </div>
-              ))}
             </div>
           </CardContent>
         </Card>
@@ -107,22 +92,10 @@ export function Dashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-foreground text-base">Notifications</CardTitle>
-              {unreadNotifs.length > 0 && (
-                <Badge className="bg-primary text-primary-foreground">{unreadNotifs.length} new</Badge>
-              )}
+              <Badge className="bg-primary text-primary-foreground">0 new</Badge>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {notifications.slice(0, 4).map((notif) => (
-                  <div key={notif.id} className={`flex gap-3 rounded-lg p-2.5 text-sm ${!notif.read ? "bg-primary/5" : ""}`}>
-                    <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${!notif.read ? "bg-primary" : "bg-transparent"}`} />
-                    <div className="min-w-0">
-                      <p className="font-medium text-foreground">{notif.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{notif.description}</p>
-                      <p className="text-xs text-muted-foreground/70 mt-1">{notif.time}</p>
-                    </div>
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>
@@ -137,19 +110,6 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {pendingExchanges.map((ex) => (
-                  <div key={ex.id} className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={ex.initiator.avatar} alt={ex.initiator.name} />
-                      <AvatarFallback>{ex.initiator.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{ex.initiator.name}</p>
-                      <p className="text-xs text-muted-foreground">{ex.type} trade</p>
-                    </div>
-                    <Badge variant="outline" className="capitalize text-xs shrink-0">{ex.status}</Badge>
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>
@@ -166,31 +126,6 @@ export function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {items.slice(4, 8).map((item) => (
-              <div key={item.id} className="group cursor-pointer rounded-xl border border-border overflow-hidden transition-all hover:shadow-md">
-                <div className="relative overflow-hidden">
-                  <img
-                    src={item.images[0]}
-                    alt={item.title}
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                    crossOrigin="anonymous"
-                  />
-                  <Badge className="absolute top-2 right-2 bg-card/90 text-card-foreground text-xs backdrop-blur-sm">
-                    {item.category}
-                  </Badge>
-                </div>
-                <div className="p-3">
-                  <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <Avatar className="h-5 w-5">
-                      <AvatarImage src={item.owner.avatar} alt={item.owner.name} />
-                      <AvatarFallback className="text-[10px]">{item.owner.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs text-muted-foreground">{item.owner.name}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </CardContent>
       </Card>

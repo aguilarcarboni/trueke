@@ -1,36 +1,16 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Star, MapPin, Calendar, Edit, Shield, Save, Loader2 } from "lucide-react"
+import { MapPin, Calendar, Edit, Shield } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
-import { Textarea } from "@/components/ui/textarea"
-import { getConditionLabel, getStatusLabel } from "@/lib/item-constants"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { items, exchanges } from "@/lib/data"
-import { updateProfileAction } from "@/app/actions/profile-actions"
+import { getConditionLabel, getStatusLabel } from "@/lib/entities/item"
+import { updateProfileAction } from "@/app/actions/profile"
 import { EditProfileDialog } from "@/components/sections/profile/edit-profile-dialog"
-import type { UserProfile } from "@/utils/supabase/tables/profile"
+import type { UserProfile } from "@/lib/entities/profile"
 
 interface ProfileProps {
   profile: UserProfile | null
@@ -70,9 +50,6 @@ export function AdminProfile({ profile }: ProfileProps) {
   const displayName = profile
     ? `${profile.firstName} ${profile.lastName}`.trim() || profile.username
     : "—"
-
-  const userItems = items.filter((i) => i.owner.id === (profile?.id ?? ""))
-  const completedExchanges = exchanges.filter((e) => e.status === "accepted")
 
   const initials = displayName
     .split(" ")
@@ -221,29 +198,6 @@ export function AdminProfile({ profile }: ProfileProps) {
             <Button variant="outline" size="sm">Add Item</Button>
           </CardHeader>
           <CardContent>
-            {userItems.length > 0 ? (
-              <div className="space-y-3">
-                {userItems.map((item) => (
-                  <div key={item.id} className="flex items-center gap-4 rounded-lg border border-border p-3">
-                    <img
-                      src={item.images[0]}
-                      alt={item.title}
-                      className="h-14 w-14 rounded-lg object-cover"
-                      crossOrigin="anonymous"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {item.category} &middot; {getConditionLabel(item.condition)}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="capitalize text-xs">{getStatusLabel(item.state)}</Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">No items listed yet.</p>
-            )}
           </CardContent>
         </Card>
 
@@ -254,25 +208,6 @@ export function AdminProfile({ profile }: ProfileProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {exchanges.slice(0, 3).map((ex) => (
-                <div key={ex.id} className="flex items-center gap-4 rounded-lg border border-border p-3">
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarImage src={ex.initiator.avatar} alt={ex.initiator.name} />
-                    <AvatarFallback>{ex.initiator.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{ex.initiator.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {ex.type} trade &middot;{" "}
-                      {new Date(ex.createdAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="capitalize text-xs">{ex.status}</Badge>
-                </div>
-              ))}
             </div>
           </CardContent>
         </Card>

@@ -1,9 +1,235 @@
 "use server"
 
 import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
-import { Item, ItemAddress } from '@/lib/data'
+import { getServerSession } from 'next-auth'
+import { Item, ItemWithAddress } from '@/lib/entities/item';
+import { Address } from '@/lib/entities/address';
+import { authOptions } from '@/utils/auth';
 
+export interface ItemDetailsResponse {
+  item: {
+    item_id: string
+    title: string
+    description: string | null
+    category: string
+    condition: string
+    status: string
+    item_type: string
+    date_bought: string | null
+    last_date_uploaded: string
+  }
+  owner: {
+    user_id: string
+    username: string
+    first_name: string
+    last_name: string
+    profile_picture_url: string | null
+  }
+  address: {
+    address_id: string
+    country_code: string
+    address_line1: string
+    address_line2: string
+    muni_district: string
+    canton_city: string
+    province_state: string
+    zip_code: string
+  } | null
+}
+
+async function getAuthenticatedUserId(): Promise<string | null> {
+  const session = await getServerSession(authOptions)
+  const userId = session?.user?.id?.trim()
+  return userId || null
+}
+
+export async function getItemDetails(itemId: string): Promise<{ status: number; data?: ItemDetailsResponse; error?: string }> {
+  try {
+    const normalizedItemId = itemId.trim()
+    if (!normalizedItemId) {
+      return { status: 400, error: 'Item ID is required' }
+    }
+
+    const supabase = await createClient()
+
+    const { data: item, error: itemError } = await supabase
+      .from('item')
+      .select('item_id,title,description,category,condition,status,item_type,date_bought,last_date_uploaded,owner_user_id')
+      .eq('item_id', normalizedItemId)
+      .single()
+
+    if (itemError || !item) {
+      return { status: 404, error: 'Item not found' }
+    }
+
+    const { data: owner, error: ownerError } = await supabase
+      .from('user')
+      .select('user_id,username,first_name,last_name,profile_picture_url')
+      .eq('user_id', item.owner_user_id)
+      .single()
+
+    if (ownerError || !owner) {
+      return { status: 404, error: 'Item owner not found' }
+    }
+
+    const { data: currentAddressLink } = await supabase
+      .from('item_address')
+      .select('address_id')
+      .eq('item_id', normalizedItemId)
+      .eq('is_current', true)
+      .maybeSingle()
+
+    let address: ItemDetailsResponse['address'] = null
+
+    if (currentAddressLink?.address_id) {
+      const { data: itemAddress } = await supabase
+        .from('address')
+        .select('address_id,country_code,address_line1,address_line2,muni_district,canton_city,province_state,zip_code')
+        .eq('address_id', currentAddressLink.address_id)
+        .maybeSingle()
+
+      if (itemAddress) {
+        address = itemAddress
+      }
+    }
+
+    return {
+      status: 200,
+      data: {
+        item: {
+          item_id: item.item_id,
+          title: item.title,
+          description: item.description,
+          category: item.category,
+          condition: item.condition,
+          status: item.status,
+          item_type: item.item_type,
+          date_bought: item.date_bought,
+          last_date_uploaded: item.last_date_uploaded,
+        },
+        owner,
+        address,
+      },
+    }
+  } catch (error) {
+    console.error('Get item details error:', error)
+    return { status: 500, error: 'Unable to load item details right now.' }
+  }
+}
+
+export async function getItemsWithAddressByOwner(userId: string): Promise<{ success: boolean; data?: ItemWithAddress[]; error?: string }> {
+  try {
+    const normalizedUserId = userId.trim()
+    if (!normalizedUserId) {
+      return { success: false, error: 'User ID is required' }
+    }
+
+    const supabase = await createClient()
+
+    const { data: items, error: itemsError } = await supabase
+      .from('item')
+      .select('item_id,title,description,condition,category,item_type,status,owner_user_id,last_date_uploaded,date_bought')
+      .eq('owner_user_id', normalizedUserId)
+      .order('last_date_uploaded', { ascending: false })
+
+    if (itemsError) {
+      return { success: false, error: itemsError.message }
+    }
+
+    if (!items || items.length === 0) {
+      return { success: true, data: [] }
+    }
+
+    const itemIds = items.map((i) => i.item_id)
+
+    const [{ data: mediaRows, error: mediaError }, { data: links, error: linksError }] = await Promise.all([
+      supabase
+        .from('item_media')
+        .select('item_id,url,display_order')
+        .in('item_id', itemIds)
+        .order('display_order', { ascending: true }),
+      supabase
+        .from('item_address')
+        .select('item_id,address_id')
+        .in('item_id', itemIds)
+        .eq('is_current', true),
+    ])
+
+    if (mediaError) {
+      return { success: false, error: mediaError.message }
+    }
+
+    if (linksError) {
+      return { success: false, error: linksError.message }
+    }
+
+    const mediaByItem = new Map<string, string[]>()
+    for (const row of mediaRows || []) {
+      const existing = mediaByItem.get(row.item_id) || []
+      existing.push(row.url)
+      mediaByItem.set(row.item_id, existing)
+    }
+
+    const currentAddressByItem = new Map<string, string>()
+    const addressIds = new Set<string>()
+    for (const link of links || []) {
+      currentAddressByItem.set(link.item_id, link.address_id)
+      addressIds.add(link.address_id)
+    }
+
+    let addressesById = new Map<string, ItemWithAddress['address']>()
+    if (addressIds.size > 0) {
+      const { data: addressRows, error: addressesError } = await supabase
+        .from('address')
+        .select('address_id,country_code,address_line1,address_line2,muni_district,canton_city,province_state,zip_code')
+        .in('address_id', Array.from(addressIds))
+
+      if (addressesError) {
+        return { success: false, error: addressesError.message }
+      }
+
+      addressesById = new Map(
+        (addressRows || []).map((addr) => [
+          addr.address_id,
+          {
+            addressId: addr.address_id,
+            countryCode: addr.country_code,
+            addressLine1: addr.address_line1 ?? '',
+            addressLine2: addr.address_line2 ?? '',
+            muniDistrict: addr.muni_district ?? '',
+            city: addr.canton_city ?? '',
+            province: addr.province_state ?? '',
+            zipCode: addr.zip_code ?? '',
+          },
+        ])
+      )
+    }
+
+    const data: ItemWithAddress[] = items.map((item) => {
+      const linkedAddressId = currentAddressByItem.get(item.item_id)
+      return {
+        item_id: item.item_id,
+        title: item.title,
+        description: item.description ?? '',
+        condition: item.condition,
+        category: item.category,
+        item_type: item.item_type,
+        status: item.status,
+        images: mediaByItem.get(item.item_id) || [],
+        owner_user_id: item.owner_user_id,
+        owner_name: '',
+        last_date_uploaded: item.last_date_uploaded,
+        date_bought: item.date_bought ?? undefined,
+        address: linkedAddressId ? addressesById.get(linkedAddressId) ?? null : null,
+      }
+    })
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Get items with address by owner error:', error)
+    return { success: false, error: 'An error occurred while loading your items' }
+  }
+}
 
 export async function createItem(
   payload: {
@@ -16,8 +242,7 @@ export async function createItem(
   }
 ) {
   try {
-    const cookieStore = await cookies()
-    const userId = cookieStore.get('user_id')
+    const userId = await getAuthenticatedUserId()
 
     if (!userId) {
       return { status: 403, error: 'Unauthorized: Not authenticated' }
@@ -40,7 +265,7 @@ export async function createItem(
       .from('item')
       .insert([
         {
-          owner_user_id: userId.value,
+          owner_user_id: userId,
           title: payload.title.trim(),
           description: payload.description.trim(),
           category: payload.category.trim(),
@@ -88,8 +313,7 @@ export async function updateItem(
   updates: Partial<Omit<Item, 'id' | 'owner' | 'createdAt' | 'images'>>
 ) {
   try {
-    const cookieStore = await cookies()
-    const userId = cookieStore.get('user_id')
+    const userId = await getAuthenticatedUserId()
 
     if (!userId) {
       return { error: 'Not authenticated' }
@@ -106,15 +330,15 @@ export async function updateItem(
       return { error: 'Item not found' }
     }
 
-    if (item.owner_user_id !== userId.value) {
+    if (item.owner_user_id !== userId) {
       return { error: 'Unauthorized: You do not own this item' }
     }
 
     const updateData: any = {}
     
     if (updates.title !== undefined) updateData.title = updates.title
-    if (updates.type !== undefined) updateData.item_type = updates.type
-    if (updates.state !== undefined) updateData.status = updates.state
+    if (updates.item_type !== undefined) updateData.item_type = updates.item_type
+    if (updates.status !== undefined) updateData.status = updates.status
     if (updates.category !== undefined) updateData.category = updates.category
     if (updates.condition !== undefined) updateData.condition = updates.condition
     if (updates.description !== undefined) updateData.description = updates.description
@@ -145,11 +369,10 @@ export async function updateItem(
  */
 export async function updateItemAddress(
   itemId: string,
-  address: Omit<ItemAddress, "addressId">
+  address: Omit<Address, "addressId">
 ): Promise<{ error: string | null }> {
   try {
-    const cookieStore = await cookies()
-    const userId = cookieStore.get('user_id')
+    const userId = await getAuthenticatedUserId()
 
     if (!userId) {
       return { error: 'Not authenticated' }
@@ -168,7 +391,7 @@ export async function updateItemAddress(
       return { error: 'Item not found' }
     }
 
-    if (item.owner_user_id !== userId.value) {
+    if (item.owner_user_id !== userId) {
       return { error: 'Unauthorized: You do not own this item' }
     }
 

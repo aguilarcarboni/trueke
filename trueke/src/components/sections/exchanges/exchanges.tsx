@@ -16,24 +16,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { TradeProposalDialog } from "@/components/sections/exchanges/trade-proposal-dialog"
-import { getAvailableItems, getUserExchanges, acceptExchange, rejectExchange, cancelExchange } from "@/app/actions/exchange-actions"
+import { getAvailableItems, getUserExchanges, acceptExchange, rejectExchange, cancelExchange } from "@/app/actions/exchange"
 import { useToast } from "@/hooks/use-toast"
 import { getFriendlyErrorMessage } from "@/lib/error-messages"
+import type { Item } from "@/lib/entities/item"
 
 // Temporary placeholder image for items without photos SHOULD BE REPLACED WITH A PROPER ASSET
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%23e5e7eb" viewBox="0 0 200 200"%3E%3Crect width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" dy=".3em" text-anchor="middle" fill="%236b7280" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E'
-
-interface Item {
-  item_id: string
-  title: string
-  description: string
-  category: string
-  condition: string
-  images: string[]
-  owner_user_id: string
-  owner_name?: string
-  owner_avatar?: string
-}
 
 interface ExchangesProps {
   currentUserId: string
@@ -244,7 +233,7 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-full w-full flex-1 flex-col space-y-6">
       {/* Dialog for selecting item to trade */}
       <Dialog open={isSelectingItem} onOpenChange={setIsSelectingItem}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">

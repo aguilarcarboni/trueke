@@ -1,6 +1,6 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { loginUserWithCredentials } from "@/utils/supabase/tables/user"
+import { loginUserWithCredentials } from "./entities/user"
 
 export const authOptions: NextAuthOptions = {
 

@@ -1,15 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Item } from "@/lib/data"
+import { useRouter } from "next/navigation"
+import { ItemWithAddress } from "@/lib/entities/item"
 import { Plus, Trash2, Edit, Eye, Package } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ViewItemDialog } from "@/components/sections/items/view-item-dialog"
 import { EditItemDialog } from "@/components/sections/items/edit-item-dialog"
-import { items } from "@/lib/data"
-import { getConditionLabel, getStatusLabel, getStatusStyle } from "@/lib/item-constants"
 
 // Placeholder component for items without images
 function ImagePlaceholder({ className = "" }: { className?: string }) {
@@ -21,8 +19,8 @@ function ImagePlaceholder({ className = "" }: { className?: string }) {
 }
 
 interface MyItemsProps {
-  userItems: Item[] | null
-  onSelectItem?: (item: Item) => void
+  userItems: ItemWithAddress[] | null
+  onSelectItem?: (item: ItemWithAddress) => void
   onCreateItem?: () => void
 }
 
@@ -42,13 +40,11 @@ const statusColors: Record<string, string> = {
 }
 
 export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
-
+  const router = useRouter()
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [myItems, setMyItems] = useState<Item[]>(userItems || [])
-  const [editingItem, setEditingItem] = useState<Item | null>(null)
+  const [myItems, setMyItems] = useState<ItemWithAddress[]>(userItems || [])
+  const [editingItem, setEditingItem] = useState<ItemWithAddress | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [viewingItem, setViewingItem] = useState<Item | null>(null)
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
 
   // Sync myItems when userItems prop changes
   useEffect(() => {
@@ -61,20 +57,19 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
     console.log("Deleting item:", itemId)
   }
 
-  const handleViewClick = (item: Item) => {
-    setViewingItem(item)
-    setIsViewDialogOpen(true)
+  const handleViewClick = (item: ItemWithAddress) => {
+    router.push(`/items/${encodeURIComponent(item.item_id)}`)
   }
 
-  const handleEditClick = (item: Item) => {
+  const handleEditClick = (item: ItemWithAddress) => {
     setEditingItem(item)
     setIsEditDialogOpen(true)
   }
 
-  const handleItemUpdated = (updatedItem: Item) => {
+  const handleItemUpdated = (updatedItem: ItemWithAddress) => {
     setMyItems(prevItems =>
       prevItems.map(item =>
-        item.id === updatedItem.id ? updatedItem : item
+        item.item_id === updatedItem.item_id ? updatedItem : item
       )
     )
   }
@@ -108,7 +103,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
             <CardTitle className="text-sm font-medium text-muted-foreground">Active</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{myItems.filter((i) => i.state === "active").length}</div>
+            <div className="text-2xl font-bold">{myItems.filter((i) => i.status === "active").length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -116,7 +111,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
             <CardTitle className="text-sm font-medium text-muted-foreground">Traded</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{myItems.filter((i) => i.state === "traded").length}</div>
+            <div className="text-2xl font-bold">{myItems.filter((i) => i.status === "traded").length}</div>
           </CardContent>
         </Card>
       </div>
@@ -141,7 +136,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
             // const mockImages = ["/api/placeholder/400/300", "/api/placeholder/400/301", "/api/placeholder/400/302"]
             // const firstImage = mockImages[Math.floor(Math.random() * mockImages.length)]
             return (
-            <Card key={item.id}>
+            <Card key={item.item_id}>
               <CardContent className="p-0">
                 {viewMode === "grid" ? (
                   <div className="flex flex-col">
@@ -163,8 +158,8 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                         {item.images && item.images.length > 1 && (
                           <Badge variant="secondary" className="text-xs">{item.images.length} images</Badge>
                         )}
-                        <Badge className={statusColors[item.state] || ""}>
-                          {item.state.charAt(0).toUpperCase() + item.state.slice(1)}
+                        <Badge className={statusColors[item.status] || ""}>
+                          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                         </Badge>
                       </div>
                     </div>
@@ -198,7 +193,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                           size="sm"
                           variant="outline"
                           className="flex-1 gap-1"
-                          onClick={() => handleDeleteItem(item.id)}
+                          onClick={() => handleDeleteItem(item.item_id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -207,7 +202,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                   </div>
                 ) : (
                   <div className="flex items-center gap-4 p-4">
-                    <div className="h-16 w-16 rounded overflow-hidden flex-shrink-0">
+                    <div className="h-16 w-16 rounded overflow-hidden">
                       {item.images && item.images.length > 0 ? (
                         <img 
                           src={item.images[0]} 
@@ -224,8 +219,8 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-foreground truncate">{item.title}</h3>
-                        <Badge className={statusColors[item.state] || ""}>
-                          {item.state.charAt(0).toUpperCase() + item.state.slice(1)}
+                        <Badge className={statusColors[item.status] || ""}>
+                          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mb-1">
@@ -233,14 +228,14 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                       </p>
                       <p className="text-sm text-muted-foreground line-clamp-1">{item.description || "No description"}</p>
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
+                    <div className="flex gap-1">
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleViewClick(item)}>
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEditClick(item)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleDeleteItem(item.id)}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleDeleteItem(item.item_id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -252,13 +247,6 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
           })}
         </div>
       )}
-
-      {/* View Item Dialog */}
-      <ViewItemDialog
-        open={isViewDialogOpen}
-        onOpenChange={setIsViewDialogOpen}
-        item={viewingItem}
-      />
 
       {/* Edit Item Dialog */}
       <EditItemDialog

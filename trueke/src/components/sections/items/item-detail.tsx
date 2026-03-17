@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, Star, MapPin, ArrowLeftRight, Heart, Share2, Flag, MessageSquare } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -8,27 +9,37 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { TradeProposalDialog } from "@/components/sections/exchanges/trade-proposal-dialog"
-import { getConditionLabel, getConditionStyle, getStatusLabel } from "@/lib/item-constants"
-import type { Item } from "@/lib/types"
+import type { Item } from "@/lib/entities/item"
+import {getConditionLabel, getConditionStyle, getStatusLabel} from "@/lib/entities/item"
 
 // Temporary placeholder image for items without photos SHOULD BE REPLACED WITH A PROPER ASSET
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%23e5e7eb" viewBox="0 0 200 200"%3E%3Crect width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" dy=".3em" text-anchor="middle" fill="%236b7280" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E'
 
 interface ItemDetailProps {
   item: Item
-  onBack: () => void
   currentUserId: string
 }
 
-export function ItemDetail({ item, onBack, currentUserId }: ItemDetailProps) {
+export function ItemDetail({ item, currentUserId }: ItemDetailProps) {
   const [isTradeDialogOpen, setIsTradeDialogOpen] = useState(false)
+  const router = useRouter()
+  const isOwner = item.owner_user_id === currentUserId
+
+  const handleBack = () => {
+    if (isOwner) {
+      router.push("/items")
+      return
+    }
+
+    router.push("/marketplace")
+  }
 
   return (
     <div className="space-y-6">
       {/* Back button */}
-      <Button variant="ghost" onClick={onBack} className="gap-2 text-muted-foreground hover:text-foreground">
+      <Button variant="ghost" onClick={handleBack} className="gap-2 text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" />
-        Back to Marketplace
+        {isOwner ? "Back to My Items" : "Back to Marketplace"}
       </Button>
 
       {/* Trade Proposal Dialog */}
@@ -44,7 +55,7 @@ export function ItemDetail({ item, onBack, currentUserId }: ItemDetailProps) {
         <div className="lg:col-span-2 space-y-6">
           {/* Main Image */}
           <Card className="overflow-hidden">
-            <div className="relative aspect-[16/10]">
+            <div className="relative ">
               <img
                 src={item.images?.[0] || PLACEHOLDER_IMAGE}
                 alt={item.title}

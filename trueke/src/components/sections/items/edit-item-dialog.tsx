@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Item, ItemCondition, ItemType, ItemState } from "@/lib/data"
+import { ItemCondition, ItemType, ItemStatus, ItemWithAddress } from "@/lib/entities/item"
 import { X, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { updateItem, updateItemAddress } from "@/app/items/actions"
+import { updateItem, updateItemAddress } from "@/app/actions/item"
 import { Country, State, City } from "country-state-city"
 
 // Validation patterns for location fields
@@ -50,8 +50,8 @@ const itemStatuses: string[] = ["draft", "active"]
 interface EditItemDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  item: Item | null
-  onItemUpdated?: (updatedItem: Item) => void
+  item: ItemWithAddress | null
+  onItemUpdated?: (updatedItem: ItemWithAddress) => void
 }
 
 export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: EditItemDialogProps) {
@@ -63,7 +63,7 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
   const [editFormData, setEditFormData] = useState({
     title: "",
     type: "physical" as ItemType,
-    state: "draft" as ItemState,
+    state: "draft" as ItemStatus,
     category: "",
     condition: "new" as ItemCondition,
     description: "",
@@ -76,8 +76,8 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
     if (item) {
       setEditFormData({
         title: item.title,
-        type: item.type,
-        state: item.state,
+        type: item.item_type,
+        state: item.status,
         category: item.category,
         condition: item.condition,
         description: item.description || "",
@@ -163,10 +163,10 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
 
     try {
       // Update item basic info
-      const result = await updateItem(item.id, {
+      const result = await updateItem(item.item_id, {
         title: editFormData.title,
-        type: editFormData.type,
-        state: editFormData.state,
+        item_type: editFormData.type,
+        status: editFormData.state,
         category: editFormData.category,
         condition: editFormData.condition,
         description: editFormData.description,
@@ -178,7 +178,7 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
       }
 
       // Update item address
-      const addressResult = await updateItemAddress(item.id, {
+      const addressResult = await updateItemAddress(item.item_id, {
         countryCode: editFormData.address.countryCode,
         addressLine1: editFormData.address.addressLine1,
         addressLine2: editFormData.address.addressLine2,
@@ -193,11 +193,11 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
         return
       }
 
-      const updatedItem: Item = {
+      const updatedItem: ItemWithAddress = {
         ...item,
         title: editFormData.title,
-        type: editFormData.type,
-        state: editFormData.state,
+        item_type: editFormData.type,
+        status: editFormData.state,
         category: editFormData.category,
         condition: editFormData.condition,
         description: editFormData.description,

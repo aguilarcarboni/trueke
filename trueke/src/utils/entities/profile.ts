@@ -1,43 +1,8 @@
 import { createClient } from "@/utils/supabase/server"
-import { LETTERS_ONLY, ALPHANUMERIC, AddressSchema } from "@/lib/address-types"
-import { getLinkedAddress, upsertUserAddress } from "@/utils/supabase/tables/address"
+import { LETTERS_ONLY, ALPHANUMERIC, AddressSchema } from "@/lib/entities/address"
+import { getLinkedAddress, upsertUserAddress } from "@/utils/entities/address"
+import { UpdateProfileData, UserProfile } from "@/lib/entities/profile"
 
-// UserAddress mirror the address table structure, but with camelCase keys for easier use in the frontend
-export interface UserAddress {
-  addressId: string | null
-  countryCode: string
-  addressLine1: string
-  addressLine2: string
-  muniDistrict: string
-  city: string        // canton_city
-  province: string    // province_state
-  zipCode: string
-}
-
-// UserProfile represents the combined data from the user table and their current address (if any) for use in the frontend
-export interface UserProfile {
-  id: string
-  email: string
-  username: string
-  firstName: string
-  lastName: string
-  bio: string
-  profile_picture_url: string
-  address: UserAddress | null
-  isAdmin: boolean
-  created_at: string
-  status: string
-}
-
-// Data structure for updating user profile information, including nested address fields
-export interface UpdateProfileData {
-  firstName: string
-  lastName: string
-  username: string
-  bio: string
-  profilePictureUrl: string
-  address: Omit<UserAddress, "addressId">
-}
 
 // Fetches the user's profile information, including their current address if available
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
@@ -95,10 +60,7 @@ function validateProfileData(data: UpdateProfileData): string | null {
 }
 
 // Updates the user's profile information, including their address. Handles creating/updating address records as needed.
-export async function updateUserProfile(
-  userId: string,
-  data: UpdateProfileData
-): Promise<{ error: string | null }> {
+export async function updateUserProfile(userId: string, data: UpdateProfileData): Promise<{ error: string | null }> {
   const validationError = validateProfileData(data)
   if (validationError) return { error: validationError }
 
@@ -124,5 +86,3 @@ export async function updateUserProfile(
 
   return upsertUserAddress(userId, data.address)
 }
-
-// Fetches a user's associated listings/items for display on their profile page 

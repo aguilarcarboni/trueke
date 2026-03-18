@@ -165,17 +165,17 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="space-y-1">
+    <div className="flex min-h-svh items-start justify-center bg-background p-3 sm:p-4 md:items-center">
+      <Card className="flex w-full max-w-2xl flex-col overflow-hidden md:max-h-[calc(100svh-2rem)]">
+        <CardHeader className="space-y-1 pb-4">
           <CardTitle className="text-2xl font-bold text-center">Create account</CardTitle>
           <CardDescription className="text-center">Fill the required information to register</CardDescription>
           <p className="text-xs text-center text-muted-foreground">
             Required fields are marked with <span className="text-destructive font-semibold">*</span>
           </p>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <CardContent className="h-[60svh] overflow-y-auto pb-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
             {formError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />

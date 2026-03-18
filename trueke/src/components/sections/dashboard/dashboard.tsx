@@ -41,7 +41,7 @@ export function Dashboard() {
   const pendingExchanges = []
 
   return (
-    <div className="space-y-8">
+    <div className="flex min-h-full w-full flex-1 flex-col space-y-8">
       {/* Welcome */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">

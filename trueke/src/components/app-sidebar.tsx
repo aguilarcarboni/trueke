@@ -128,7 +128,7 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
       <SidebarFooter className="border-t border-muted">
         <div className="w-full group-data-[state=collapsed]/sidebar:justify-center">
           <button
-            className="flex w-full items-center gap-3 rounded-lg transition-colors hover:bg-sidebar-accent px-2 py-1.5"
+            className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted dark:hover:bg-sidebar-accent"
           >
             <Avatar className="h-8 w-8">
               <AvatarImage src={profile?.profile_picture_url || undefined} alt={displayName} />
@@ -145,7 +145,7 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-sidebar-accent transition-colors disabled:opacity-50"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-muted dark:hover:bg-sidebar-accent disabled:opacity-50"
           >
             {isLoggingOut ? (
               <Loader2 className="h-4 w-4 animate-spin" />

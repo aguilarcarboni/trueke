@@ -76,6 +76,11 @@ function SignIn() {
           />
           <LoaderButton isLoading={isLoading} text='Sign in' />
         </form>
+        <p className='text-sm text-center text-muted-foreground'>
+          <Link href={'/forgot-password'} className='underline'>
+            Forgot password?
+          </Link>
+        </p>
         <p className='text-sm text-center text-red-500'>No account? <Link href={'/register'} className='underline text-primary font-bold'>Register</Link></p>
       </CardContent>
     </Card>

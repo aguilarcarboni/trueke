@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Star, MapPin, Calendar, Edit, Shield } from "lucide-react"
+import { Star, MapPin, Calendar, Edit, Shield, Lock, Mail } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -13,11 +13,16 @@ import { getConditionLabel, getStatusLabel } from "@/lib/entities/item"
 import { useSession } from "next-auth/react"
 import { getProfileAction } from "@/app/actions/profile"
 import type { UserProfile } from "@/lib/entities/profile"
+import { ChangePasswordDialog } from "@/components/sections/profile/credentials/ChangePasswordDialog"
+import { ChangeEmailDialog } from "@/components/sections/profile/credentials/ChangeEmailDialog"
 
 export function Profile() {
   const { data: session } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [credentialsDialogOpen, setCredentialsDialogOpen] = useState(false)
+  const [credentialsDialogMode, setCredentialsDialogMode] = useState<"password" | "email" | null>(null)
+  const [profileRefreshKey, setProfileRefreshKey] = useState(0)
 
   useEffect(() => {
     if (!session?.user?.id) return
@@ -29,7 +34,7 @@ export function Profile() {
       setProfile(userProfile)
     }
     fetchProfile()
-  }, [session?.user?.id])
+  }, [session?.user?.id, profileRefreshKey])
 
   if (!session?.user) {
     return null
@@ -151,6 +156,40 @@ export function Profile() {
           </CardContent>
         </Card>
 
+        {/* Account credentials (buttons only for now) */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-card-foreground">Account credentials</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Change your password or email address.
+            </p>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                setCredentialsDialogMode("password")
+                setCredentialsDialogOpen(true)
+              }}
+            >
+              <Lock className="h-4 w-4" />
+              Change password
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                setCredentialsDialogMode("email")
+                setCredentialsDialogOpen(true)
+              }}
+            >
+              <Mail className="h-4 w-4" />
+              Change email
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* My Listings */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
@@ -218,6 +257,29 @@ export function Profile() {
 
     {/* Edit Profile Dialog - Prompted to the User */}
     <EditProfileDialog open={dialogOpen} onOpenChange={setDialogOpen} profile={profile} />
+
+    <ChangePasswordDialog
+      open={credentialsDialogOpen && credentialsDialogMode === "password"}
+      onOpenChange={(next) => {
+        if (!next) {
+          setCredentialsDialogOpen(false)
+          setCredentialsDialogMode(null)
+        }
+      }}
+      onSuccess={() => setProfileRefreshKey((k) => k + 1)}
+    />
+
+    <ChangeEmailDialog
+      open={credentialsDialogOpen && credentialsDialogMode === "email"}
+      onOpenChange={(next) => {
+        if (!next) {
+          setCredentialsDialogOpen(false)
+          setCredentialsDialogMode(null)
+        }
+      }}
+      currentEmail={profile?.email ?? ""}
+      onSuccess={() => setProfileRefreshKey((k) => k + 1)}
+    />
     </>
   )
 }

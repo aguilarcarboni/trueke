@@ -127,7 +127,8 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
 
       <SidebarFooter className="border-t border-muted">
         <div className="w-full group-data-[state=collapsed]/sidebar:justify-center">
-          <button
+          <Link
+            href="/profile"
             className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted dark:hover:bg-sidebar-accent"
           >
             <Avatar className="h-8 w-8">
@@ -141,7 +142,7 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
                 <p className="text-xs mt-0.5 truncate">{locationSummary}</p>
               )}
             </div>
-          </button>
+          </Link>
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}

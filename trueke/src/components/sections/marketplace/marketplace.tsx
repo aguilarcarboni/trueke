@@ -250,45 +250,6 @@ export function Marketplace() {
         </CardContent>
       </Card>
 
-      {/* Category Pills */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => {
-            setSelectedCategory("")
-            fetchItems({ search: searchQuery || undefined, condition: selectedCondition || undefined, item_type: selectedType || undefined })
-          }}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-            selectedCategory === ""
-              ? "bg-primary text-primary-foreground"
-              : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-          }`}
-        >
-          All
-        </button>
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => {
-              const next = selectedCategory === cat ? "" : cat
-              setSelectedCategory(next)
-              fetchItems({
-                search: searchQuery || undefined,
-                category: next || undefined,
-                condition: selectedCondition || undefined,
-                item_type: selectedType || undefined,
-              })
-            }}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              selectedCategory === cat
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
       {/* Results */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{isLoading ? "Loading..." : `${items.length} items found`}</p>
@@ -312,11 +273,6 @@ export function Marketplace() {
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     crossOrigin="anonymous"
                   />
-                  <div className="absolute top-2 left-2 flex gap-1.5">
-                    <Badge className="bg-card/90 text-card-foreground backdrop-blur-sm text-xs">
-                      {item.category}
-                    </Badge>
-                  </div>
                   <div className="absolute top-2 right-2">
                     <Badge variant="outline" className="bg-card/90 text-card-foreground backdrop-blur-sm capitalize text-xs border-0">
                       {item.item_type}
@@ -378,8 +334,6 @@ export function Marketplace() {
                         <AvatarFallback className="text-[10px]">{item.owner_name?.charAt(0) || "O"}</AvatarFallback>
                       </Avatar>
                       <span className="text-xs text-muted-foreground">{item.owner_name}</span>
-                      <span className="text-xs text-muted-foreground">&middot;</span>
-                      <span className="text-xs text-muted-foreground">{item.category}</span>
                     </div>
                   </div>
                 </CardContent>

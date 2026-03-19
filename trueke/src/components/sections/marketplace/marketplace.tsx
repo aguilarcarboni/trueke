@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Search, Grid3X3, List, X } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -40,7 +40,10 @@ export function Marketplace() {
   const [cityQuery, setCityQuery] = useState("")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
 
-  const provinces = selectedCountry ? State.getStatesOfCountry(selectedCountry) : []
+  const provinces = useMemo(
+    () => selectedCountry ? State.getStatesOfCountry(selectedCountry) : [],
+    [selectedCountry]
+  )
 
   const hasActiveFilters =
     searchQuery !== "" ||
@@ -51,23 +54,16 @@ export function Marketplace() {
     selectedProvince !== "" ||
     cityQuery !== ""
 
-  // Load distinct categories once on mount
-  useEffect(() => {
-    getMarketplaceCategories().then((result) => {
-      if (result.success) setCategories(result.data || [])
-    })
-  }, [])
+  const fetchItems = useCallback(async (overrideFilters?: MarketplaceFilters) => {
+    setIsLoading(true)
 
-  // Debounced re-fetch whenever any filter changes
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      setIsLoading(true)
+    const filters: MarketplaceFilters = overrideFilters ?? {}
 
-      const filters: MarketplaceFilters = {}
-      if (searchQuery)        filters.search    = searchQuery
-      if (selectedCategory)   filters.category  = selectedCategory
-      if (selectedCondition)  filters.condition = selectedCondition
-      if (selectedType)       filters.item_type = selectedType
+    if (overrideFilters === undefined) {
+      if (searchQuery)       filters.search    = searchQuery
+      if (selectedCategory)  filters.category  = selectedCategory
+      if (selectedCondition) filters.condition = selectedCondition
+      if (selectedType)      filters.item_type = selectedType
 
       if (selectedCountry || selectedProvince || cityQuery) {
         filters.address = {}
@@ -75,22 +71,29 @@ export function Marketplace() {
         if (selectedProvince) filters.address.province     = selectedProvince
         if (cityQuery)        filters.address.city         = cityQuery
       }
+    }
 
-      const result = await getMarketplaceItems(filters)
-      if (result.success) {
-        setItems(result.data || [])
-      } else {
-        toast({
-          title: "Couldn't load marketplace",
-          description: getFriendlyErrorMessage(result.error),
-          variant: "destructive",
-        })
-      }
-      setIsLoading(false)
-    }, 300)
-
-    return () => clearTimeout(timer)
+    const result = await getMarketplaceItems(filters)
+    if (result.success) {
+      setItems(result.data || [])
+    } else {
+      toast({
+        title: "Couldn't load marketplace",
+        description: getFriendlyErrorMessage(result.error),
+        variant: "destructive",
+      })
+    }
+    setIsLoading(false)
   }, [searchQuery, selectedCategory, selectedCondition, selectedType, selectedCountry, selectedProvince, cityQuery, toast])
+
+  // Load categories + initial unfiltered item list on mount
+  useEffect(() => {
+    getMarketplaceCategories().then((result) => {
+      if (result.success) setCategories(result.data || [])
+    })
+    fetchItems({})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const clearFilters = useCallback(() => {
     setSearchQuery("")
@@ -100,6 +103,9 @@ export function Marketplace() {
     setSelectedCountry("")
     setSelectedProvince("")
     setCityQuery("")
+    fetchItems({})
+  // fetchItems is intentionally omitted — we pass {} directly so stale state is irrelevant
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -113,7 +119,7 @@ export function Marketplace() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6 space-y-3">
-          {/* Row 1: search + view toggle */}
+          {/* Row 1: search + apply button + view toggle */}
           <div className="flex gap-3 items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -121,9 +127,14 @@ export function Marketplace() {
                 placeholder="Search by title or description..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && fetchItems()}
                 className="pl-9"
               />
             </div>
+            <Button onClick={() => fetchItems()} disabled={isLoading} className="shrink-0">
+              <Search className="h-4 w-4 mr-2" />
+              Search
+            </Button>
             <div className="flex rounded-lg border border-border shrink-0">
               <Button
                 variant={viewMode === "grid" ? "secondary" : "ghost"}
@@ -242,7 +253,10 @@ export function Marketplace() {
       {/* Category Pills */}
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => setSelectedCategory("")}
+          onClick={() => {
+            setSelectedCategory("")
+            fetchItems({ search: searchQuery || undefined, condition: selectedCondition || undefined, item_type: selectedType || undefined })
+          }}
           className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
             selectedCategory === ""
               ? "bg-primary text-primary-foreground"
@@ -254,7 +268,16 @@ export function Marketplace() {
         {categories.map((cat) => (
           <button
             key={cat}
-            onClick={() => setSelectedCategory(selectedCategory === cat ? "" : cat)}
+            onClick={() => {
+              const next = selectedCategory === cat ? "" : cat
+              setSelectedCategory(next)
+              fetchItems({
+                search: searchQuery || undefined,
+                category: next || undefined,
+                condition: selectedCondition || undefined,
+                item_type: selectedType || undefined,
+              })
+            }}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
               selectedCategory === cat
                 ? "bg-primary text-primary-foreground"

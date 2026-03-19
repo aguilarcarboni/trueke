@@ -16,7 +16,7 @@ import type {
 } from '@/lib/entities/exchange'
 import type { Item } from '@/lib/entities/item'
 
-type BaseItemRow = {
+export type BaseItemRow = {
     item_id: string
     title: string
     description: string | null
@@ -29,7 +29,7 @@ type BaseItemRow = {
     date_bought: string | null
 }
 
-async function mapItemsWithOwnerAndMedia(
+export async function mapItemsWithOwnerAndMedia(
     supabase: Awaited<ReturnType<typeof createClient>>,
     items: BaseItemRow[]
 ): Promise<ApiResponse<Item[]>> {

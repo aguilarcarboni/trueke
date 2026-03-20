@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { updateItem, updateItemAddress } from "@/app/actions/item"
+import { updateItem } from "@/app/actions/item"
 import { AddressSchema, EMPTY_ADDRESS } from "@/lib/entities/address"
 import { AddressForm } from "@/components/misc/address-form"
 
@@ -127,34 +127,21 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
     setUpdateMessage(null)
 
     try {
-      // Update item basic info
-      const result = await updateItem(item.item_id, {
-        title: editFormData.title,
-        item_type: editFormData.type,
-        status: editFormData.state,
-        category: editFormData.category,
-        condition: editFormData.condition,
-        description: editFormData.description,
-      })
+      const result = await updateItem(
+        item.item_id,
+        {
+          title: editFormData.title,
+          item_type: editFormData.type,
+          status: editFormData.state,
+          category: editFormData.category,
+          condition: editFormData.condition,
+          description: editFormData.description,
+        },
+        editFormData.address
+      )
 
       if (result.error) {
         setUpdateMessage({ type: 'error', text: result.error })
-        return
-      }
-
-      // Update item address
-      const addressResult = await updateItemAddress(item.item_id, {
-        countryCode: editFormData.address.countryCode,
-        addressLine1: editFormData.address.addressLine1,
-        addressLine2: editFormData.address.addressLine2,
-        muniDistrict: editFormData.address.muniDistrict,
-        city: editFormData.address.city,
-        province: editFormData.address.province,
-        zipCode: editFormData.address.zipCode,
-      })
-
-      if (addressResult.error) {
-        setUpdateMessage({ type: 'error', text: addressResult.error })
         return
       }
 

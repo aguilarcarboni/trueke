@@ -310,7 +310,8 @@ export async function createItem(
 
 export async function updateItem(
   itemId: string,
-  updates: Partial<Omit<Item, 'id' | 'owner' | 'createdAt' | 'images'>>
+  updates: Partial<Omit<Item, 'id' | 'owner' | 'createdAt' | 'images'>>,
+  address?: Omit<Address, 'addressId'>
 ) {
   try {
     const userId = await getAuthenticatedUserId()
@@ -353,6 +354,13 @@ export async function updateItem(
     if (error) {
       console.error('Error updating item:', error)
       return { error: 'Failed to update item' }
+    }
+
+    if (address) {
+      const addressResult = await updateItemAddress(itemId, address)
+      if (addressResult.error) {
+        return { error: addressResult.error }
+      }
     }
 
     return { success: true, data }

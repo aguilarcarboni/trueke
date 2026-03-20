@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ItemCondition, ItemType, ItemStatus, ItemWithAddress } from "@/lib/entities/item"
+import { ItemCondition, ItemType, ItemStatus, ItemWithAddress, ITEM_CONDITIONS, ITEM_CONDITION_LABELS } from "@/lib/entities/item"
+import { ITEM_CATEGORIES } from "@/lib/data"
 import { X, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -20,14 +21,6 @@ function ImagePlaceholder({ className = "" }: { className?: string }) {
       <Package className="h-12 w-12 text-muted-foreground" />
     </div>
   )
-}
-
-const conditionLabel: Record<string, string> = {
-  "new": "New",
-  "like new": "Like New",
-  "used": "Used",
-  "heavily used": "Heavily Used",
-  "broken": "Broken",
 }
 
 const itemTypes = ["physical", "digital"]
@@ -302,12 +295,18 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
               {/* Item Category */}
               <div className="space-y-2">
                 <Label htmlFor="item-category">Category</Label>
-                <Input
-                  id="item-category"
-                  value={editFormData.category}
-                  onChange={(e) => handleEditFormChange("category", e.target.value)}
-                  placeholder="Enter item category"
-                />
+                <Select value={editFormData.category} onValueChange={(value) => handleEditFormChange("category", value)}>
+                  <SelectTrigger id="item-category">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ITEM_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Item Condition */}
@@ -318,9 +317,9 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(conditionLabel).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
+                    {ITEM_CONDITIONS.map((cond) => (
+                      <SelectItem key={cond} value={cond}>
+                        {ITEM_CONDITION_LABELS[cond]}
                       </SelectItem>
                     ))}
                   </SelectContent>

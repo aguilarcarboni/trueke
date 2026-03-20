@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { changePassword } from "@/app/actions/credentials"
-
 const PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*\d)(?=.*[?!*&]).{8,}$/
 
 interface ChangePasswordDialogProps {
@@ -72,9 +70,15 @@ export function ChangePasswordDialog({
     }
 
     startTransition(async () => {
-      const result = await changePassword(currentPassword, newPassword)
-      if (result.error) {
-        setError(result.error)
+      const res = await fetch("/api/account/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      const data = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setError(data.error ?? "Could not update password.")
         return
       }
 

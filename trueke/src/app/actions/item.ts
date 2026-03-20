@@ -1,10 +1,9 @@
 "use server"
 
 import { createClient } from '@/utils/supabase/server'
-import { getServerSession } from 'next-auth'
 import { Item, ItemWithAddress } from '@/lib/entities/item';
 import { Address } from '@/lib/entities/address';
-import { authOptions } from '@/utils/auth';
+import { getAuthenticatedUserId } from '@/utils/auth-server';
 
 export interface ItemDetailsResponse {
   item: {
@@ -35,12 +34,6 @@ export interface ItemDetailsResponse {
     province_state: string
     zip_code: string
   } | null
-}
-
-async function getAuthenticatedUserId(): Promise<string | null> {
-  const session = await getServerSession(authOptions)
-  const userId = session?.user?.id?.trim()
-  return userId || null
 }
 
 export async function getItemDetails(itemId: string): Promise<{ status: number; data?: ItemDetailsResponse; error?: string }> {

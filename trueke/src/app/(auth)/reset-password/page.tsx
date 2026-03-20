@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { performPasswordReset } from "./actions"
 
 const PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*\d)(?=.*[?!*&]).{8,}$/
 
@@ -48,17 +47,19 @@ export default function ResetPasswordPage() {
     }
 
     startTransition(async () => {
-      const formData = new FormData()
-      formData.append("code", cleanCode)
-      formData.append("password", newPassword)
-
-      const result = await performPasswordReset(formData)
-      if (result.error) {
-        setError(result.error)
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code: cleanCode, password: newPassword }),
+      })
+      const data = (await res.json()) as { error?: string; success?: string }
+      if (!res.ok) {
+        setError(data.error ?? "Could not reset password.")
         return
       }
 
-      setSuccess(result.success ?? "Password updated successfully.")
+      setSuccess(data.success ?? "Password updated successfully.")
       setTimeout(() => router.push("/login"), 1200)
     })
   }

@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { sendRecoveryEmail } from "./actions"
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -35,11 +34,15 @@ export default function ForgotPasswordPage() {
     }
 
     startTransition(async () => {
-      const formData = new FormData()
-      formData.append("email", normalized)
-      const result = await sendRecoveryEmail(formData)
-      if (result.error) {
-        setError(result.error)
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: normalized }),
+      })
+      const data = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setError(data.error ?? "Could not send recovery email.")
         return
       }
       router.push("/reset-password")

@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { changeEmail, confirmEmailChange } from "@/app/actions/credentials"
-
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type Step = "request" | "confirm"
@@ -70,12 +68,18 @@ export function ChangeEmailDialog({
       }
 
       startTransition(async () => {
-        const result = await changeEmail(currentPassword, trimmed)
-        if (result.error) {
-          setError(result.error)
+        const res = await fetch("/api/account/change-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ currentPassword, newEmail: trimmed }),
+        })
+        const data = (await res.json()) as { error?: string; success?: string }
+        if (!res.ok) {
+          setError(data.error ?? "Could not start email change.")
           return
         }
-        setSuccess(result.success ?? "Verification code sent.")
+        setSuccess(data.success ?? "Verification code sent.")
         setStep("confirm")
         setCurrentPassword("")
         setVerificationCode("")
@@ -90,12 +94,18 @@ export function ChangeEmailDialog({
         setError("Verification code is required.")
         return
       }
-      const result = await confirmEmailChange(code)
-      if (result.error) {
-        setError(result.error)
+      const res = await fetch("/api/account/confirm-email-change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code }),
+      })
+      const data = (await res.json()) as { error?: string; success?: string }
+      if (!res.ok) {
+        setError(data.error ?? "Could not confirm email.")
         return
       }
-      setSuccess(result.success ?? "Email updated successfully.")
+      setSuccess(data.success ?? "Email updated successfully.")
       reset()
       onSuccess?.()
       setTimeout(() => handleOpenChange(false), 500)

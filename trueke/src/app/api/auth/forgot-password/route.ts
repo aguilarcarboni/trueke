@@ -1,5 +1,4 @@
-'use server'
-
+import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import {
   runForgotPassword,
@@ -15,20 +14,22 @@ const COOKIE_OPTS = {
   path: '/',
 }
 
-/** @deprecated Prefer POST /api/auth/forgot-password — kept for compatibility */
-export async function recoverPassword(email: string) {
-  const result = await runForgotPassword(email)
-  if (!result.ok) return { error: result.error }
+export async function POST(req: NextRequest) {
+  let body: { email?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+  }
+
+  const result = await runForgotPassword(body.email ?? '')
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 })
+  }
 
   const cookieStore = await cookies()
   cookieStore.set(PASSWORD_RECOVERY_CODE_COOKIE, result.code, COOKIE_OPTS)
   cookieStore.set(PASSWORD_RECOVERY_EMAIL_COOKIE, result.normalizedEmail, COOKIE_OPTS)
 
-  return { success: 'Recovery code sent to your email.' }
-}
-
-export async function sendRecoveryEmail(formData: FormData) {
-  const email = String(formData.get('email') ?? '').trim().toLowerCase()
-  if (!email) return { error: 'Email is required.' }
-  return recoverPassword(email)
+  return NextResponse.json({ success: 'Recovery code sent to your email.' })
 }

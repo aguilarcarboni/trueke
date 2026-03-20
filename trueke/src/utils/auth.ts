@@ -3,6 +3,8 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { loginUserWithCredentials } from "./entities/user"
 
 export const authOptions: NextAuthOptions = {
+    // Required for JWT decrypt in getToken / getServerSession (must match login)
+    secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
 
     providers: [
       CredentialsProvider({

@@ -10,22 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { updateItem, updateItemAddress } from "@/app/actions/item"
-import { Country, State, City } from "country-state-city"
-
-// Validation patterns for location fields
-const LOCATION_TEXT = /^[a-zA-ZÀ-ÖØ-öø-ÿ\s'\-,\.]+$/
-const ZIPCODE_PATTERN = /^[a-zA-Z0-9\s\-]+$/
-const ADDRESS_LINE_PATTERN = /^[a-zA-Z0-9À-ÖØ-öø-ÿ\s'\-\.,#\/]+$/
-
-const EMPTY_ADDRESS = {
-  countryCode: "",
-  addressLine1: "",
-  addressLine2: "",
-  muniDistrict: "",
-  city: "",
-  province: "",
-  zipCode: "",
-}
+import { AddressSchema, EMPTY_ADDRESS } from "@/lib/entities/address"
+import { AddressForm } from "@/components/misc/address-form"
 
 // Placeholder component for items without images
 function ImagePlaceholder({ className = "" }: { className?: string }) {
@@ -57,9 +43,7 @@ interface EditItemDialogProps {
 export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: EditItemDialogProps) {
   const [isUpdating, setIsUpdating] = useState(false)
   const [updateMessage, setUpdateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [stateCode, setStateCode] = useState<string>("")
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [shakingFields, setShakingFields] = useState<Record<string, boolean>>({})
   const [editFormData, setEditFormData] = useState({
     title: "",
     type: "physical" as ItemType,
@@ -92,22 +76,13 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
           zipCode: item.address.zipCode,
         } : { ...EMPTY_ADDRESS },
       })
-      setStateCode("")
       setFieldErrors({})
       setUpdateMessage(null)
     }
   }, [item])
 
-  const triggerShake = (field: string) => {
-    setShakingFields((prev) => ({ ...prev, [field]: true }))
-    setTimeout(() => setShakingFields((prev) => ({ ...prev, [field]: false })), 400)
-  }
-
   const clearFieldError = (field: string) =>
     setFieldErrors((prev) => ({ ...prev, [field]: "" }))
-
-  const inputCls = (field: string) =>
-    `${fieldErrors[field] || shakingFields[field] ? " border-destructive" : ""}${shakingFields[field] ? " shake" : ""}`
 
   const handleEditFormChange = (field: string, value: string) => {
     setEditFormData((prev) => ({
@@ -142,17 +117,14 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
   const handleSaveEdit = async () => {
     if (!item) return
 
-    // Validate required location fields
-    const errors: Record<string, string> = {}
-    if (!editFormData.address.countryCode.trim()) errors.countryCode = "Country is required."
-    if (!editFormData.address.province.trim()) errors.province = "Province / State is required."
-    else if (!LOCATION_TEXT.test(editFormData.address.province.trim())) errors.province = "Province may only contain letters."
-    if (!editFormData.address.city.trim()) errors.city = "City is required."
-    else if (!LOCATION_TEXT.test(editFormData.address.city.trim())) errors.city = "City may only contain letters."
-    if (!editFormData.address.zipCode.trim()) errors.zipCode = "Zip code is required."
-    else if (!ZIPCODE_PATTERN.test(editFormData.address.zipCode.trim())) errors.zipCode = "Zip code may only contain letters, numbers and hyphens."
-
-    if (Object.keys(errors).length > 0) {
+    // Validate address using AddressSchema
+    const addressValidation = AddressSchema.safeParse(editFormData.address)
+    if (!addressValidation.success) {
+      const errors: Record<string, string> = {}
+      for (const err of addressValidation.error.errors) {
+        const field = err.path[0] as string
+        if (!errors[field]) errors[field] = err.message
+      }
       setFieldErrors(errors)
       return
     }
@@ -368,209 +340,13 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
               </div>
 
               {/* Location Section */}
-              <div className="space-y-3 pt-2">
-                <p className="text-sm font-medium text-muted-foreground">Item Location</p>
+              <AddressForm
+                value={editFormData.address}
+                onChange={(addr) => setEditFormData({ ...editFormData, address: addr })}
+                errors={fieldErrors}
+                onClearError={clearFieldError}
+              />
 
-                {/* Country */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Country <span className="text-destructive">*</span></Label>
-                  <Select
-                    value={editFormData.address.countryCode}
-                    onValueChange={(val) => {
-                      setEditFormData({
-                        ...editFormData,
-                        address: { ...editFormData.address, countryCode: val, province: "", city: "" },
-                      })
-                      setStateCode("")
-                      if (fieldErrors.countryCode) clearFieldError("countryCode")
-                      if (fieldErrors.province) clearFieldError("province")
-                      if (fieldErrors.city) clearFieldError("city")
-                    }}
-                  >
-                    <SelectTrigger className={`h-8 text-sm w-full${fieldErrors.countryCode ? " border-destructive" : ""}`}>
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Country.getAllCountries()
-                        .filter((c) => c.isoCode === "CR")
-                        .map((c) => (
-                          <SelectItem key={c.isoCode} value={c.isoCode}>
-                            {c.name} ({c.isoCode})
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  {fieldErrors.countryCode && <p className="text-xs text-destructive">{fieldErrors.countryCode}</p>}
-                </div>
-
-                {/* Province / State */}
-                {(() => {
-                  const states = editFormData.address.countryCode
-                    ? State.getStatesOfCountry(editFormData.address.countryCode)
-                    : []
-                  return (
-                    <div className="space-y-1">
-                      <Label className="text-xs">Province / State <span className="text-destructive">*</span></Label>
-                      {states.length > 0 ? (
-                        <Select
-                          value={stateCode}
-                          onValueChange={(val) => {
-                            const state = states.find((s) => s.isoCode === val)
-                            setStateCode(val)
-                            setEditFormData({
-                              ...editFormData,
-                              address: { ...editFormData.address, province: state?.name ?? val, city: "" },
-                            })
-                            if (fieldErrors.province) clearFieldError("province")
-                            if (fieldErrors.city) clearFieldError("city")
-                          }}
-                        >
-                          <SelectTrigger className={`h-8 text-sm w-full${fieldErrors.province ? " border-destructive" : ""}`}>
-                            <SelectValue placeholder="Select state / province" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {states.map((s) => (
-                              <SelectItem key={s.isoCode} value={s.isoCode}>
-                                {s.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          value={editFormData.address.province}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            if (val.length > 75) { triggerShake("province"); return }
-                            if (val !== "" && !LOCATION_TEXT.test(val)) { triggerShake("province"); return }
-                            setEditFormData({ ...editFormData, address: { ...editFormData.address, province: val } })
-                            if (fieldErrors.province) clearFieldError("province")
-                          }}
-                          placeholder="Province / State"
-                          className={`h-8 text-sm${inputCls("province")}`}
-                        />
-                      )}
-                      {fieldErrors.province && <p className="text-xs text-destructive">{fieldErrors.province}</p>}
-                    </div>
-                  )
-                })()}
-
-                {/* City */}
-                {(() => {
-                  const cities = stateCode
-                    ? City.getCitiesOfState(editFormData.address.countryCode, stateCode)
-                    : editFormData.address.countryCode && !State.getStatesOfCountry(editFormData.address.countryCode).length
-                      ? City.getCitiesOfCountry(editFormData.address.countryCode) ?? []
-                      : []
-                  return (
-                    <div className="space-y-1">
-                      <Label className="text-xs">City <span className="text-destructive">*</span></Label>
-                      {cities.length > 0 ? (
-                        <Select
-                          value={editFormData.address.city}
-                          onValueChange={(val) => {
-                            setEditFormData({ ...editFormData, address: { ...editFormData.address, city: val } })
-                            if (fieldErrors.city) clearFieldError("city")
-                          }}
-                        >
-                          <SelectTrigger className={`h-8 text-sm w-full${fieldErrors.city ? " border-destructive" : ""}`}>
-                            <SelectValue placeholder="Select city" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {cities.map((c) => (
-                              <SelectItem key={`${c.name}-${c.stateCode}`} value={c.name}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          value={editFormData.address.city}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            if (val.length > 75) { triggerShake("city"); return }
-                            if (val !== "" && !LOCATION_TEXT.test(val)) { triggerShake("city"); return }
-                            setEditFormData({ ...editFormData, address: { ...editFormData.address, city: val } })
-                            if (fieldErrors.city) clearFieldError("city")
-                          }}
-                          placeholder="City"
-                          className={`h-8 text-sm${inputCls("city")}`}
-                        />
-                      )}
-                      {fieldErrors.city && <p className="text-xs text-destructive">{fieldErrors.city}</p>}
-                    </div>
-                  )
-                })()}
-
-                {/* Municipality / Zip */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="muniDistrict" className="text-xs">Municipality / District</Label>
-                    <Input
-                      id="muniDistrict"
-                      value={editFormData.address.muniDistrict}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        if (val.length > 100) { triggerShake("muniDistrict"); return }
-                        if (val !== "" && !LOCATION_TEXT.test(val)) { triggerShake("muniDistrict"); return }
-                        setEditFormData({ ...editFormData, address: { ...editFormData.address, muniDistrict: val } })
-                        if (fieldErrors.muniDistrict) clearFieldError("muniDistrict")
-                      }}
-                      placeholder="Mata Redonda"
-                      className={`h-8 text-sm${inputCls("muniDistrict")}`}
-                    />
-                    {fieldErrors.muniDistrict && <p className="text-xs text-destructive">{fieldErrors.muniDistrict}</p>}
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="zipCode" className="text-xs">Zip code <span className="text-destructive">*</span></Label>
-                    <Input
-                      id="zipCode"
-                      value={editFormData.address.zipCode}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        if (val.length > 10) { triggerShake("zipCode"); return }
-                        if (val !== "" && !ZIPCODE_PATTERN.test(val)) { triggerShake("zipCode"); return }
-                        setEditFormData({ ...editFormData, address: { ...editFormData.address, zipCode: val } })
-                        if (fieldErrors.zipCode) clearFieldError("zipCode")
-                      }}
-                      placeholder="10103"
-                      className={`h-8 text-sm${inputCls("zipCode")}`}
-                    />
-                    {fieldErrors.zipCode && <p className="text-xs text-destructive">{fieldErrors.zipCode}</p>}
-                  </div>
-                </div>
-
-                {/* Address lines */}
-                <div className="space-y-1">
-                  <Label htmlFor="addressLine1" className="text-xs">Address line 1</Label>
-                  <Input
-                    id="addressLine1"
-                    value={editFormData.address.addressLine1}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      if (val !== "" && !ADDRESS_LINE_PATTERN.test(val)) { triggerShake("addressLine1"); return }
-                      setEditFormData({ ...editFormData, address: { ...editFormData.address, addressLine1: val } })
-                    }}
-                    placeholder="Street, building..."
-                    className={`h-8 text-sm${shakingFields.addressLine1 ? " border-destructive shake" : ""}`}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="addressLine2" className="text-xs">Address line 2</Label>
-                  <Input
-                    id="addressLine2"
-                    value={editFormData.address.addressLine2}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      if (val !== "" && !ADDRESS_LINE_PATTERN.test(val)) { triggerShake("addressLine2"); return }
-                      setEditFormData({ ...editFormData, address: { ...editFormData.address, addressLine2: val } })
-                    }}
-                    placeholder="Apartment, suite..."
-                    className={`h-8 text-sm${shakingFields.addressLine2 ? " border-destructive shake" : ""}`}
-                  />
-                </div>
-              </div>
             </div>
           </ScrollArea>
         )}

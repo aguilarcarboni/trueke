@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Country, State } from "country-state-city"
-import { getMarketplaceItems, getMarketplaceCategories } from "@/app/actions/marketplace"
+import { getMarketplaceItems, getMarketplaceCategories, getMarketplaceOwners } from "@/app/actions/marketplace"
 import { getConditionLabel, ITEM_CONDITION_LABELS, ITEM_TYPE_LABELS } from "@/lib/entities/item"
 import type { Item, ItemCondition, ItemType } from "@/lib/entities/item"
 import type { MarketplaceFilters } from "@/lib/entities/marketplace"
@@ -29,12 +29,14 @@ export function Marketplace() {
 
   const [items, setItems] = useState<Item[]>([])
   const [categories, setCategories] = useState<string[]>([])
+  const [owners, setOwners] = useState<{ user_id: string; display_name: string }[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("")
   const [selectedCondition, setSelectedCondition] = useState<ItemCondition | "">("")
   const [selectedType, setSelectedType] = useState<ItemType | "">("")
+  const [selectedOwner, setSelectedOwner] = useState("")
   const [selectedCountry, setSelectedCountry] = useState("")
   const [selectedProvince, setSelectedProvince] = useState("")
   const [cityQuery, setCityQuery] = useState("")
@@ -50,6 +52,7 @@ export function Marketplace() {
     selectedCategory !== "" ||
     selectedCondition !== "" ||
     selectedType !== "" ||
+    selectedOwner !== "" ||
     selectedCountry !== "" ||
     selectedProvince !== "" ||
     cityQuery !== ""
@@ -64,6 +67,7 @@ export function Marketplace() {
       if (selectedCategory)  filters.category  = selectedCategory
       if (selectedCondition) filters.condition = selectedCondition
       if (selectedType)      filters.item_type = selectedType
+      if (selectedOwner)      filters.user_id   = selectedOwner
 
       if (selectedCountry || selectedProvince || cityQuery) {
         filters.address = {}
@@ -84,12 +88,15 @@ export function Marketplace() {
       })
     }
     setIsLoading(false)
-  }, [searchQuery, selectedCategory, selectedCondition, selectedType, selectedCountry, selectedProvince, cityQuery, toast])
+  }, [searchQuery, selectedCategory, selectedCondition, selectedType, selectedOwner, selectedCountry, selectedProvince, cityQuery, toast])
 
-  // Load categories + initial unfiltered item list on mount
+  // Load categories, owners + initial unfiltered item list on mount
   useEffect(() => {
     getMarketplaceCategories().then((result) => {
       if (result.success) setCategories(result.data || [])
+    })
+    getMarketplaceOwners().then((result) => {
+      if (result.success) setOwners(result.data || [])
     })
     fetchItems({})
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,6 +107,7 @@ export function Marketplace() {
     setSelectedCategory("")
     setSelectedCondition("")
     setSelectedType("")
+    setSelectedOwner("")
     setSelectedCountry("")
     setSelectedProvince("")
     setCityQuery("")
@@ -170,7 +178,7 @@ export function Marketplace() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All countries</SelectItem>
-                {ALL_COUNTRIES.map((c) => (
+                {ALL_COUNTRIES.filter((c) => c.isoCode === "CR").map((c) => (
                   <SelectItem key={c.isoCode} value={c.isoCode}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -236,6 +244,18 @@ export function Marketplace() {
                 <SelectItem value="__all__">All types</SelectItem>
                 {(Object.entries(ITEM_TYPE_LABELS) as [ItemType, string][]).map(([value, label]) => (
                   <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedOwner || "__all__"} onValueChange={(v) => setSelectedOwner(v === "__all__" ? "" : v)}>
+              <SelectTrigger className="flex-1 min-w-0">
+                <SelectValue placeholder="Owner" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All owners</SelectItem>
+                {owners.map((o) => (
+                  <SelectItem key={o.user_id} value={o.user_id}>{o.display_name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

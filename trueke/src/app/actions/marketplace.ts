@@ -90,6 +90,9 @@ export async function getMarketplaceItems(
         if (filters.item_type) {
             query = query.eq('item_type', filters.item_type)
         }
+        if (filters.user_id) {
+            query = query.eq('owner_user_id', filters.user_id)
+        }
         if (addressItemIds !== null) {
             query = query.in('item_id', addressItemIds)
         }
@@ -106,6 +109,45 @@ export async function getMarketplaceItems(
             success: false,
             error: err instanceof Error ? err.message : 'An error occurred',
         }
+    }
+}
+
+/**
+ * Return the distinct set of active item owners for populating the owner filter control.
+ * Called once on mount, independently of the filter re-fetch.
+ */
+export async function getMarketplaceOwners(): Promise<ApiResponse<{ user_id: string; display_name: string }[]>> {
+    try {
+        const supabase = await createClient()
+
+        const { data: itemRows, error: itemError } = await supabase
+            .from('item')
+            .select('owner_user_id')
+            .eq('status', 'active')
+
+        if (itemError) return { success: false, error: itemError.message }
+
+        const ownerIds = Array.from(new Set((itemRows ?? []).map((r) => r.owner_user_id)))
+        if (ownerIds.length === 0) return { success: true, data: [] }
+
+        const { data: userRows, error: userError } = await supabase
+            .from('user')
+            .select('user_id,username,first_name,last_name')
+            .in('user_id', ownerIds)
+
+        if (userError) return { success: false, error: userError.message }
+
+        const owners = (userRows ?? [])
+            .map((u) => ({
+                user_id: u.user_id,
+                display_name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username,
+            }))
+            .sort((a, b) => a.display_name.localeCompare(b.display_name))
+
+        return { success: true, data: owners }
+    } catch (err) {
+        console.error('Error fetching marketplace owners:', err)
+        return { success: false, error: err instanceof Error ? err.message : 'An error occurred' }
     }
 }
 

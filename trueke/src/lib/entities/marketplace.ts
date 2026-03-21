@@ -15,6 +15,7 @@ export const MarketplaceFilterSchema = z.object({
     condition: z.enum(['new', 'like new', 'used', 'heavily used', 'broken']).optional(),
     item_type: z.enum(['physical', 'digital']).optional(),
     address:   MarketplaceAddressFilterSchema.optional(),
+    user_id:   z.string().uuid().optional(),
 })
 
 export type MarketplaceFilters = z.infer<typeof MarketplaceFilterSchema>

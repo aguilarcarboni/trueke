@@ -99,7 +99,7 @@ export function AddressForm({ value, onChange, errors = {}, onClearError }: Addr
       {/* Province / State — dropdown if states exist, otherwise free text */}
       <div className="space-y-1">
         <Label className="text-xs">
-          Province <span className="text-destructive">*</span>
+          State/Province <span className="text-destructive">*</span>
         </Label>
         {states.length > 0 ? (
           <Select
@@ -219,7 +219,9 @@ export function AddressForm({ value, onChange, errors = {}, onClearError }: Addr
 
       {/* Address lines */}
       <div className="space-y-1">
-        <Label htmlFor="addressLine1" className="text-xs">Address line 1</Label>
+        <Label htmlFor="addressLine1" className="text-xs">
+          Address line 1 <span className="text-destructive">*</span>
+        </Label>
         <Input
           id="addressLine1"
           value={value.addressLine1}
@@ -227,10 +229,12 @@ export function AddressForm({ value, onChange, errors = {}, onClearError }: Addr
             const val = e.target.value
             if (hasFormatError("addressLine1", val)) { triggerShake("addressLine1"); return }
             onChange({ ...value, addressLine1: val })
+            onClearError?.("addressLine1")
           }}
           placeholder="Street, building..."
-          className={`h-8 text-sm${shakingFields.addressLine1 ? " border-destructive shake" : ""}`}
+          className={inputCls("addressLine1")}
         />
+        {errors.addressLine1 && <p className="text-xs text-destructive">{errors.addressLine1}</p>}
       </div>
       <div className="space-y-1">
         <Label htmlFor="addressLine2" className="text-xs">Address line 2</Label>

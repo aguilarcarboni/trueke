@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ItemWithAddress, getStatusLabel, getStatusStyle } from "@/lib/entities/item"
-import { Plus, Trash2, Edit, Eye, Package } from "lucide-react"
+import { Plus, Trash2, Edit, Eye, Package, Send } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { EditItemDialog } from "@/components/sections/items/edit-item-dialog"
+import { publishItem } from "@/app/actions/item"
 
 // Placeholder component for items without images
 function ImagePlaceholder({ className = "" }: { className?: string }) {
@@ -38,6 +39,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
   const [myItems, setMyItems] = useState<ItemWithAddress[]>(userItems || [])
   const [editingItem, setEditingItem] = useState<ItemWithAddress | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [publishingId, setPublishingId] = useState<string | null>(null)
 
   // Sync myItems when userItems prop changes
   useEffect(() => {
@@ -65,6 +67,19 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
         item.item_id === updatedItem.item_id ? updatedItem : item
       )
     )
+  }
+
+  const handlePublishItem = async (itemId: string) => {
+    setPublishingId(itemId)
+    const result = await publishItem(itemId)
+    if (!result.error) {
+      setMyItems(prevItems =>
+        prevItems.map(item =>
+          item.item_id === itemId ? { ...item, status: 'active' } : item
+        )
+      )
+    }
+    setPublishingId(null)
   }
 
   return (
@@ -182,6 +197,18 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                           <Edit className="h-3.5 w-3.5" />
                           Edit
                         </Button>
+                        {item.status === 'draft' && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="flex-1 gap-1"
+                            disabled={publishingId === item.item_id}
+                            onClick={() => handlePublishItem(item.item_id)}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            {publishingId === item.item_id ? 'Publishing...' : 'Publish'}
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -228,6 +255,18 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEditClick(item)}>
                         <Edit className="h-4 w-4" />
                       </Button>
+                      {item.status === 'draft' && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          disabled={publishingId === item.item_id}
+                          onClick={() => handlePublishItem(item.item_id)}
+                          title="Publish"
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleDeleteItem(item.item_id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>

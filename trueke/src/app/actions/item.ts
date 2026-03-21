@@ -495,3 +495,47 @@ export async function updateItemAddress(
     return { error: 'An error occurred while updating the item address' }
   }
 }
+
+export async function publishItem(itemId: string): Promise<{ error: string | null }> {
+  try {
+    const userId = await getAuthenticatedUserId()
+
+    if (!userId) {
+      return { error: 'Not authenticated' }
+    }
+
+    const supabase = await createClient()
+
+    const { data: item, error: fetchError } = await supabase
+      .from('item')
+      .select('owner_user_id, status')
+      .eq('item_id', itemId)
+      .single()
+
+    if (fetchError || !item) {
+      return { error: 'Item not found' }
+    }
+
+    if (item.owner_user_id !== userId) {
+      return { error: 'Unauthorized: You do not own this item' }
+    }
+
+    if (item.status !== 'draft') {
+      return { error: 'Only draft items can be published' }
+    }
+
+    const { error: updateError } = await supabase
+      .from('item')
+      .update({ status: 'active' })
+      .eq('item_id', itemId)
+
+    if (updateError) {
+      return { error: updateError.message }
+    }
+
+    return { error: null }
+  } catch (error) {
+    console.error('Publish item error:', error)
+    return { error: 'An error occurred while publishing the item' }
+  }
+}

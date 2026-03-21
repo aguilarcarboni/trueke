@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ItemWithAddress } from "@/lib/entities/item"
+import { ItemWithAddress, getStatusLabel, getStatusStyle } from "@/lib/entities/item"
 import { Plus, Trash2, Edit, Eye, Package } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,13 +30,6 @@ const conditionLabel: Record<string, string> = {
   "used": "Used",
   "heavily used": "Heavily Used",
   "broken": "Broken",
-}
-
-const statusColors: Record<string, string> = {
-  active: "bg-success/20 text-success",
-  draft: "bg-muted/20 text-muted-foreground",
-  traded: "bg-accent/20 text-accent-foreground",
-  contested: "bg-warning/20 text-warning-foreground"
 }
 
 export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
@@ -158,8 +151,8 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                         {item.images && item.images.length > 1 && (
                           <Badge variant="secondary" className="text-xs">{item.images.length} images</Badge>
                         )}
-                        <Badge className={statusColors[item.status] || ""}>
-                          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                        <Badge className={getStatusStyle(item.status)}>
+                          {getStatusLabel(item.status)}
                         </Badge>
                       </div>
                     </div>
@@ -219,8 +212,8 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-foreground truncate">{item.title}</h3>
-                        <Badge className={statusColors[item.status] || ""}>
-                          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                        <Badge className={getStatusStyle(item.status)}>
+                          {getStatusLabel(item.status)}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mb-1">

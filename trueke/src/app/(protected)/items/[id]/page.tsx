@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, Plus, UserRound } from "lucide-react"
+import { getStatusLabel, getStatusStyle } from "@/lib/entities/item"
 import { getItemDetails, type ItemDetailsResponse } from "@/app/actions/item"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -21,14 +22,6 @@ const conditionStyles: Record<string, string> = {
   used: "bg-warning/20 text-warning-foreground border-warning/25",
   "heavily used": "bg-accent/15 text-accent border-accent/25",
   broken: "bg-destructive/10 text-destructive border-destructive/20",
-}
-
-const statusStyles: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground border-border",
-  active: "bg-success/15 text-success border-success/20",
-  contested: "bg-warning/20 text-warning-foreground border-warning/25",
-  traded: "bg-primary/15 text-primary border-primary/20",
-  deleted: "bg-destructive/10 text-destructive border-destructive/20",
 }
 
 function formatLabel(value: string) {
@@ -143,9 +136,9 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                         </div>
                         <Badge
                           variant="outline"
-                          className={statusStyles[data.item.status] || "bg-muted text-muted-foreground border-border"}
+                          className={getStatusStyle(data.item.status)}
                         >
-                          {formatLabel(data.item.status)}
+                          {getStatusLabel(data.item.status)}
                         </Badge>
                       </div>
 

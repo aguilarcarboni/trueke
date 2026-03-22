@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ItemWithAddress, getStatusLabel, getStatusStyle } from "@/lib/entities/item"
-import { Plus, Trash2, Edit, Eye, Package, Send } from "lucide-react"
+import { Plus, Trash2, Edit, Eye, Package, Send, Archive, RotateCcw } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { EditItemDialog } from "@/components/sections/items/edit-item-dialog"
-import { publishItem } from "@/app/actions/item"
+import { changeItemStatus } from "@/app/actions/item"
 
 // Placeholder component for items without images
 function ImagePlaceholder({ className = "" }: { className?: string }) {
@@ -40,6 +40,8 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
   const [editingItem, setEditingItem] = useState<ItemWithAddress | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [publishingId, setPublishingId] = useState<string | null>(null)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
+  const [draftingId, setDraftingId] = useState<string | null>(null)
 
   // Sync myItems when userItems prop changes
   useEffect(() => {
@@ -71,7 +73,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
 
   const handlePublishItem = async (itemId: string) => {
     setPublishingId(itemId)
-    const result = await publishItem(itemId)
+    const result = await changeItemStatus(itemId, 'publish')
     if (!result.error) {
       setMyItems(prevItems =>
         prevItems.map(item =>
@@ -80,6 +82,32 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
       )
     }
     setPublishingId(null)
+  }
+
+  const handleArchiveItem = async (itemId: string) => {
+    setArchivingId(itemId)
+    const result = await changeItemStatus(itemId, 'archive')
+    if (!result.error) {
+      setMyItems(prevItems =>
+        prevItems.map(item =>
+          item.item_id === itemId ? { ...item, status: 'archived' } : item
+        )
+      )
+    }
+    setArchivingId(null)
+  }
+
+  const handleSetDraftItem = async (itemId: string) => {
+    setDraftingId(itemId)
+    const result = await changeItemStatus(itemId, 'set-draft')
+    if (!result.error) {
+      setMyItems(prevItems =>
+        prevItems.map(item =>
+          item.item_id === itemId ? { ...item, status: 'draft' } : item
+        )
+      )
+    }
+    setDraftingId(null)
   }
 
   return (
@@ -183,40 +211,58 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                         {conditionLabel[item.condition]}
                       </Badge>
                       <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{item.description || "No description"}</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => handleViewClick(item)}>
-                          <Eye className="h-3.5 w-3.5" />
-                          View
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 gap-1"
-                          onClick={() => handleEditClick(item)}
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                          Edit
-                        </Button>
-                        {item.status === 'draft' && (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            className="flex-1 gap-1"
-                            disabled={publishingId === item.item_id}
-                            onClick={() => handlePublishItem(item.item_id)}
-                          >
-                            <Send className="h-3.5 w-3.5" />
-                            {publishingId === item.item_id ? 'Publishing...' : 'Publish'}
+                      <div className="space-y-2">
+                        {/* Primary actions */}
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => handleViewClick(item)}>
+                            <Eye className="h-3.5 w-3.5" />
+                            View
                           </Button>
+                          <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => handleEditClick(item)}>
+                            <Edit className="h-3.5 w-3.5" />
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="outline" className="flex-1" onClick={() => handleDeleteItem(item.item_id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        {/* Status actions */}
+                        {item.status === 'draft' && (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="default" className="flex-1 gap-1" disabled={publishingId === item.item_id} onClick={() => handlePublishItem(item.item_id)}>
+                              <Send className="h-3.5 w-3.5" />
+                              {publishingId === item.item_id ? 'Publishing...' : 'Publish'}
+                            </Button>
+                            <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={archivingId === item.item_id} onClick={() => handleArchiveItem(item.item_id)}>
+                              <Archive className="h-3.5 w-3.5" />
+                              {archivingId === item.item_id ? 'Archiving...' : 'Archive'}
+                            </Button>
+                          </div>
                         )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 gap-1"
-                          onClick={() => handleDeleteItem(item.item_id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {item.status === 'active' && (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={draftingId === item.item_id} onClick={() => handleSetDraftItem(item.item_id)}>
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              {draftingId === item.item_id ? 'Unpublishing...' : 'Unpublish'}
+                            </Button>
+                            <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={archivingId === item.item_id} onClick={() => handleArchiveItem(item.item_id)}>
+                              <Archive className="h-3.5 w-3.5" />
+                              {archivingId === item.item_id ? 'Archiving...' : 'Archive'}
+                            </Button>
+                          </div>
+                        )}
+                        {item.status === 'archived' && (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={draftingId === item.item_id} onClick={() => handleSetDraftItem(item.item_id)}>
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              {draftingId === item.item_id ? 'Drafting...' : 'Set as Draft'}
+                            </Button>
+                            <Button size="sm" variant="default" className="flex-1 gap-1" disabled={publishingId === item.item_id} onClick={() => handlePublishItem(item.item_id)}>
+                              <Send className="h-3.5 w-3.5" />
+                              {publishingId === item.item_id ? 'Publishing...' : 'Publish'}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -256,16 +302,34 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                         <Edit className="h-4 w-4" />
                       </Button>
                       {item.status === 'draft' && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          disabled={publishingId === item.item_id}
-                          onClick={() => handlePublishItem(item.item_id)}
-                          title="Publish"
-                        >
-                          <Send className="h-4 w-4" />
-                        </Button>
+                        <>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={publishingId === item.item_id} onClick={() => handlePublishItem(item.item_id)} title="Publish">
+                            <Send className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={archivingId === item.item_id} onClick={() => handleArchiveItem(item.item_id)} title="Archive">
+                            <Archive className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      {item.status === 'active' && (
+                        <>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={draftingId === item.item_id} onClick={() => handleSetDraftItem(item.item_id)} title="Unpublish">
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={archivingId === item.item_id} onClick={() => handleArchiveItem(item.item_id)} title="Archive">
+                            <Archive className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      {item.status === 'archived' && (
+                        <>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={draftingId === item.item_id} onClick={() => handleSetDraftItem(item.item_id)} title="Set as Draft">
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={publishingId === item.item_id} onClick={() => handlePublishItem(item.item_id)} title="Publish">
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        </>
                       )}
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleDeleteItem(item.item_id)}>
                         <Trash2 className="h-4 w-4" />

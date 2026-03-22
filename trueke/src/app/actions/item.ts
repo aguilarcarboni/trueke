@@ -496,7 +496,10 @@ export async function updateItemAddress(
   }
 }
 
-export async function publishItem(itemId: string): Promise<{ error: string | null }> {
+export async function changeItemStatus(
+  itemId: string,
+  action: 'publish' | 'archive' | 'set-draft'
+): Promise<{ error: string | null }> {
   try {
     const userId = await getAuthenticatedUserId()
 
@@ -520,13 +523,25 @@ export async function publishItem(itemId: string): Promise<{ error: string | nul
       return { error: 'Unauthorized: You do not own this item' }
     }
 
-    if (item.status !== 'draft') {
-      return { error: 'Only draft items can be published' }
+    if (action === 'publish') {
+      if (item.status !== 'draft' && item.status !== 'archived') {
+        return { error: 'Only draft or archived items can be published' }
+      }
+    } else if (action === 'archive') {
+      if (item.status !== 'draft' && item.status !== 'active') {
+        return { error: 'Only draft or active items can be archived' }
+      }
+    } else if (action === 'set-draft') {
+      if (item.status !== 'active' && item.status !== 'archived') {
+        return { error: 'Only active or archived items can be set as draft' }
+      }
     }
+
+    const newStatus = action === 'publish' ? 'active' : action === 'archive' ? 'archived' : 'draft'
 
     const { error: updateError } = await supabase
       .from('item')
-      .update({ status: 'active' })
+      .update({ status: newStatus })
       .eq('item_id', itemId)
 
     if (updateError) {
@@ -535,7 +550,7 @@ export async function publishItem(itemId: string): Promise<{ error: string | nul
 
     return { error: null }
   } catch (error) {
-    console.error('Publish item error:', error)
-    return { error: 'An error occurred while publishing the item' }
+    console.error('Change item status error:', error)
+    return { error: 'An error occurred while updating the item status' }
   }
 }

@@ -2,7 +2,7 @@ export type ItemCondition = 'new' | 'like new' | 'used' | 'heavily used' | 'brok
 
 export type ItemType = 'physical' | 'digital'
 
-export type ItemStatus = 'draft' | 'active' | 'contested' | 'traded' | 'deleted'
+export type ItemStatus = 'draft' | 'active' | 'contested' | 'traded' | 'deleted' | 'archived'
 
 export interface Item {
     item_id: string
@@ -60,6 +60,7 @@ export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
   'contested': 'Contested',
   'traded': 'Traded',
   'deleted': 'Deleted',
+  'archived': 'Archived',
 }
 
 export const ITEM_CONDITION_STYLES: Record<ItemCondition, string> = {
@@ -84,6 +85,7 @@ export const ITEM_STATUS_STYLES: Record<ItemStatus, string> = {
   'contested': 'bg-warning/20 text-warning-foreground',
   'traded': 'bg-accent/20 text-accent-foreground',
   'deleted': 'bg-destructive/20 text-destructive',
+  'archived': 'bg-muted/40 text-muted-foreground',
 }
 
 export function getConditionLabel(condition: string): string {
@@ -110,4 +112,4 @@ export const ITEM_CONDITIONS: ItemCondition[] = ['new', 'like new', 'used', 'hea
 
 export const ITEM_TYPES: ItemType[] = ['physical', 'digital']
 
-export const ITEM_STATUSES: ItemStatus[] = ['draft', 'active', 'contested', 'traded', 'deleted']
+export const ITEM_STATUSES: ItemStatus[] = ['draft', 'active', 'contested', 'traded', 'deleted', 'archived']

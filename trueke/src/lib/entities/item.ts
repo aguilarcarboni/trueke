@@ -80,12 +80,12 @@ export const ITEM_CONDITION_BADGE_STYLES: Record<ItemCondition, string> = {
 }
 
 export const ITEM_STATUS_STYLES: Record<ItemStatus, string> = {
-  'draft': 'bg-muted/20 text-muted-foreground',
-  'active': 'bg-success/20 text-success',
-  'contested': 'bg-warning/20 text-warning-foreground',
-  'traded': 'bg-accent/20 text-accent-foreground',
-  'deleted': 'bg-destructive/20 text-destructive',
-  'archived': 'bg-muted/40 text-muted-foreground',
+  'draft':     'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  'active':    'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400',
+  'contested': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400',
+  'traded':    'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
+  'deleted':   'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
+  'archived':  'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400',
 }
 
 export function getConditionLabel(condition: string): string {

@@ -111,3 +111,4 @@ export const ITEM_CONDITIONS: ItemCondition[] = ['new', 'like new', 'used', 'hea
 export const ITEM_TYPES: ItemType[] = ['physical', 'digital']
 
 export const ITEM_STATUSES: ItemStatus[] = ['draft', 'active', 'contested', 'traded', 'deleted']
+    

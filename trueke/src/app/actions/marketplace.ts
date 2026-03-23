@@ -1,8 +1,8 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { MarketplaceFilterSchema } from '@/lib/entities/marketplace'
-import type { MarketplaceFilters } from '@/lib/entities/marketplace'
+import { ItemFilterSchema } from '@/lib/entities/filters'
+import type { ItemFilters } from '@/lib/entities/filters'
 import type { ApiResponse } from '@/lib/types'
 import type { Item } from '@/lib/entities/item'
 import { mapItemsWithOwnerAndMedia, BaseItemRow } from './exchange'
@@ -13,17 +13,18 @@ import { mapItemsWithOwnerAndMedia, BaseItemRow } from './exchange'
  * no client-side filtering occurs.
  *
  * Filter behaviour:
- *  - search    → case-insensitive match on title OR description (ilike)
- *  - category  → exact match
- *  - condition → exact match against item_condition enum
- *  - item_type → exact match against item_type enum
- *  - address   → resolves matching addresses first, then filters by item_id
+ *  - search       → case-insensitive match on title OR description (ilike)
+ *  - category     → exact match
+ *  - condition    → exact match against item_condition enum
+ *  - item_type    → exact match against item_type enum
+ *  - address      → resolves matching addresses first, then filters by item_id
+ *  - owner_search → case-insensitive match on username, first_name, or last_name
  */
 export async function getMarketplaceItems(
-    rawFilters: MarketplaceFilters = {}
+    rawFilters: ItemFilters = {}
 ): Promise<ApiResponse<Item[]>> {
     try {
-        const parsed = MarketplaceFilterSchema.safeParse(rawFilters)
+        const parsed = ItemFilterSchema.safeParse(rawFilters)
         if (!parsed.success) {
             return { success: false, error: 'Invalid filter parameters' }
         }
@@ -90,8 +91,27 @@ export async function getMarketplaceItems(
         if (filters.item_type) {
             query = query.eq('item_type', filters.item_type)
         }
-        if (filters.user_id) {
-            query = query.eq('owner_user_id', filters.user_id)
+        // -- Owner search pre-filter --
+        // Split the query into tokens so "Alice Walker" matches first_name=Alice AND last_name=Walker.
+        // Each token must match at least one of username / first_name / last_name (AND across tokens).
+        if (filters.owner_search) {
+            const tokens = filters.owner_search
+                .split(/\s+/)
+                .filter(Boolean)
+                .map((t) => t.replace(/%/g, '\\%').replace(/_/g, '\\_'))
+
+            let userQuery = supabase.from('user').select('user_id')
+            for (const token of tokens) {
+                userQuery = userQuery.or(
+                    `username.ilike.%${token}%,first_name.ilike.%${token}%,last_name.ilike.%${token}%`
+                )
+            }
+
+            const { data: userRows, error: userError } = await userQuery
+            if (userError) return { success: false, error: userError.message }
+            const ownerIds = (userRows ?? []).map((u) => u.user_id)
+            if (ownerIds.length === 0) return { success: true, data: [] }
+            query = query.in('owner_user_id', ownerIds)
         }
         if (addressItemIds !== null) {
             query = query.in('item_id', addressItemIds)
@@ -109,45 +129,6 @@ export async function getMarketplaceItems(
             success: false,
             error: err instanceof Error ? err.message : 'An error occurred',
         }
-    }
-}
-
-/**
- * Return the distinct set of active item owners for populating the owner filter control.
- * Called once on mount, independently of the filter re-fetch.
- */
-export async function getMarketplaceOwners(): Promise<ApiResponse<{ user_id: string; display_name: string }[]>> {
-    try {
-        const supabase = await createClient()
-
-        const { data: itemRows, error: itemError } = await supabase
-            .from('item')
-            .select('owner_user_id')
-            .eq('status', 'active')
-
-        if (itemError) return { success: false, error: itemError.message }
-
-        const ownerIds = Array.from(new Set((itemRows ?? []).map((r) => r.owner_user_id)))
-        if (ownerIds.length === 0) return { success: true, data: [] }
-
-        const { data: userRows, error: userError } = await supabase
-            .from('user')
-            .select('user_id,username,first_name,last_name')
-            .in('user_id', ownerIds)
-
-        if (userError) return { success: false, error: userError.message }
-
-        const owners = (userRows ?? [])
-            .map((u) => ({
-                user_id: u.user_id,
-                display_name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username,
-            }))
-            .sort((a, b) => a.display_name.localeCompare(b.display_name))
-
-        return { success: true, data: owners }
-    } catch (err) {
-        console.error('Error fetching marketplace owners:', err)
-        return { success: false, error: err instanceof Error ? err.message : 'An error occurred' }
     }
 }
 

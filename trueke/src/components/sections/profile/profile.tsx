@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Star, MapPin, Calendar, Edit, Shield } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -13,6 +13,9 @@ import { getConditionLabel, getStatusLabel } from "@/lib/entities/item"
 import { useSession } from "next-auth/react"
 import { getProfileAction } from "@/app/actions/profile"
 import type { UserProfile } from "@/lib/entities/profile"
+import { createClient } from "@/utils/supabase/client"
+
+const PROFILE_IMAGES_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_PROFILE_IMAGES_BUCKET || "images"
 
 export function Profile() {
   const { data: session } = useSession()
@@ -41,6 +44,18 @@ export function Profile() {
   const displayName = `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim() || profile?.username || "User"
 
   const initials = `${profile?.firstName?.charAt(0) ?? ""}${profile?.lastName?.charAt(0) ?? ""}`
+  const avatarUrl = useMemo(() => {
+    const raw = profile?.profile_picture_url?.trim()
+    if (!raw) return undefined
+    if (/^https?:\/\//i.test(raw)) return raw
+
+    const supabase = createClient()
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(PROFILE_IMAGES_BUCKET).getPublicUrl(raw.replace(/^\/+/, ""))
+
+    return publicUrl || undefined
+  }, [profile?.profile_picture_url])
 
   return (
     <>
@@ -54,7 +69,7 @@ export function Profile() {
             {/* Avatar */}
             <div className="relative inline-block">
               <Avatar className="h-24 w-24 mx-auto">
-                <AvatarImage src={profile?.profile_picture_url || undefined} alt={displayName} />
+                <AvatarImage src={avatarUrl} alt={displayName} />
                 <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
               </Avatar>
             </div>

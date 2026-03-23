@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EditItemDialog } from "@/components/sections/items/edit-item-dialog"
 import { Title } from "@radix-ui/react-toast"
+import { City, State, Country } from "country-state-city"
 
 // Placeholder component for items without images
 function ImagePlaceholder({ className = "" }: { className?: string }) {
@@ -54,6 +55,8 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
   const [selectedCategory, setSelectedCategory] = useState("")
   const [selectedCondition, setSelectedCondition] = useState<ItemCondition | "">("")
   const [selectedStatus, setSelectedStatus] = useState("")
+  const [selectedCountry, setSelectedCountry] = useState("")
+  const [selectedCity, setSelectedCity] = useState("")
 
   // Sync myItems when userItems prop changes
   useEffect(() => {
@@ -67,6 +70,24 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
     [myItems]
   )
 
+  const countries = useMemo(
+    () => Array.from(new Set(myItems.map((i) => i.address?.countryCode).filter(Boolean) as string[])).sort(),
+    [myItems]
+  )
+
+  const cities = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          myItems
+            .filter((i) => !selectedCountry || i.address?.countryCode === selectedCountry)
+            .map((i) => i.address?.city)
+            .filter(Boolean) as string[]
+        )
+      ).sort(),
+    [myItems, selectedCountry]
+  )
+
   const filteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase()
     return myItems.filter((item) => {
@@ -74,17 +95,21 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
       if (selectedCategory && item.category !== selectedCategory) return false
       if (selectedCondition && item.condition !== selectedCondition) return false
       if (selectedStatus && item.status !== selectedStatus) return false
+      if (selectedCountry && item.address?.countryCode !== selectedCountry) return false
+      if (selectedCity && item.address?.city !== selectedCity) return false
       return true
     })
-  }, [myItems, searchQuery, selectedCategory, selectedCondition, selectedStatus])
+  }, [myItems, searchQuery, selectedCategory, selectedCondition, selectedStatus, selectedCountry, selectedCity])
 
-  const hasActiveFilters = searchQuery !== "" || selectedCategory !== "" || selectedCondition !== "" || selectedStatus !== ""
+  const hasActiveFilters = searchQuery !== "" || selectedCategory !== "" || selectedCondition !== "" || selectedStatus !== "" || selectedCountry !== "" || selectedCity !== ""
 
   const clearFilters = () => {
     setSearchQuery("")
     setSelectedCategory("")
     setSelectedCondition("")
     setSelectedStatus("")
+    setSelectedCountry("")
+    setSelectedCity("")
   }
 
   const handleDeleteItem = (itemId: string) => {
@@ -152,20 +177,22 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
 
       {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-3 items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by title or description..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+        <CardContent className="pt-6 space-y-3">
+          {/* Row 1: Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by title or description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
 
+          {/* Row 2: Filters */}
+          <div className="flex gap-3 items-center">
             <Select value={selectedCategory || "__all__"} onValueChange={(v) => setSelectedCategory(v === "__all__" ? "" : v)}>
-              <SelectTrigger className="w-44">
+              <SelectTrigger className="flex-1">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -177,7 +204,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
             </Select>
 
             <Select value={selectedCondition || "__all__"} onValueChange={(v) => setSelectedCondition(v === "__all__" ? "" : v as ItemCondition)}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="flex-1">
                 <SelectValue placeholder="Condition" />
               </SelectTrigger>
               <SelectContent>
@@ -189,7 +216,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
             </Select>
 
             <Select value={selectedStatus || "__all__"} onValueChange={(v) => setSelectedStatus(v === "__all__" ? "" : v)}>
-              <SelectTrigger className="w-36">
+              <SelectTrigger className="flex-1">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -201,7 +228,39 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
               </SelectContent>
             </Select>
 
-            <div className="flex rounded-lg border border-border shrink-0">
+            <Select
+              value={selectedCountry || "__all__"}
+              onValueChange={(v) => {
+                setSelectedCountry(v === "__all__" ? "" : v)
+                setSelectedCity("")
+              }}
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Country" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All countries</SelectItem>
+                {countries.map((code) => (
+                  <SelectItem key={code} value={code}>
+                    {Country.getCountryByCode(code)?.name ?? code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedCity || "__all__"} onValueChange={(v) => setSelectedCity(v === "__all__" ? "" : v)}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="City" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All cities</SelectItem>
+                {cities.map((city) => (
+                  <SelectItem key={city} value={city}>{city}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex rounded-lg border border-border shrink-0 ml-auto">
               <Button variant={viewMode === "grid" ? "secondary" : "ghost"} size="icon" className="h-9 w-9 rounded-r-none" onClick={() => setViewMode("grid")}>
                 <Grid3X3 className="h-4 w-4" />
               </Button>
@@ -283,16 +342,27 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                     </div>
                     {/* Content */}
                     <div className="flex-1 p-4">
+                      {/* Title and category */}
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-foreground truncate">{item.title}</h3>
                           <p className="text-xs text-muted-foreground mt-1">{item.category}</p>
                         </div>
                       </div>
+                      {/* Condition badge */}
                       <Badge variant="secondary" className="mb-3">
                         {conditionLabel[item.condition]}
                       </Badge>
+                      {/* Item Address (if available) */}
+                      <div className="flex flex-col items-start">
+                        {item.address && (
+                          <p className="text-xs text-muted-foreground mb-4">
+                            {item.address.city}, {item.address.province}, {Country.getCountryByCode(item.address.countryCode)?.name}
+                          </p>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{item.description || "No description"}</p>
+                      {/* Action buttons */}
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => handleViewClick(item)}>
                           <Eye className="h-3.5 w-3.5" />

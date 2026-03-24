@@ -37,6 +37,8 @@ export interface ExchangeListItem {
     exchange_id: string
     initiator_id: string
     initiator_name: string
+    target_user_id: string
+    target_name: string
     status: ExchangeStatus
     message: string | null
     created_at: string

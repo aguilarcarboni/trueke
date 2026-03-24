@@ -346,6 +346,8 @@ export async function getUserExchanges(
             exchange_id: item.exchange_id,
             initiator_id: item.initiator_id,
             initiator_name: item.initiator_name,
+            target_user_id: '',  // populated by getUserExchangesEnriched
+            target_name: '',     // populated by getUserExchangesEnriched
             status: item.status,
             message: item.message,
             created_at: item.created_at,
@@ -391,7 +393,46 @@ export async function getUserExchangesEnriched(
 
         const exchangeIds = exchanges.map((e) => e.exchange_id)
 
-        // 2. Batch-fetch exchange_item rows with direction
+        // 2. Batch-fetch participants to resolve the target user (the "other" user)
+        const { data: participantRows, error: participantError } = await supabase
+            .from('exchange_participant')
+            .select('exchange_id, user_id, role')
+            .in('exchange_id', exchangeIds)
+
+        if (participantError) {
+            return { success: false, error: participantError.message }
+        }
+
+        // Resolve target user IDs (participant who is NOT the initiator)
+        const targetByExchange = new Map<string, string>()
+        for (const p of participantRows || []) {
+            const ex = exchanges.find((e) => e.exchange_id === p.exchange_id)
+            if (ex && p.user_id !== ex.initiator_id) {
+                targetByExchange.set(p.exchange_id, p.user_id)
+            }
+        }
+
+        // Batch-fetch target user names
+        const targetUserIds = Array.from(new Set(targetByExchange.values()))
+        const targetNameById = new Map<string, string>()
+        if (targetUserIds.length > 0) {
+            const { data: userRows } = await supabase
+                .from('user')
+                .select('user_id, username')
+                .in('user_id', targetUserIds)
+            for (const u of userRows || []) {
+                targetNameById.set(u.user_id, u.username)
+            }
+        }
+
+        // Stamp target info onto base exchange list
+        for (const ex of exchanges) {
+            const targetId = targetByExchange.get(ex.exchange_id) || ''
+            ex.target_user_id = targetId
+            ex.target_name = targetNameById.get(targetId) || 'Unknown'
+        }
+
+        // 3. Batch-fetch exchange_item rows with direction
         const { data: eiRows, error: eiError } = await supabase
             .from('exchange_item')
             .select('exchange_id, item_id, direction')
@@ -403,7 +444,7 @@ export async function getUserExchangesEnriched(
 
         const allItemIds = Array.from(new Set((eiRows || []).map((r: any) => r.item_id)))
 
-        // 3. Batch-fetch item details + images
+        // 4. Batch-fetch item details + images
         const [{ data: itemRows, error: itemError }, { data: mediaRows, error: mediaError }] =
             await Promise.all([
                 supabase
@@ -439,7 +480,7 @@ export async function getUserExchangesEnriched(
             })
         }
 
-        // 4. Group exchange items by exchange_id + direction
+        // 5. Group exchange items by exchange_id + direction
         const offeredByExchange = new Map<string, ExchangeItem[]>()
         const requestedByExchange = new Map<string, ExchangeItem[]>()
 
@@ -452,7 +493,7 @@ export async function getUserExchangesEnriched(
             map.set(ei.exchange_id, list)
         }
 
-        // 5. Merge into enriched list
+        // 6. Merge into enriched list
         const enriched: ExchangeListItemEnriched[] = exchanges.map((ex) => ({
             ...ex,
             offered_items: offeredByExchange.get(ex.exchange_id) || [],

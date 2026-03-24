@@ -35,7 +35,8 @@ interface ExchangesProps {
  */
 export function Exchanges({ currentUserId }: ExchangesProps) {
   // ─── State: UI-only concerns ─────────────────────────────────
-  const [activeTab, setActiveTab] = useState("all")
+  const [directionFilter, setDirectionFilter] = useState<"all" | "sent" | "received">("all")
+  const [statusTab, setStatusTab] = useState("all")
   const [isSelectingItem, setIsSelectingItem] = useState(false)
   const [isTradeDialogOpen, setIsTradeDialogOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
@@ -49,13 +50,36 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
     useExchangeActions(currentUserId, reloadExchanges)
 
   // ─── Derived state ───────────────────────────────────────────
-  const filteredExchanges = useMemo(
-    () =>
-      activeTab === "all"
-        ? exchanges
-        : exchanges.filter((e) => e.status === activeTab),
-    [exchanges, activeTab]
-  )
+  const filteredExchanges = useMemo(() => {
+    let result = exchanges
+
+    // Direction filter
+    if (directionFilter === "sent") {
+      result = result.filter((e) => e.initiator_id === currentUserId)
+    } else if (directionFilter === "received") {
+      result = result.filter((e) => e.initiator_id !== currentUserId)
+    }
+
+    // Status filter
+    if (statusTab !== "all") {
+      result = result.filter((e) => e.status === statusTab)
+    }
+
+    return result
+  }, [exchanges, directionFilter, statusTab, currentUserId])
+
+  /** Count exchanges matching the current direction filter with a given status. */
+  const countByStatus = useMemo(() => {
+    let base = exchanges
+    if (directionFilter === "sent") base = base.filter((e) => e.initiator_id === currentUserId)
+    else if (directionFilter === "received") base = base.filter((e) => e.initiator_id !== currentUserId)
+    return {
+      all: base.length,
+      pending: base.filter((e) => e.status === "pending").length,
+      accepted: base.filter((e) => e.status === "accepted").length,
+      rejected: base.filter((e) => e.status === "rejected").length,
+    }
+  }, [exchanges, directionFilter, currentUserId])
 
   const filteredAvailableItems = useMemo(
     () =>
@@ -177,20 +201,50 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
         </Button>
       </div>
 
-      {/* Exchange Tabs + Cards */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      {/* Direction filter (pill toggle) */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-muted-foreground mr-1">Show:</span>
+        {(["all", "sent", "received"] as const).map((value) => {
+          const labels = { all: "All", sent: "Sent", received: "Received" } as const
+          const counts = {
+            all: exchanges.length,
+            sent: exchanges.filter((e) => e.initiator_id === currentUserId).length,
+            received: exchanges.filter((e) => e.initiator_id !== currentUserId).length,
+          }
+          return (
+            <button
+              key={value}
+              onClick={() => setDirectionFilter(value)}
+              className={`rounded-full px-3.5 py-1 text-sm font-medium transition-colors ${
+                directionFilter === value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              }`}
+            >
+              {labels[value]} ({counts[value]})
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Status tabs + Cards */}
+      <Tabs value={statusTab} onValueChange={setStatusTab}>
         <TabsList>
           <TabsTrigger value="all">
-            All ({exchanges.length})
+            All ({countByStatus.all})
           </TabsTrigger>
           <TabsTrigger value="pending">
-            Open ({exchanges.filter((e) => e.status === "pending").length})
+            Open ({countByStatus.pending})
           </TabsTrigger>
-          <TabsTrigger value="accepted">Accepted</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          <TabsTrigger value="accepted">
+            Accepted ({countByStatus.accepted})
+          </TabsTrigger>
+          <TabsTrigger value="rejected">
+            Rejected ({countByStatus.rejected})
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value={activeTab} className="mt-6 space-y-4">
+        <TabsContent value={statusTab} className="mt-6 space-y-4">
           {filteredExchanges.map((ex) => (
             <ExchangeCard
               key={ex.exchange_id}

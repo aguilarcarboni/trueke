@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { LETTERS_ONLY, ALPHANUMERIC, AddressSchema } from "@/lib/entities/address"
 import { getLinkedAddress, upsertUserAddress } from "@/utils/entities/address"
-import { UpdateProfileData, UserProfile } from "@/lib/entities/profile"
+import { UpdateProfileData, UserProfile, PublicUserProfile } from "@/lib/entities/profile"
 
 
 // Fetches the user's profile information, including their current address if available
@@ -85,4 +85,36 @@ export async function updateUserProfile(userId: string, data: UpdateProfileData)
   if (!hasAddressData) return { error: null }
 
   return upsertUserAddress(userId, data.address)
+}
+
+/**
+ * Fetches a privacy-safe public profile for any user.
+ * Omits sensitive data (email, admin status, full address).
+ * Single Responsibility: only reads public-facing fields.
+ */
+export async function getPublicUserProfile(userId: string): Promise<PublicUserProfile | null> {
+  const supabase = await createClient()
+
+  const { data: user, error } = await supabase
+    .from("user")
+    .select("user_id,username,first_name,last_name,bio,profile_picture_url,created_at")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !user) return null
+
+  const address = await getLinkedAddress(userId)
+
+  return {
+    id: user.user_id,
+    username: user.username,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    bio: user.bio || "",
+    profile_picture_url: user.profile_picture_url || "",
+    city: address?.city ?? null,
+    province: address?.province ?? null,
+    created_at: user.created_at,
+  }
 }

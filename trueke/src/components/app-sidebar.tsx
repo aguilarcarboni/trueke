@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Sidebar as SidebarRoot,
   SidebarContent,
@@ -38,6 +38,7 @@ interface AppSidebarProps {
 
 const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
   const pathname = usePathname()
+  const router = useRouter()
   const { data: session } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -128,6 +129,7 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
       <SidebarFooter className="border-t border-muted">
         <div className="w-full group-data-[state=collapsed]/sidebar:flex group-data-[state=collapsed]/sidebar:flex-col group-data-[state=collapsed]/sidebar:items-center">
           <button
+            onClick={() => router.push('/profile')}
             className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted dark:hover:bg-sidebar-accent group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
           >
             <Avatar className="h-8 w-8 shrink-0">

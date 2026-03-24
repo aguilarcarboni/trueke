@@ -495,3 +495,176 @@ export async function updateItemAddress(
     return { error: 'An error occurred while updating the item address' }
   }
 }
+
+export async function deleteItem(
+  itemId: string
+): Promise<{
+  success?: boolean;
+  error?: string;
+  code?:
+    | "UNAUTHORIZED"
+    | "NOT_FOUND"
+    | "FORBIDDEN"
+    | "CONTESTED"
+    | "PENDING"
+    | "PENDING_AND_CONTESTED"
+    | "DELETE_FAILED";
+}> {
+  try {
+    console.log("[server] deleteItem called with itemId:", itemId);
+
+    const session = await getServerSession(authOptions);
+    console.log("[server] session:", session);
+
+    const userId = session?.user?.id?.trim() || null;
+    console.log("[server] session user id:", userId);
+
+    if (!userId) {
+      console.log("[server] returning UNAUTHORIZED because no session user id");
+      return {
+        error: "You must be signed in to delete this item.",
+        code: "UNAUTHORIZED",
+      };
+    }
+
+    const normalizedItemId = itemId.trim();
+    console.log("[server] normalized item id:", normalizedItemId);
+
+    if (!normalizedItemId) {
+      console.log("[server] returning NOT_FOUND because item id was empty");
+      return {
+        error: "Item not found.",
+        code: "NOT_FOUND",
+      };
+    }
+
+    const supabase = await createClient();
+    console.log("[server] supabase client created");
+
+    const { data: item, error: itemError } = await supabase
+      .from("item")
+      .select("item_id, owner_user_id, status")
+      .eq("item_id", normalizedItemId)
+      .single();
+
+    console.log("[server] item query result:", item);
+    console.log("[server] item query error:", itemError);
+
+    if (itemError || !item) {
+      console.log("[server] returning NOT_FOUND because item query failed");
+      return {
+        error: "Item not found.",
+        code: "NOT_FOUND",
+      };
+    }
+
+    console.log("[server] comparing owner_user_id vs session user id:", {
+      owner_user_id: item.owner_user_id,
+      session_user_id: userId,
+    });
+
+    if (item.owner_user_id !== userId) {
+      console.log("[server] returning FORBIDDEN because ids do not match");
+      return {
+        error: "You do not own this item.",
+        code: "FORBIDDEN",
+      };
+    }
+
+    const isContested = item.status === "contested";
+    console.log("[server] isContested:", isContested);
+
+    const { data: exchangeItems, error: exchangeItemsError } = await supabase
+      .from("exchange_item")
+      .select("exchange_id")
+      .eq("item_id", normalizedItemId);
+
+    console.log("[server] exchange_item rows:", exchangeItems);
+    console.log("[server] exchange_item error:", exchangeItemsError);
+
+    if (exchangeItemsError) {
+      console.error("[server] Delete item exchange_item lookup error:", exchangeItemsError);
+      return {
+        error: "Could not verify whether this item is part of an active exchange.",
+        code: "DELETE_FAILED",
+      };
+    }
+
+    const exchangeIds = [...new Set((exchangeItems ?? []).map((row) => row.exchange_id))];
+    console.log("[server] exchange ids:", exchangeIds);
+
+    let hasPendingExchange = false;
+
+    if (exchangeIds.length > 0) {
+      const { data: pendingExchanges, error: pendingError } = await supabase
+        .from("exchange")
+        .select("exchange_id")
+        .in("exchange_id", exchangeIds)
+        .eq("status", "pending");
+
+      console.log("[server] pending exchanges:", pendingExchanges);
+      console.log("[server] pending exchange error:", pendingError);
+
+      if (pendingError) {
+        console.error("[server] Delete item exchange status lookup error:", pendingError);
+        return {
+          error: "Could not verify whether this item is part of an active exchange.",
+          code: "DELETE_FAILED",
+        };
+      }
+
+      hasPendingExchange = !!pendingExchanges && pendingExchanges.length > 0;
+    }
+
+    console.log("[server] hasPendingExchange:", hasPendingExchange);
+
+    if (isContested && hasPendingExchange) {
+      console.log("[server] returning PENDING_AND_CONTESTED");
+      return {
+        error:
+          "This item cannot be deleted because it is currently contested and part of a pending exchange.",
+        code: "PENDING_AND_CONTESTED",
+      };
+    }
+
+    if (isContested) {
+      console.log("[server] returning CONTESTED");
+      return {
+        error: "This item cannot be deleted because it is currently contested.",
+        code: "CONTESTED",
+      };
+    }
+
+    if (hasPendingExchange) {
+      console.log("[server] returning PENDING");
+      return {
+        error: "This item cannot be deleted because it is part of a pending exchange.",
+        code: "PENDING",
+      };
+    }
+
+    const { error: updateError } = await supabase
+      .from("item")
+      .update({ status: "deleted" })
+      .eq("item_id", normalizedItemId);
+
+    console.log("[server] update error:", updateError);
+
+    if (updateError) {
+      console.error("[server] Delete item update error:", updateError);
+      return {
+        error: "Failed to delete item.",
+        code: "DELETE_FAILED",
+      };
+    }
+
+    console.log("[server] delete succeeded");
+    return { success: true };
+  } catch (error) {
+    console.error("[server] Delete item error:", error);
+    return {
+      error: "An unexpected error occurred while deleting the item.",
+      code: "DELETE_FAILED",
+    };
+  }
+}

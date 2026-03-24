@@ -1,5 +1,6 @@
 "use client";
 
+import { deleteItem } from "@/app/actions/item";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ItemWithAddress } from "@/lib/entities/item";
@@ -108,83 +109,38 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
 
+    console.log("[client] attempting delete for item:", itemToDelete);
+
     setIsDeleting(true);
-    const supabase = createClient();
 
     try {
-      const isContested = itemToDelete.status === "contested";
+      const result = await deleteItem(itemToDelete.item_id);
 
-      const { data: exchangeItems, error: exchangeItemsError } = await supabase
-        .from("exchange_item")
-        .select("exchange_id")
-        .eq("item_id", itemToDelete.item_id);
+      console.log("[client] delete result:", result);
 
-      if (exchangeItemsError) {
-        console.error("Failed to check exchange_item:", exchangeItemsError);
+      if (result.error) {
         setIsDeleteDialogOpen(false);
-        openMessageDialog(
-          "Unable to verify item status",
-          "We could not verify whether this item is part of an active exchange. Please try again.",
-        );
-        return;
-      }
 
-      const exchangeIds = [
-        ...new Set((exchangeItems ?? []).map((row) => row.exchange_id)),
-      ];
-      let hasPendingExchange = false;
-
-      if (exchangeIds.length > 0) {
-        const { data: pendingExchanges, error: pendingError } = await supabase
-          .from("exchange")
-          .select("exchange_id")
-          .in("exchange_id", exchangeIds)
-          .eq("status", "pending");
-
-        if (pendingError) {
-          console.error("Failed to check exchange status:", pendingError);
-          setIsDeleteDialogOpen(false);
-          openMessageDialog(
-            "Unable to verify item status",
-            "We could not verify whether this item is part of an active exchange. Please try again.",
-          );
-          return;
+        switch (result.code) {
+          case "CONTESTED":
+          case "PENDING":
+          case "PENDING_AND_CONTESTED":
+            openMessageDialog("Item cannot be deleted", result.error);
+            break;
+          case "FORBIDDEN":
+            openMessageDialog("Permission denied", result.error);
+            break;
+          case "UNAUTHORIZED":
+            openMessageDialog("Not logged in", result.error);
+            break;
+          case "NOT_FOUND":
+            openMessageDialog("Item not found", result.error);
+            break;
+          default:
+            openMessageDialog("Delete failed", result.error);
+            break;
         }
 
-        hasPendingExchange = !!pendingExchanges && pendingExchanges.length > 0;
-      }
-
-      if (isContested || hasPendingExchange) {
-        let description = "";
-
-        if (isContested && hasPendingExchange) {
-          description =
-            "This item cannot be deleted because it is currently contested and part of a pending exchange.";
-        } else if (isContested) {
-          description =
-            "This item cannot be deleted because it is currently contested.";
-        } else {
-          description =
-            "This item cannot be deleted because it is part of a pending exchange.";
-        }
-
-        setIsDeleteDialogOpen(false);
-        openMessageDialog("Item cannot be deleted", description);
-        return;
-      }
-
-      const { error: deleteError } = await supabase
-        .from("item")
-        .update({ status: "deleted" })
-        .eq("item_id", itemToDelete.item_id);
-
-      if (deleteError) {
-        console.error("Failed to delete item:", deleteError);
-        setIsDeleteDialogOpen(false);
-        openMessageDialog(
-          "Delete failed",
-          "Something went wrong while deleting this item. Please try again.",
-        );
         return;
       }
 
@@ -198,6 +154,12 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
 
       setIsDeleteDialogOpen(false);
       setItemToDelete(null);
+    } catch (error) {
+      console.error("[client] handleDeleteItem crashed:", error);
+      openMessageDialog(
+        "Delete failed",
+        "Unexpected client error while deleting item.",
+      );
     } finally {
       setIsDeleting(false);
     }

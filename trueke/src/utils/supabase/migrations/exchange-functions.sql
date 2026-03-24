@@ -118,7 +118,7 @@ BEGIN
     -- Create notification for target user (AC6)
     INSERT INTO notification (
         recipient_user_id, sender_user_id, type, reference_type, reference_id,
-        title, body, is_read, delivery_channel, status, priority
+        title, body, is_read, delivery_channel, status, priority, sent_at
     ) VALUES (
         p_target_user_id,
         p_initiator_id,
@@ -131,7 +131,8 @@ BEGIN
         FALSE,
         'in_app'::notification_channel,
         'queued'::notification_status,
-        'normal'::notification_priority
+        'normal'::notification_priority,
+        NOW()
     );
 
     -- Return success

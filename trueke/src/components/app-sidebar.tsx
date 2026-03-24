@@ -27,6 +27,7 @@ import {
   User,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
+import { NotificationBell } from '@/components/sections/notifications/notification-bell'
 import { signOut, useSession } from 'next-auth/react'
 import { getProfileAction } from '@/app/actions/profile'
 import type { UserProfile } from '@/lib/entities/profile'
@@ -103,8 +104,11 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
   return (
     <SidebarRoot collapsible="icon" className="bg-background text-foreground">
       <SidebarHeader className="border-b border-muted">
-        <div className="flex w-full items-center gap-3">
+        <div className="flex w-full items-center gap-3 group-data-[state=collapsed]/sidebar:flex-col group-data-[state=collapsed]/sidebar:gap-1">
           <SidebarTrigger />
+          <div className="ml-auto shrink-0 group-data-[state=collapsed]/sidebar:ml-0">
+            <NotificationBell />
+          </div>
         </div>
       </SidebarHeader>
 

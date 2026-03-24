@@ -82,7 +82,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
         data-state={open ? 'expanded' : 'collapsed'}
         data-collapsible={collapsible}
         className={cn(
-          'group/sidebar relative flex h-screen min-h-screen w-[280px] flex-col border-r border-muted bg-background text-foreground transition-[width] duration-200 ease-in-out',
+          'group/sidebar sticky top-0 flex h-screen min-h-screen w-[280px] flex-col border-r border-muted bg-background text-foreground transition-[width] duration-200 ease-in-out',
           collapsible === 'icon' && 'data-[state=collapsed]:w-[72px]',
           className
         )}

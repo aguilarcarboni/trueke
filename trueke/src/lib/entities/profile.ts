@@ -35,3 +35,19 @@ export interface UpdateProfileData {
   profilePictureUrl: string
   address: Omit<UserAddress, "addressId">
 }
+
+/**
+ * Privacy-safe public profile visible to other users.
+ * Omits email, admin flag, and detailed address info.
+ */
+export interface PublicUserProfile {
+  id: string
+  username: string
+  firstName: string
+  lastName: string
+  bio: string
+  profile_picture_url: string
+  city: string | null
+  province: string | null
+  created_at: string
+}

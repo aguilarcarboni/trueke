@@ -27,9 +27,9 @@ export const AddressSchema = z.object({
         .max(10, "Zip code must be 10 characters or fewer.")
         .regex(ZIPCODE_PATTERN, "Zip code may only contain letters, numbers, and hyphens."),
     addressLine1: z.string()
+        .min(1, "Address line 1 is required.")
         .max(100, "Address line 1 must be 100 characters or fewer.")
-        .regex(ADDRESS_LINE, "Address line 1 contains invalid characters.")
-        .optional().or(z.literal("")),
+        .regex(ADDRESS_LINE, "Address line 1 contains invalid characters."),
     addressLine2: z.string()
         .max(100, "Address line 2 must be 100 characters or fewer.")
         .regex(ADDRESS_LINE, "Address line 2 contains invalid characters.")

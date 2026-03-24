@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, SlidersHorizontal, Grid3X3, List } from "lucide-react"
+import { Search, SlidersHorizontal, Grid3X3, List, ArrowLeftRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import type { Item } from "@/lib/entities/item"
 import { useToast } from "@/hooks/use-toast"
 import { getFriendlyErrorMessage } from "@/lib/error-messages"
 import { useRouter } from "next/navigation"
+import { TradeProposalDialog } from "@/components/sections/exchanges/trade-proposal-dialog"
 
 // Temporary placeholder image for items without photos SHOULD BE REPLACED WITH A PROPER ASSET
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%23e5e7eb" viewBox="0 0 200 200"%3E%3Crect width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" dy=".3em" text-anchor="middle" fill="%236b7280" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E'
@@ -24,7 +25,11 @@ const getCategories = (items: Item[]) => {
   return ["All", ...Array.from(cats)]
 }
 
-export function Marketplace() {
+interface MarketplaceProps {
+  currentUserId: string
+}
+
+export function Marketplace({ currentUserId }: MarketplaceProps) {
 
   const router = useRouter()
   const { toast } = useToast()
@@ -33,6 +38,14 @@ export function Marketplace() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
+  const [isTradeDialogOpen, setIsTradeDialogOpen] = useState(false)
+
+  const handleProposeExchange = (e: React.MouseEvent, item: Item) => {
+    e.stopPropagation()
+    setSelectedItem(item)
+    setIsTradeDialogOpen(true)
+  }
 
   useEffect(() => {
     const loadMarketplaceItems = async () => {
@@ -188,6 +201,17 @@ export function Marketplace() {
                       {getConditionLabel(item.condition)}
                     </Badge>
                   </div>
+                  {item.owner_user_id !== currentUserId && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-3 w-full gap-1.5"
+                      onClick={(e) => handleProposeExchange(e, item)}
+                    >
+                      <ArrowLeftRight className="h-3.5 w-3.5" />
+                      Propose Exchange
+                    </Button>
+                  )}
                 </div>
               </div>
             ))
@@ -222,14 +246,27 @@ export function Marketplace() {
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Avatar className="h-5 w-5">
-                        <AvatarImage src={item.owner_avatar || ""} alt={item.owner_name} />
-                        <AvatarFallback className="text-[10px]">{item.owner_name?.charAt(0) || "O"}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs text-muted-foreground">{item.owner_name}</span>
-                      <span className="text-xs text-muted-foreground">&middot;</span>
-                      <span className="text-xs text-muted-foreground">{item.category}</span>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={item.owner_avatar || ""} alt={item.owner_name} />
+                          <AvatarFallback className="text-[10px]">{item.owner_name?.charAt(0) || "O"}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs text-muted-foreground">{item.owner_name}</span>
+                        <span className="text-xs text-muted-foreground">&middot;</span>
+                        <span className="text-xs text-muted-foreground">{item.category}</span>
+                      </div>
+                      {item.owner_user_id !== currentUserId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          onClick={(e) => handleProposeExchange(e, item)}
+                        >
+                          <ArrowLeftRight className="h-3.5 w-3.5" />
+                          Propose Exchange
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -239,6 +276,19 @@ export function Marketplace() {
             <div className="text-center py-8 text-muted-foreground">No items found</div>
           )}
         </div>
+      )}
+
+      {/* Trade Proposal Dialog */}
+      {selectedItem && (
+        <TradeProposalDialog
+          open={isTradeDialogOpen}
+          onOpenChange={(open) => {
+            setIsTradeDialogOpen(open)
+            if (!open) setSelectedItem(null)
+          }}
+          requestedItem={selectedItem}
+          currentUserId={currentUserId}
+        />
       )}
     </div>
   )

@@ -9,6 +9,8 @@ import type {
 import type {
     Exchange, 
     ExchangeListItem,
+    ExchangeListItemEnriched,
+    ExchangeItem,
     CreateExchangeRequest,
     AcceptExchangeRequest,
     RejectExchangeRequest,
@@ -344,6 +346,8 @@ export async function getUserExchanges(
             exchange_id: item.exchange_id,
             initiator_id: item.initiator_id,
             initiator_name: item.initiator_name,
+            target_user_id: '',  // populated by getUserExchangesEnriched
+            target_name: '',     // populated by getUserExchangesEnriched
             status: item.status,
             message: item.message,
             created_at: item.created_at,
@@ -366,8 +370,151 @@ export async function getUserExchanges(
 }
 
 /**
- * Accept an exchange proposal
- * Calls the database function accept_exchange
+ * Get user's exchanges enriched with actual item details (AC1).
+ * Fetches exchange list + item data in two batch queries (no N+1).
+ */
+export async function getUserExchangesEnriched(
+    userId: string,
+    status?: string
+): Promise<ApiResponse<ExchangeListItemEnriched[]>> {
+    try {
+        const supabase = await createClient()
+
+        // 1. Get base exchange list
+        const listResult = await getUserExchanges(userId, status)
+        if (!listResult.success || !listResult.data) {
+            return { success: false, error: listResult.error }
+        }
+
+        const exchanges = listResult.data
+        if (exchanges.length === 0) {
+            return { success: true, data: [] }
+        }
+
+        const exchangeIds = exchanges.map((e) => e.exchange_id)
+
+        // 2. Batch-fetch participants to resolve the target user (the "other" user)
+        const { data: participantRows, error: participantError } = await supabase
+            .from('exchange_participant')
+            .select('exchange_id, user_id, role')
+            .in('exchange_id', exchangeIds)
+
+        if (participantError) {
+            return { success: false, error: participantError.message }
+        }
+
+        // Resolve target user IDs (participant who is NOT the initiator)
+        const targetByExchange = new Map<string, string>()
+        for (const p of participantRows || []) {
+            const ex = exchanges.find((e) => e.exchange_id === p.exchange_id)
+            if (ex && p.user_id !== ex.initiator_id) {
+                targetByExchange.set(p.exchange_id, p.user_id)
+            }
+        }
+
+        // Batch-fetch target user names
+        const targetUserIds = Array.from(new Set(targetByExchange.values()))
+        const targetNameById = new Map<string, string>()
+        if (targetUserIds.length > 0) {
+            const { data: userRows } = await supabase
+                .from('user')
+                .select('user_id, username')
+                .in('user_id', targetUserIds)
+            for (const u of userRows || []) {
+                targetNameById.set(u.user_id, u.username)
+            }
+        }
+
+        // Stamp target info onto base exchange list
+        for (const ex of exchanges) {
+            const targetId = targetByExchange.get(ex.exchange_id) || ''
+            ex.target_user_id = targetId
+            ex.target_name = targetNameById.get(targetId) || 'Unknown'
+        }
+
+        // 3. Batch-fetch exchange_item rows with direction
+        const { data: eiRows, error: eiError } = await supabase
+            .from('exchange_item')
+            .select('exchange_id, item_id, direction')
+            .in('exchange_id', exchangeIds)
+
+        if (eiError) {
+            return { success: false, error: eiError.message }
+        }
+
+        const allItemIds = Array.from(new Set((eiRows || []).map((r: any) => r.item_id)))
+
+        // 4. Batch-fetch item details + images
+        const [{ data: itemRows, error: itemError }, { data: mediaRows, error: mediaError }] =
+            await Promise.all([
+                supabase
+                    .from('item')
+                    .select('item_id, title, condition, owner_user_id')
+                    .in('item_id', allItemIds),
+                supabase
+                    .from('item_media')
+                    .select('item_id, url, display_order')
+                    .in('item_id', allItemIds)
+                    .order('display_order', { ascending: true }),
+            ])
+
+        if (itemError) return { success: false, error: itemError.message }
+        if (mediaError) return { success: false, error: mediaError.message }
+
+        // Build lookup maps
+        const mediaByItem = new Map<string, string[]>()
+        for (const m of mediaRows || []) {
+            const imgs = mediaByItem.get(m.item_id) || []
+            imgs.push(m.url)
+            mediaByItem.set(m.item_id, imgs)
+        }
+
+        const itemById = new Map<string, ExchangeItem>()
+        for (const row of itemRows || []) {
+            itemById.set(row.item_id, {
+                item_id: row.item_id,
+                title: row.title,
+                condition: row.condition,
+                owner_id: row.owner_user_id,
+                images: mediaByItem.get(row.item_id) || [],
+            })
+        }
+
+        // 5. Group exchange items by exchange_id + direction
+        const offeredByExchange = new Map<string, ExchangeItem[]>()
+        const requestedByExchange = new Map<string, ExchangeItem[]>()
+
+        for (const ei of eiRows || []) {
+            const item = itemById.get(ei.item_id)
+            if (!item) continue
+            const map = ei.direction === 'offered' ? offeredByExchange : requestedByExchange
+            const list = map.get(ei.exchange_id) || []
+            list.push(item)
+            map.set(ei.exchange_id, list)
+        }
+
+        // 6. Merge into enriched list
+        const enriched: ExchangeListItemEnriched[] = exchanges.map((ex) => ({
+            ...ex,
+            offered_items: offeredByExchange.get(ex.exchange_id) || [],
+            requested_items: requestedByExchange.get(ex.exchange_id) || [],
+        }))
+
+        return { success: true, data: enriched }
+    } catch (err) {
+        console.error('Error fetching enriched exchanges:', err)
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : 'An error occurred',
+        }
+    }
+}
+
+/**
+ * Accept an exchange proposal.
+ * 1. Validates all involved items are still active (AC6).
+ * 2. Calls the DB function accept_exchange.
+ * 3. Sends a notification to the initiator (proposal_accepted).
  */
 export async function acceptExchange(
     request: AcceptExchangeRequest
@@ -375,37 +522,66 @@ export async function acceptExchange(
     try {
         const supabase = await createClient()
 
+        // AC6 — Pre-check: verify all items in this exchange are still active
+        const { data: eiRows, error: eiError } = await supabase
+            .from('exchange_item')
+            .select('item_id')
+            .eq('exchange_id', request.exchange_id)
+
+        if (eiError) {
+            return { success: false, error: eiError.message }
+        }
+
+        const itemIds = (eiRows || []).map((r: any) => r.item_id)
+        if (itemIds.length > 0) {
+            const { data: items, error: itemError } = await supabase
+                .from('item')
+                .select('item_id, status')
+                .in('item_id', itemIds)
+
+            if (itemError) {
+                return { success: false, error: itemError.message }
+            }
+
+            const unavailable = (items || []).filter((i: any) => i.status !== 'active')
+            if (unavailable.length > 0) {
+                return {
+                    success: false,
+                    error: 'One or more items are no longer available for trading.',
+                }
+            }
+        }
+
+        // Call DB function
         const { data, error } = await supabase.rpc('accept_exchange', {
             p_exchange_id: request.exchange_id,
             p_accepting_user_id: request.accepting_user_id,
         })
 
         if (error) {
-            return {
-                success: false,
-                error: error.message,
-            }
+            return { success: false, error: error.message }
         }
 
         if (data && data.length > 0) {
             const result = data[0]
-            if (result.success) {
-                return {
-                    success: true,
-                    message: result.message,
-                }
-            } else {
-                return {
-                    success: false,
-                    error: result.message,
-                }
+            if (!result.success) {
+                return { success: false, error: result.message }
             }
+        } else {
+            return { success: false, error: 'Unknown error accepting exchange' }
         }
 
-        return {
-            success: false,
-            error: 'Unknown error accepting exchange',
-        }
+        // Send notification to the initiator
+        await sendExchangeNotification(
+            supabase,
+            request.exchange_id,
+            request.accepting_user_id,
+            'proposal_accepted',
+            'Trade Proposal Accepted',
+            'Your trade proposal has been accepted!'
+        )
+
+        return { success: true, message: 'Exchange accepted successfully' }
     } catch (err) {
         console.error('Error accepting exchange:', err)
         return {
@@ -416,8 +592,9 @@ export async function acceptExchange(
 }
 
 /**
- * Reject an exchange proposal
- * Calls the database function reject_exchange
+ * Reject an exchange proposal.
+ * 1. Calls the DB function reject_exchange.
+ * 2. Sends a notification to the initiator (proposal_rejected).
  */
 export async function rejectExchange(
     request: RejectExchangeRequest
@@ -431,31 +608,29 @@ export async function rejectExchange(
         })
 
         if (error) {
-            return {
-                success: false,
-                error: error.message,
-            }
+            return { success: false, error: error.message }
         }
 
         if (data && data.length > 0) {
             const result = data[0]
-            if (result.success) {
-                return {
-                    success: true,
-                    message: result.message,
-                }
-            } else {
-                return {
-                    success: false,
-                    error: result.message,
-                }
+            if (!result.success) {
+                return { success: false, error: result.message }
             }
+        } else {
+            return { success: false, error: 'Unknown error rejecting exchange' }
         }
 
-        return {
-            success: false,
-            error: 'Unknown error rejecting exchange',
-        }
+        // Send notification to the initiator
+        await sendExchangeNotification(
+            supabase,
+            request.exchange_id,
+            request.rejecting_user_id,
+            'proposal_rejected',
+            'Trade Proposal Rejected',
+            'Your trade proposal has been rejected.'
+        )
+
+        return { success: true, message: 'Exchange rejected successfully' }
     } catch (err) {
         console.error('Error rejecting exchange:', err)
         return {
@@ -491,6 +666,16 @@ export async function cancelExchange(
         if (data && data.length > 0) {
             const result = data[0]
             if (result.success) {
+                // Notify the other party that the proposal was cancelled
+                await sendExchangeNotification(
+                    supabase,
+                    request.exchange_id,
+                    request.initiator_user_id,
+                    'proposal_cancelled',
+                    'Trade Proposal Cancelled',
+                    'A trade proposal you were part of has been cancelled.'
+                )
+
                 return {
                     success: true,
                     message: result.message,
@@ -513,5 +698,51 @@ export async function cancelExchange(
             success: false,
             error: err instanceof Error ? err.message : 'An error occurred',
         }
+    }
+}
+
+// ─── Internal Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Create an in-app notification for the other party in an exchange.
+ * Resolves the recipient by finding a participant that is NOT the acting user.
+ * Non-blocking: errors are logged but do not fail the parent action.
+ */
+async function sendExchangeNotification(
+    supabase: Awaited<ReturnType<typeof createClient>>,
+    exchangeId: string,
+    actingUserId: string,
+    type: 'proposal_accepted' | 'proposal_rejected' | 'proposal_cancelled',
+    title: string,
+    body: string
+): Promise<void> {
+    try {
+        // Find the OTHER participant (the one who is NOT the acting user)
+        const { data: participants } = await supabase
+            .from('exchange_participant')
+            .select('user_id')
+            .eq('exchange_id', exchangeId)
+            .neq('user_id', actingUserId)
+
+        if (!participants || participants.length === 0) return
+
+        const recipientId = participants[0].user_id
+
+        await supabase.from('notification').insert({
+            recipient_user_id: recipientId,
+            sender_user_id: actingUserId,
+            type,
+            reference_type: 'exchange',
+            reference_id: exchangeId,
+            title,
+            body,
+            is_read: false,
+            delivery_channel: 'in_app',
+            status: 'queued',
+            priority: 'normal',
+        })
+    } catch (err) {
+        // Notification failure should not block the main action
+        console.error('Failed to send exchange notification:', err)
     }
 }

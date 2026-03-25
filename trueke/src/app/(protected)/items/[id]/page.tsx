@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { ReportItemButton } from "@/components/sections/items/report-item-button"
 
 const conditionLabel: Record<string, string> = {
   new: "New",
@@ -223,6 +224,7 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                           Go to My Items
                         </Link>
                       </Button>
+                      <ReportItemButton itemId={itemId || ""} itemTitle={data.item.title} />
                     </CardContent>
                   </Card>
                 </div>

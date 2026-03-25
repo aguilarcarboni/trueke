@@ -111,4 +111,13 @@ export const ITEM_CONDITIONS: ItemCondition[] = ['new', 'like new', 'used', 'hea
 export const ITEM_TYPES: ItemType[] = ['physical', 'digital']
 
 export const ITEM_STATUSES: ItemStatus[] = ['draft', 'active', 'contested', 'traded', 'deleted']
-    
+
+export const REPORT_ITEM_REASONS = [
+  { value: 'misleading_description', label: 'Misleading Description' },
+  { value: 'fake_item',              label: 'Fake Item' },
+  { value: 'inappropriate_content', label: 'Inappropriate Content' },
+  { value: 'spam',                   label: 'Spam' },
+  { value: 'other',                  label: 'Other' },
+] as const
+
+export type ReportItemReason = typeof REPORT_ITEM_REASONS[number]['value']

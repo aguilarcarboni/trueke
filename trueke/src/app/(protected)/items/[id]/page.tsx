@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, Plus, UserRound } from "lucide-react"
 import { getItemDetails, type ItemDetailsResponse } from "@/app/actions/item"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/utils/auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -82,6 +84,9 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
   const result = await getItemDetails(itemId || "")
   const data = result.data ?? null
   const error = result.status === 200 ? null : result.error || "Failed to load this item."
+
+  const session = await getServerSession(authOptions)
+  const currentUserId = session?.user?.id?.trim() ?? null
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -224,7 +229,9 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                           Go to My Items
                         </Link>
                       </Button>
-                      <ReportItemButton itemId={itemId || ""} itemTitle={data.item.title} />
+                      {currentUserId && currentUserId !== data.owner.user_id && (
+                        <ReportItemButton itemId={itemId || ""} itemTitle={data.item.title} />
+                      )}
                     </CardContent>
                   </Card>
                 </div>

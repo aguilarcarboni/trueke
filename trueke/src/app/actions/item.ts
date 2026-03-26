@@ -517,6 +517,20 @@ export async function createItemReport(
 
     const supabase = await createClient()
 
+    const { data: item, error: itemError } = await supabase
+      .from('item')
+      .select('owner_user_id')
+      .eq('item_id', normalizedItemId)
+      .single()
+
+    if (itemError || !item) {
+      return { status: 404, error: 'Item not found.' }
+    }
+
+    if (item.owner_user_id === userId) {
+      return { status: 403, error: 'You cannot report your own item.' }
+    }
+
     const { error: insertError } = await supabase
       .from('report')
       .insert({

@@ -495,3 +495,46 @@ export async function updateItemAddress(
     return { error: 'An error occurred while updating the item address' }
   }
 }
+
+export async function createItemReport(
+  itemId: string,
+  reason: string,
+  description?: string
+): Promise<{ status: number; error?: string }> {
+  try {
+    const userId = await getAuthenticatedUserId()
+    if (!userId) {
+      return { status: 401, error: 'You must be logged in to report an item.' }
+    }
+
+    const normalizedItemId = itemId.trim()
+    if (!normalizedItemId) {
+      return { status: 400, error: 'Item ID is required.' }
+    }
+    if (!reason.trim()) {
+      return { status: 400, error: 'A reason is required.' }
+    }
+
+    const supabase = await createClient()
+
+    const { error: insertError } = await supabase
+      .from('report')
+      .insert({
+        reporter_user_id: userId,
+        target_type: 'item',
+        target_id: normalizedItemId,
+        reason: reason.trim(),
+        description: description?.trim() || null,
+      })
+
+    if (insertError) {
+      console.error('Create item report error:', insertError)
+      return { status: 500, error: 'Failed to submit report. Please try again.' }
+    }
+
+    return { status: 201 }
+  } catch (error) {
+    console.error('Create item report error:', error)
+    return { status: 500, error: 'An unexpected error occurred.' }
+  }
+}

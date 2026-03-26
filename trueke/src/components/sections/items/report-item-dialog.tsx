@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { REPORT_ITEM_REASONS } from "@/lib/entities/item"
+import { useToast } from "@/hooks/use-toast"
+import { createItemReport } from "@/app/actions/item"
 
 interface ReportItemDialogProps {
   open: boolean
@@ -19,6 +21,7 @@ export function ReportItemDialog({ open, onOpenChange, itemId, itemTitle }: Repo
   const [reason, setReason] = useState("")
   const [description, setDescription] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
 
   const handleClose = () => {
     if (isSubmitting) return
@@ -32,11 +35,15 @@ export function ReportItemDialog({ open, onOpenChange, itemId, itemTitle }: Repo
     setIsSubmitting(true)
 
     try {
-      // Call server action to report item
-      //empty for now
+      const result = await createItemReport(itemId, reason, description || undefined)
+      if (result.status === 201) {
+        toast({ title: "Report submitted", description: "Thank you for helping keep the platform safe." })
+        handleClose()
+      } else {
+        toast({ title: "Failed to submit report", description: result.error ?? "Please try again.", variant: "destructive" })
+      }
     } catch {
-      // handle error
-      //empty for now
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" })
     } finally {
       setIsSubmitting(false)
     }

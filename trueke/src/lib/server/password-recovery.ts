@@ -1,27 +1,29 @@
 import bcrypt from 'bcrypt'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { sendEmail } from '@/lib/email'
+import { EMAIL_PATTERN } from '@/lib/validation/email'
+import { validateNewPasswordField } from '@/lib/validation/password'
+import { generateSixDigitCode } from '@/lib/server/verification-code'
+import { sendPasswordRecoveryEmail } from '@/lib/server/mail/account-emails'
+import {
+  hashPassword,
+  passwordsMatch,
+  updateUserPasswordHash,
+} from '@/lib/server/account/user-password'
 
-const SALT_ROUNDS = 10
+export { EMAIL_PATTERN }
 
-/** Same as registration / change password */
-const PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*\d)(?=.*[?!*&]).{8,}$/
-
-export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-/** Dedicated names so we never clash with email-change `verification_code` / `pending_new_email` */
+/** Dedicated names so we never clash with email-change cookies */
 export const PASSWORD_RECOVERY_CODE_COOKIE = 'password_recovery_code'
 export const PASSWORD_RECOVERY_EMAIL_COOKIE = 'password_recovery_email'
-
-function generateVerificationCode(): string {
-  return Array.from({ length: 6 }, () => Math.floor(Math.random() * 10).toString()).join('')
-}
 
 export type ForgotPasswordResult =
   | { ok: false; error: string }
   | { ok: true; code: string; normalizedEmail: string }
 
+/**
+ * Looks up user by email and sends recovery code (orchestration only).
+ */
 export async function runForgotPassword(email: string): Promise<ForgotPasswordResult> {
   const normalized = String(email ?? '').trim().toLowerCase()
 
@@ -41,19 +43,8 @@ export async function runForgotPassword(email: string): Promise<ForgotPasswordRe
     return { ok: false, error: 'Could not find account for this email.' }
   }
 
-  const code = generateVerificationCode()
-
-  const emailResult = await sendEmail({
-    to: normalized,
-    subject: 'Trueke - Password recovery',
-    html: `
-      <p>Your Trueke password recovery code is:</p>
-      <p><strong>${code}</strong></p>
-      <p>Use this code to recover your password: ${normalized}</p>
-      <p>This code expires in 5 minutes.</p>
-      <p>If you did not request this recovery, please ignore this email.</p>
-    `,
-  })
+  const code = generateSixDigitCode()
+  const emailResult = await sendPasswordRecoveryEmail(normalized, code, normalized)
 
   if (!emailResult.ok) {
     return {
@@ -65,22 +56,17 @@ export async function runForgotPassword(email: string): Promise<ForgotPasswordRe
   return { ok: true, code, normalizedEmail: normalized }
 }
 
+/**
+ * Validates code + session cookies, ensures new password differs, persists hash.
+ */
 export async function runPasswordReset(
   code: string,
   newPassword: string,
   storedCode: string | undefined,
   recoveryEmail: string | undefined
 ): Promise<{ error?: string; success?: string }> {
-  if (!newPassword?.trim()) {
-    return { error: 'New password is required.' }
-  }
-
-  if (!PASSWORD_PATTERN.test(newPassword)) {
-    return {
-      error:
-        'New password must be 8+ characters, include 1 uppercase letter, 1 number, and 1 special character (?, !, *, &).',
-    }
-  }
+  const formatError = validateNewPasswordField(newPassword)
+  if (formatError) return { error: formatError }
 
   if (!storedCode || !recoveryEmail) {
     return { error: 'Code expired or missing. Request a new code from Forgot password.' }
@@ -104,20 +90,14 @@ export async function runPasswordReset(
     return { error: 'Could not find account for this email.' }
   }
 
-  const sameAsBefore = await bcrypt.compare(newPassword, user.password_hash)
-  if (sameAsBefore) {
+  if (await passwordsMatch(newPassword, user.password_hash)) {
     return { error: 'New password must be different from your current password.' }
   }
 
-  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS)
-
-  const { error: updateError } = await supabase
-    .from('user')
-    .update({ password_hash: passwordHash })
-    .eq('user_id', user.user_id)
-
-  if (updateError) {
-    return { error: updateError.message }
+  const passwordHash = await hashPassword(newPassword)
+  const persist = await updateUserPasswordHash(supabase, user.user_id, passwordHash)
+  if (persist.error) {
+    return { error: persist.error }
   }
 
   revalidatePath('/', 'layout')

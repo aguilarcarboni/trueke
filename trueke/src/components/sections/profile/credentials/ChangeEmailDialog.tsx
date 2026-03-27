@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+import { EMAIL_PATTERN } from "@/lib/validation/email"
 
 type Step = "request" | "confirm"
 

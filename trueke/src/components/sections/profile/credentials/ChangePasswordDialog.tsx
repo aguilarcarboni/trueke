@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-const PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*\d)(?=.*[?!*&]).{8,}$/
+import { PASSWORD_PATTERN } from "@/lib/validation/password"
 
 interface ChangePasswordDialogProps {
   open: boolean

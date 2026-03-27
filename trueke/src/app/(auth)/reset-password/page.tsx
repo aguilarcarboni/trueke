@@ -10,8 +10,7 @@ import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-
-const PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*\d)(?=.*[?!*&]).{8,}$/
+import { PASSWORD_PATTERN } from "@/lib/validation/password"
 
 export default function ResetPasswordPage() {
   const router = useRouter()

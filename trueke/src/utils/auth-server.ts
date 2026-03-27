@@ -40,8 +40,7 @@ export async function getAuthenticatedUserId(): Promise<string | null> {
       secureCookie: true,
     }))
 
-  const sub = token?.sub
-  return typeof sub === 'string' && sub.trim() ? sub.trim() : null
+  return subFromToken(token)
 }
 
 function subFromToken(token: Awaited<ReturnType<typeof getToken>>): string | null {

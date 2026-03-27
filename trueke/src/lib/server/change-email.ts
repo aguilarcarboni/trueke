@@ -1,23 +1,20 @@
-import bcrypt from 'bcrypt'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { sendEmail } from '@/lib/email'
+import { EMAIL_PATTERN } from '@/lib/validation/email'
+import { generateSixDigitCode } from '@/lib/server/verification-code'
+import { sendEmailChangeVerificationEmail } from '@/lib/server/mail/account-emails'
+import { updateUserEmailAddress } from '@/lib/server/account/user-email'
+import { passwordsMatch } from '@/lib/server/account/user-password'
 
-export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-function generateVerificationCode(): string {
-  return Array.from({ length: 6 }, () =>
-    Math.floor(Math.random() * 10).toString()
-  ).join('')
-}
+export { EMAIL_PATTERN }
 
 export type ChangeEmailRequestResult =
   | { ok: false; error: string }
   | { ok: true; success: string; code: string; pendingEmail: string }
 
 /**
- * Validates password, checks email availability, sends verification email.
- * Returns `code` + `pendingEmail` for the Route Handler to store in httpOnly cookies (never expose in JSON).
+ * Orchestrates email-change request: verifies password, checks availability, sends code.
+ * Returns `code` + `pendingEmail` for Route Handler cookies only (not JSON).
  */
 export async function runChangeEmailRequest(
   userId: string,
@@ -41,8 +38,9 @@ export async function runChangeEmailRequest(
 
   if (fetchError || !user) return { ok: false, error: 'Could not load your account.' }
 
-  const match = await bcrypt.compare(currentPassword, user.password_hash)
-  if (!match) return { ok: false, error: 'Current password is incorrect.' }
+  if (!(await passwordsMatch(currentPassword, user.password_hash))) {
+    return { ok: false, error: 'Current password is incorrect.' }
+  }
 
   if (user.email?.toLowerCase() === trimmed) {
     return { ok: false, error: 'New email is the same as your current email.' }
@@ -58,19 +56,8 @@ export async function runChangeEmailRequest(
   if (existingError) return { ok: false, error: 'Could not validate the new email.' }
   if (existing) return { ok: false, error: 'Email already in use.' }
 
-  const code = generateVerificationCode()
-
-  const emailResult = await sendEmail({
-    to: trimmed,
-    subject: 'Trueke - Email change confirmation',
-    html: `
-      <p>Your Trueke email change verification code is:</p>
-      <p><strong>${code}</strong></p>
-      <p>Use this code to confirm your new email: ${trimmed}</p>
-      <p>This code expires in 5 minutes.</p>
-      <p>If you did not request this change, please ignore this email.</p>
-    `,
-  })
+  const code = generateSixDigitCode()
+  const emailResult = await sendEmailChangeVerificationEmail(trimmed, code, trimmed)
 
   if (!emailResult.ok) {
     return {
@@ -117,12 +104,8 @@ export async function runConfirmEmailChange(
   if (existingError) return { error: 'Could not validate the email.' }
   if (existing) return { error: 'Email already in use.' }
 
-  const { error: updateError } = await supabase
-    .from('user')
-    .update({ email: pendingNewEmail })
-    .eq('user_id', userId)
-
-  if (updateError) return { error: updateError.message }
+  const persist = await updateUserEmailAddress(supabase, userId, pendingNewEmail)
+  if (persist.error) return { error: persist.error }
 
   revalidatePath('/', 'layout')
   return { success: 'Email updated successfully.' }

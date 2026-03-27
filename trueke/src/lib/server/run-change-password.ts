@@ -1,25 +1,22 @@
-import bcrypt from 'bcrypt'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { validateChangePasswordFields } from '@/lib/validation/password'
+import {
+  hashPassword,
+  passwordsMatch,
+  updateUserPasswordHash,
+} from '@/lib/server/account/user-password'
 
-const SALT_ROUNDS = 10
-
-const PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*\d)(?=.*[?!*&]).{8,}$/
-
+/**
+ * Orchestrates password change: validates input, verifies current password, persists new hash.
+ */
 export async function runChangePassword(
   userId: string,
   currentPassword: string,
   newPassword: string
 ): Promise<{ error?: string }> {
-  if (!currentPassword?.trim()) return { error: 'Current password is required.' }
-  if (!newPassword?.trim()) return { error: 'New password is required.' }
-
-  if (!PASSWORD_PATTERN.test(newPassword)) {
-    return {
-      error:
-        'New password must be 8+ characters, include 1 uppercase letter, 1 number, and 1 special character (?, !, *, &).',
-    }
-  }
+  const fieldError = validateChangePasswordFields(currentPassword, newPassword)
+  if (fieldError) return { error: fieldError }
 
   const supabase = await createClient()
   const { data: user, error: fetchError } = await supabase
@@ -30,21 +27,17 @@ export async function runChangePassword(
 
   if (fetchError || !user) return { error: 'Could not load your account.' }
 
-  const match = await bcrypt.compare(currentPassword, user.password_hash)
-  if (!match) return { error: 'Current password is incorrect.' }
+  if (!(await passwordsMatch(currentPassword, user.password_hash))) {
+    return { error: 'Current password is incorrect.' }
+  }
 
-  const isSameAsCurrent = await bcrypt.compare(newPassword, user.password_hash)
-  if (isSameAsCurrent) {
+  if (await passwordsMatch(newPassword, user.password_hash)) {
     return { error: 'New password must be different from your current password.' }
   }
 
-  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS)
-  const { error: updateError } = await supabase
-    .from('user')
-    .update({ password_hash: passwordHash })
-    .eq('user_id', userId)
-
-  if (updateError) return { error: updateError.message }
+  const passwordHash = await hashPassword(newPassword)
+  const persist = await updateUserPasswordHash(supabase, userId, passwordHash)
+  if (persist.error) return { error: persist.error }
 
   revalidatePath('/', 'layout')
   return {}

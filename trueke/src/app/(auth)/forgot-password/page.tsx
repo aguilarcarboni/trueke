@@ -9,8 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+import { EMAIL_PATTERN } from "@/lib/validation/email"
 
 export default function ForgotPasswordPage() {
   const router = useRouter()

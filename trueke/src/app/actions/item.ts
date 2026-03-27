@@ -531,6 +531,18 @@ export async function createItemReport(
       return { status: 403, error: 'You cannot report your own item.' }
     }
 
+    const { data: existing } = await supabase
+      .from('report')
+      .select('report_id')
+      .eq('reporter_user_id', userId)
+      .eq('target_id', normalizedItemId)
+      .eq('target_type', 'item')
+      .maybeSingle()
+
+    if (existing) {
+      return { status: 409, error: 'You have already reported this item.' }
+    }
+
     const { error: insertError } = await supabase
       .from('report')
       .insert({

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -66,13 +67,13 @@ function SignIn() {
             required
             disabled={isLoading}
           />
-          <Input
-            type="password"
+          <PasswordInput
             placeholder='Password'
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             disabled={isLoading}
+            autoComplete="current-password"
           />
           <LoaderButton isLoading={isLoading} text='Sign in' />
         </form>

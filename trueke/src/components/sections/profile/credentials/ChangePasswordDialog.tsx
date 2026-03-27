@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { Loader2, Lock } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 const PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*\d)(?=.*[?!*&]).{8,}$/
@@ -113,9 +113,8 @@ export function ChangePasswordDialog({
 
           <div className="space-y-2">
             <Label htmlFor="cp-current">Current password</Label>
-            <Input
+            <PasswordInput
               id="cp-current"
-              type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               placeholder="••••••••"
@@ -125,9 +124,8 @@ export function ChangePasswordDialog({
 
           <div className="space-y-2">
             <Label htmlFor="cp-new">New password</Label>
-            <Input
+            <PasswordInput
               id="cp-new"
-              type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="••••••••"
@@ -140,9 +138,8 @@ export function ChangePasswordDialog({
 
           <div className="space-y-2">
             <Label htmlFor="cp-confirm">Confirm new password</Label>
-            <Input
+            <PasswordInput
               id="cp-confirm"
-              type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"

@@ -44,6 +44,7 @@ const categories = [
   "Art",
 ]
 
+const ITEM_IMAGES_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_ITEM_IMAGES_BUCKET || process.env.NEXT_PUBLIC_SUPABASE_PROFILE_IMAGES_BUCKET || "images"
 
 const CreateItemSchema = z.object({
   title: z.string().trim().min(1, "Item title is required."),
@@ -154,6 +155,31 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
     reset(DEFAULT_VALUES);
   }, [open, reset]);
 
+  const uploadItemImage = async (file: File): Promise<{ url: string; mediaType: string }> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/items/upload-image", {
+      method: "POST",
+      body: formData,
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as {
+      url?: string;
+      mediaType?: string;
+      error?: string;
+    };
+
+    if (!response.ok || !payload.url) {
+      throw new Error(payload.error || "Failed to upload item image.");
+    }
+
+    return {
+      url: payload.url,
+      mediaType: payload.mediaType || ".jpg",
+    };
+  };
+
   const onSubmit = async (values: CreateItemFormValues) => {
     const ownerUserId = session?.user?.id;
     if (!ownerUserId) {
@@ -251,6 +277,40 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
         setSubmitError(itemAddressError.message);
         setIsSubmitting(false);
         return;
+      }
+
+      if (values.image) {
+        let uploadedImage: { url: string; mediaType: string };
+        try {
+          uploadedImage = await uploadItemImage(values.image);
+        } catch (uploadError) {
+          await supabase.from("item").delete().eq("item_id", createdItemId);
+          if (createdAddressId) {
+            await supabase.from("address").delete().eq("address_id", createdAddressId);
+          }
+          const message = uploadError instanceof Error ? uploadError.message : "Failed to upload item image.";
+          setSubmitError(message);
+          setIsSubmitting(false);
+          return;
+        }
+
+        const { error: mediaError } = await supabase.from("item_media").insert({
+          item_id: createdItemId,
+          url: uploadedImage.url,
+          media_type: uploadedImage.mediaType,
+          display_order: 1,
+        });
+
+        if (mediaError) {
+          await supabase.from("item").delete().eq("item_id", createdItemId);
+          if (createdAddressId) {
+            await supabase.from("address").delete().eq("address_id", createdAddressId);
+          }
+          console.error("Item image insert failed:", mediaError);
+          setSubmitError(mediaError.message);
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       reset(DEFAULT_VALUES);
@@ -395,13 +455,13 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
                     <Input
                       id="image"
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
                       onChange={(e) => {
                         setValue("image", e.target.files?.[0] || null, { shouldDirty: true });
                       }}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Image upload UI is present. File storage will be implemented in a later sprint.
+                      Uploads to the `{ITEM_IMAGES_BUCKET}` bucket. Max 10MB. JPG, PNG, WEBP, or GIF.
                     </p>
                   </div>
 

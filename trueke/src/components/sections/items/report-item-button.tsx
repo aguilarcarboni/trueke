@@ -9,9 +9,10 @@ import { ReportItemDialog } from "@/components/sections/items/report-item-dialog
 interface ReportItemButtonProps {
   itemId: string
   itemTitle?: string
+  alreadyReported?: boolean
 }
 
-export function ReportItemButton({ itemId, itemTitle }: ReportItemButtonProps) {
+export function ReportItemButton({ itemId, itemTitle, alreadyReported = false }: ReportItemButtonProps) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -20,10 +21,12 @@ export function ReportItemButton({ itemId, itemTitle }: ReportItemButtonProps) {
       <Button
         variant="ghost"
         className="w-full gap-2 text-muted-foreground text-sm"
-        onClick={() => setOpen(true)}
+        onClick={() => !alreadyReported && setOpen(true)}
+        disabled={alreadyReported}
+        title={alreadyReported ? "You have already reported this item" : undefined}
       >
         <Flag className="h-4 w-4" />
-        Report Item
+        {alreadyReported ? "Already Reported" : "Report Item"}
       </Button>
       <ReportItemDialog
         open={open}

@@ -82,7 +82,7 @@ const dedupeFiles = (files: File[]) => {
 
 const CreateItemSchema = z.object({
   title: z.string().trim().min(1, "Item title is required."),
-  description: z.string().trim().min(1, "Description is required."),
+  description: z.string().trim().optional(),
   category: z.enum(categories, {
     required_error: "Please select a category.",
   }),
@@ -92,7 +92,20 @@ const CreateItemSchema = z.object({
   itemType: z.enum(["physical", "digital"], {
     required_error: "Please select a type.",
   }),
-  dateBought: z.string().optional().or(z.literal("")),
+  dateBought: z
+    .string()
+    .optional()
+    .refine((value) => {
+      if (!value) return true;
+
+      const [year, month, day] = value.split("-").map(Number);
+      if (!year || !month || !day) return false;
+
+      const selectedDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+      const now = new Date();
+
+      return selectedDate <= now;
+    }, "Date bought cannot be in the future."),
   images: z.array(z.instanceof(File)).min(1, "At least one image is required."),
   address: z.object({
     countryCode: AddressSchema.shape.countryCode,
@@ -251,6 +264,17 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
     updateImages(currentImages);
   };
 
+  const getTodayDateInputValue = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+    const todayDate = useMemo(() => getTodayDateInputValue(), []);
+
   const onSubmit = async (values: CreateItemFormValues) => {
     const ownerUserId = session?.user?.id;
 
@@ -287,7 +311,7 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
         .insert({
           owner_user_id: ownerUserId,
           title: values.title.trim(),
-          description: values.description.trim(),
+          description: values.description?.trim() || null,
           category: values.category,
           condition: values.condition,
           item_type: values.itemType,
@@ -455,11 +479,14 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
                   )}
 
                   <p className="text-sm text-muted-foreground">
-                    Fields marked with * are required. Date Bought is optional.
+                    Fields marked with{" "}
+                    <span className="text-destructive">*</span> are required.
                   </p>
 
                   <div className="space-y-2">
-                    <Label htmlFor="title">Item Title *</Label>
+                    <Label htmlFor="title">
+                      Item Title <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="title"
                       placeholder="Enter a descriptive title for your item"
@@ -474,7 +501,9 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
 
                   <div className="grid gap-6 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="category">Category *</Label>
+                      <Label htmlFor="category">
+                        Category <span className="text-destructive">*</span>
+                      </Label>
                       <Select
                         value={watch("category")}
                         onValueChange={(value: Category) => {
@@ -503,7 +532,9 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="itemType">Type *</Label>
+                      <Label htmlFor="itemType">
+                        Type <span className="text-destructive">*</span>
+                      </Label>
                       <Select
                         value={watch("itemType")}
                         onValueChange={(value: "physical" | "digital") => {
@@ -531,7 +562,9 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
 
                   <div className="grid gap-6 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="condition">Condition *</Label>
+                      <Label htmlFor="condition">
+                        Condition <span className="text-destructive">*</span>
+                      </Label>
                       <Select
                         value={watch("condition")}
                         onValueChange={(value: Condition) => {
@@ -560,10 +593,11 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="dateBought">Date Bought (optional)</Label>
+                      <Label htmlFor="dateBought">Date Bought</Label>
                       <Input
                         id="dateBought"
                         type="date"
+                        max={todayDate}
                         {...register("dateBought")}
                       />
                       {errors.dateBought?.message && (
@@ -593,7 +627,9 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <Label>Images *</Label>
+                        <Label>
+                          Images <span className="text-destructive">*</span>
+                        </Label>
                         <p className="mt-1 text-xs text-muted-foreground">
                           Add one or more images. The first image will be the
                           cover photo.
@@ -654,7 +690,7 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
                           {selectedImages.map((file, index) => (
                             <div
                               key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
-                              className="overflow-hidden rounded-lg border bg-background"
+                              className="overflow-hidden rounded-xl border bg-background shadow-sm"
                             >
                               <div className="aspect-[4-3] bg-muted">
                                 {previewUrls[index] && (
@@ -666,7 +702,7 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
                                 )}
                               </div>
 
-                              <div className="space-y-3 p-3">
+                              <div className="space-y-4 p-3">
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
                                     <p className="truncate text-sm font-medium">
@@ -688,11 +724,12 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
                                   </span>
                                 </div>
 
-                                <div className="flex flex-wrap gap-2">
+                                <div className="grid grid-cols-1 gap-2">
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
+                                    className="w-full"
                                     onClick={() => moveImage(index, -1)}
                                     disabled={index === 0 || isSubmitting}
                                   >
@@ -703,6 +740,7 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
                                     type="button"
                                     variant="outline"
                                     size="sm"
+                                    className="w-full"
                                     onClick={() => moveImage(index, 1)}
                                     disabled={
                                       index === selectedImages.length - 1 ||
@@ -716,7 +754,7 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="ml-auto"
+                                    className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
                                     onClick={() => removeImage(index)}
                                     disabled={isSubmitting}
                                   >
@@ -732,7 +770,7 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="description">Description *</Label>
+                    <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
                       placeholder="Describe your item in detail. Include important condition notes, features, or history."

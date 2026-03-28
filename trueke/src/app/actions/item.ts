@@ -564,3 +564,26 @@ export async function createItemReport(
     return { status: 500, error: 'An unexpected error occurred.' }
   }
 }
+
+export async function hasUserReportedItem(
+  itemId: string
+): Promise<boolean> {
+  try {
+    const userId = await getAuthenticatedUserId()
+    if (!userId || !itemId.trim()) return false
+
+    const supabase = await createClient()
+
+    const { data } = await supabase
+      .from('report')
+      .select('report_id')
+      .eq('reporter_user_id', userId)
+      .eq('target_id', itemId.trim())
+      .eq('target_type', 'item')
+      .maybeSingle()
+
+    return !!data
+  } catch {
+    return false
+  }
+}

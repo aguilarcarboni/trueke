@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, Plus, UserRound } from "lucide-react"
-import { getItemDetails, type ItemDetailsResponse } from "@/app/actions/item"
+import { getItemDetails, hasUserReportedItem, type ItemDetailsResponse } from "@/app/actions/item"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/utils/auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -87,6 +87,9 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
 
   const session = await getServerSession(authOptions)
   const currentUserId = session?.user?.id?.trim() ?? null
+
+  const isNonOwner = !!currentUserId && !!data && currentUserId !== data.owner.user_id
+  const alreadyReported = isNonOwner ? await hasUserReportedItem(itemId || "") : false
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -230,7 +233,7 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                         </Link>
                       </Button>
                       {currentUserId && currentUserId !== data.owner.user_id && (
-                        <ReportItemButton itemId={itemId || ""} itemTitle={data.item.title} />
+                        <ReportItemButton itemId={itemId || ""} itemTitle={data.item.title} alreadyReported={alreadyReported} />
                       )}
                     </CardContent>
                   </Card>

@@ -543,7 +543,7 @@ export async function createItemReport(
       return { status: 409, error: 'You have already reported this item.' }
     }
 
-    const { error: insertError } = await supabase
+    const { error: insertError, data: reportData } = await supabase
       .from('report')
       .insert({
         reporter_user_id: userId,
@@ -552,11 +552,57 @@ export async function createItemReport(
         reason: reason.trim(),
         description: description?.trim() || null,
       })
+      .select('report_id')
+      .single()
 
     if (insertError) {
       console.error('Create item report error:', insertError)
       return { status: 500, error: 'Failed to submit report. Please try again.' }
     }
+
+    // Fetch item title for notification bodies
+    const { data: itemDetails } = await supabase
+      .from('item')
+      .select('title')
+      .eq('item_id', normalizedItemId)
+      .maybeSingle()
+
+    const itemTitle = itemDetails?.title ?? 'an item'
+    const reportId: string | undefined = reportData?.report_id
+
+    // Non-blocking: send confirmation to the reporter
+    supabase.from('notification').insert({
+      recipient_user_id: userId,
+      sender_user_id: null,
+      type: 'item_reported',
+      reference_type: 'report',
+      reference_id: reportId ?? null,
+      title: 'Report Submitted',
+      body: `Your report for "${itemTitle}" has been received and is under review.`,
+      is_read: false,
+      delivery_channel: 'in_app',
+      status: 'queued',
+      priority: 'normal',
+    }).then(({ error }) => {
+      if (error) console.error('Failed to send reporter notification:', error)
+    })
+
+    // Non-blocking: notify the item owner
+    supabase.from('notification').insert({
+      recipient_user_id: item.owner_user_id,
+      sender_user_id: null,
+      type: 'item_reported',
+      reference_type: 'report',
+      reference_id: reportId ?? null,
+      title: 'Your Item Has Been Reported',
+      body: `"${itemTitle}" has received a report. Our team will review it shortly.`,
+      is_read: false,
+      delivery_channel: 'in_app',
+      status: 'queued',
+      priority: 'normal',
+    }).then(({ error }) => {
+      if (error) console.error('Failed to send owner notification:', error)
+    })
 
     return { status: 201 }
   } catch (error) {

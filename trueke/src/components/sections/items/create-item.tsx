@@ -53,15 +53,6 @@ type Condition = (typeof ITEM_CONDITIONS)[number];
 
 const conditionOptions = [...ITEM_CONDITIONS] as [Condition, ...Condition[]];
 
-const sanitizeFileName = (name: string) =>
-  name.replace(/[^a-zA-Z0-9._-]/g, "_");
-
-const getMediaType = (file: File) => {
-  if (file.type) return file.type;
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  return ext ? `.${ext}` : "image";
-};
-
 const formatFileSize = (size: number) => {
   if (size < 1024 * 1024) {
     return `${Math.max(1, Math.round(size / 1024))} KB`;
@@ -78,6 +69,15 @@ const dedupeFiles = (files: File[]) => {
     seen.add(key);
     return true;
   });
+};
+
+const getTodayDateInputValue = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 };
 
 const CreateItemSchema = z.object({
@@ -206,6 +206,8 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
     } as Record<string, string>;
   }, [errors.address]);
 
+  const todayDate = useMemo(() => getTodayDateInputValue(), []);
+
   const closeDialog = () => {
     if (isSubmitting) return;
     setSubmitError("");
@@ -264,16 +266,34 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
     updateImages(currentImages);
   };
 
-  const getTodayDateInputValue = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
+  const uploadItemImage = async (
+    file: File,
+  ): Promise<{ url: string; mediaType: string }> => {
+    const formData = new FormData();
+    formData.append("file", file);
 
-    return `${year}-${month}-${day}`;
+    const response = await fetch("/api/items/upload-image", {
+      method: "POST",
+      body: formData,
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as {
+      url?: string;
+      mediaType?: string;
+      error?: string;
+    };
+
+    if (!response.ok || !payload.url) {
+      throw new Error(
+        payload.error || `Failed to upload image "${file.name}".`,
+      );
+    }
+
+    return {
+      url: payload.url,
+      mediaType: payload.mediaType || ".jpg",
+    };
   };
-
-    const todayDate = useMemo(() => getTodayDateInputValue(), []);
 
   const onSubmit = async (values: CreateItemFormValues) => {
     const ownerUserId = session?.user?.id;
@@ -303,7 +323,6 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
 
     let createdItemId: string | null = null;
     let createdAddressId: string | null = null;
-    const uploadedFilePaths: string[] = [];
 
     try {
       const { data: itemData, error: itemError } = await supabase
@@ -376,32 +395,12 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
       const mediaRows = [];
 
       for (const [index, file] of values.images.entries()) {
-        const safeFileName = sanitizeFileName(file.name);
-        const filePath = `${ownerUserId}/${crypto.randomUUID()}-${safeFileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("item-images")
-          .upload(filePath, file, {
-            cacheControl: "3600",
-            upsert: false,
-          });
-
-        if (uploadError) {
-          throw new Error(
-            `Image upload failed for "${file.name}": ${uploadError.message}`,
-          );
-        }
-
-        uploadedFilePaths.push(filePath);
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("item-images").getPublicUrl(filePath);
+        const uploadedImage = await uploadItemImage(file);
 
         mediaRows.push({
           item_id: createdItemId,
-          url: publicUrl,
-          media_type: getMediaType(file),
+          url: uploadedImage.url,
+          media_type: uploadedImage.mediaType,
           display_order: index,
         });
       }
@@ -434,10 +433,6 @@ export function CreateItem({ open, onOpenChange }: CreateItemProps) {
           .from("address")
           .delete()
           .eq("address_id", createdAddressId);
-      }
-
-      if (uploadedFilePaths.length > 0) {
-        await supabase.storage.from("item-images").remove(uploadedFilePaths);
       }
 
       setSubmitError(

@@ -11,7 +11,6 @@ export interface ReportRow {
   created_at: string
   reporter_username: string
   reporter_user_id: string
-  /** Resolved display name: item title for item reports, username for user reports */
   target_label: string
 }
 

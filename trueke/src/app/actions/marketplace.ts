@@ -69,7 +69,7 @@ export async function getMarketplaceItems(
             if (addressItemIds.length === 0) return { success: true, data: [] }
         }
 
-        // -- Report pre-filter: exclude items with 3+ reports --
+        // Filter items that have more than three reports on them
         const { data: reportRows } = await supabase
             .from('report')
             .select('target_id')

@@ -69,6 +69,20 @@ export async function getMarketplaceItems(
             if (addressItemIds.length === 0) return { success: true, data: [] }
         }
 
+        // -- Report pre-filter: exclude items with 3+ reports --
+        const { data: reportRows } = await supabase
+            .from('report')
+            .select('target_id')
+            .eq('target_type', 'item')
+
+        const reportCountMap: Record<string, number> = {}
+        for (const row of reportRows ?? []) {
+            reportCountMap[row.target_id] = (reportCountMap[row.target_id] ?? 0) + 1
+        }
+        const blockedItemIds = Object.entries(reportCountMap)
+            .filter(([, count]) => count >= 3)
+            .map(([id]) => id)
+
         // -- Main item query --
         let query = supabase
             .from('item')
@@ -115,6 +129,9 @@ export async function getMarketplaceItems(
         }
         if (addressItemIds !== null) {
             query = query.in('item_id', addressItemIds)
+        }
+        if (blockedItemIds.length > 0) {
+            query = query.not('item_id', 'in', `(${blockedItemIds.join(',')})`)
         }
 
         query = query.order('last_date_uploaded', { ascending: false })

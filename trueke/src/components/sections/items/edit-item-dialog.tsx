@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ItemCondition, ItemType, ItemStatus, ItemWithAddress } from "@/lib/entities/item"
+import { ItemCondition, ItemType, ItemWithAddress, ITEM_STATUSES, ITEM_STATUS_LABELS } from "@/lib/entities/item"
 import { X, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -45,7 +45,6 @@ const conditionLabel: Record<string, string> = {
 }
 
 const itemTypes = ["physical", "digital"]
-const itemStatuses: string[] = ["draft", "active"]
 
 interface EditItemDialogProps {
   open: boolean
@@ -63,7 +62,7 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
   const [editFormData, setEditFormData] = useState({
     title: "",
     type: "physical" as ItemType,
-    state: "draft" as ItemStatus,
+    state: "draft" as typeof ITEM_STATUSES[number],
     category: "",
     condition: "new" as ItemCondition,
     description: "",
@@ -318,9 +317,9 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {itemStatuses.map((status) => (
+                    {(['draft', 'active', 'archived'] as typeof ITEM_STATUSES[number][]).map((status) => (
                       <SelectItem key={status} value={status}>
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                        {ITEM_STATUS_LABELS[status]}
                       </SelectItem>
                     ))}
                   </SelectContent>

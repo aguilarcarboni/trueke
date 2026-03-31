@@ -2,17 +2,17 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { ItemWithAddress, ITEM_CONDITION_LABELS } from "@/lib/entities/item"
+import { ItemWithAddress, getStatusLabel, getStatusStyle, ITEM_CONDITION_LABELS } from "@/lib/entities/item"
 import type { ItemCondition } from "@/lib/entities/item"
-import { Plus, Trash2, Edit, Eye, Package, Search, Grid3X3, List, X } from "lucide-react"
+import { Plus, Trash2, Edit, Eye, Package, Send, Archive, RotateCcw, Search, Grid3X3, List, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EditItemDialog } from "@/components/sections/items/edit-item-dialog"
-import { Title } from "@radix-ui/react-toast"
-import { City, State, Country } from "country-state-city"
+import { changeItemStatus } from "@/app/actions/item"
+import { Country } from "country-state-city"
 
 // Placeholder component for items without images
 function ImagePlaceholder({ className = "" }: { className?: string }) {
@@ -37,19 +37,15 @@ const conditionLabel: Record<string, string> = {
   "broken": "Broken",
 }
 
-const statusColors: Record<string, string> = {
-  active: "bg-success/20 text-success",
-  draft: "bg-muted/20 text-muted-foreground",
-  traded: "bg-accent/20 text-accent-foreground",
-  contested: "bg-warning/20 text-warning-foreground"
-}
-
 export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
   const router = useRouter()
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [myItems, setMyItems] = useState<ItemWithAddress[]>(userItems || [])
   const [editingItem, setEditingItem] = useState<ItemWithAddress | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [publishingId, setPublishingId] = useState<string | null>(null)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
+  const [draftingId, setDraftingId] = useState<string | null>(null)
 
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("")
@@ -131,6 +127,45 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
         item.item_id === updatedItem.item_id ? updatedItem : item
       )
     )
+  }
+
+  const handlePublishItem = async (itemId: string) => {
+    setPublishingId(itemId)
+    const result = await changeItemStatus(itemId, 'publish')
+    if (!result.error) {
+      setMyItems(prevItems =>
+        prevItems.map(item =>
+          item.item_id === itemId ? { ...item, status: 'active' } : item
+        )
+      )
+    }
+    setPublishingId(null)
+  }
+
+  const handleArchiveItem = async (itemId: string) => {
+    setArchivingId(itemId)
+    const result = await changeItemStatus(itemId, 'archive')
+    if (!result.error) {
+      setMyItems(prevItems =>
+        prevItems.map(item =>
+          item.item_id === itemId ? { ...item, status: 'archived' } : item
+        )
+      )
+    }
+    setArchivingId(null)
+  }
+
+  const handleSetDraftItem = async (itemId: string) => {
+    setDraftingId(itemId)
+    const result = await changeItemStatus(itemId, 'set-draft')
+    if (!result.error) {
+      setMyItems(prevItems =>
+        prevItems.map(item =>
+          item.item_id === itemId ? { ...item, status: 'draft' } : item
+        )
+      )
+    }
+    setDraftingId(null)
   }
 
   return (
@@ -335,8 +370,8 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                         {item.images && item.images.length > 1 && (
                           <Badge variant="secondary" className="text-xs">{item.images.length} images</Badge>
                         )}
-                        <Badge className={statusColors[item.status] || ""}>
-                          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                        <Badge className={getStatusStyle(item.status)}>
+                          {getStatusLabel(item.status)}
                         </Badge>
                       </div>
                     </div>
@@ -362,29 +397,58 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{item.description || "No description"}</p>
-                      {/* Action buttons */}
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => handleViewClick(item)}>
-                          <Eye className="h-3.5 w-3.5" />
-                          View
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 gap-1"
-                          onClick={() => handleEditClick(item)}
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 gap-1"
-                          onClick={() => handleDeleteItem(item.item_id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                      <div className="space-y-2">
+                        {/* Primary actions */}
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => handleViewClick(item)}>
+                            <Eye className="h-3.5 w-3.5" />
+                            View
+                          </Button>
+                          <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => handleEditClick(item)}>
+                            <Edit className="h-3.5 w-3.5" />
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="outline" className="flex-1" onClick={() => handleDeleteItem(item.item_id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        {/* Status actions */}
+                        {item.status === 'draft' && (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="default" className="flex-1 gap-1" disabled={publishingId === item.item_id} onClick={() => handlePublishItem(item.item_id)}>
+                              <Send className="h-3.5 w-3.5" />
+                              {publishingId === item.item_id ? 'Publishing...' : 'Publish'}
+                            </Button>
+                            <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={archivingId === item.item_id} onClick={() => handleArchiveItem(item.item_id)}>
+                              <Archive className="h-3.5 w-3.5" />
+                              {archivingId === item.item_id ? 'Archiving...' : 'Archive'}
+                            </Button>
+                          </div>
+                        )}
+                        {item.status === 'active' && (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={draftingId === item.item_id} onClick={() => handleSetDraftItem(item.item_id)}>
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              {draftingId === item.item_id ? 'Unpublishing...' : 'Unpublish'}
+                            </Button>
+                            <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={archivingId === item.item_id} onClick={() => handleArchiveItem(item.item_id)}>
+                              <Archive className="h-3.5 w-3.5" />
+                              {archivingId === item.item_id ? 'Archiving...' : 'Archive'}
+                            </Button>
+                          </div>
+                        )}
+                        {item.status === 'archived' && (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="flex-1 gap-1" disabled={draftingId === item.item_id} onClick={() => handleSetDraftItem(item.item_id)}>
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              {draftingId === item.item_id ? 'Drafting...' : 'Set as Draft'}
+                            </Button>
+                            <Button size="sm" variant="default" className="flex-1 gap-1" disabled={publishingId === item.item_id} onClick={() => handlePublishItem(item.item_id)}>
+                              <Send className="h-3.5 w-3.5" />
+                              {publishingId === item.item_id ? 'Publishing...' : 'Publish'}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -407,8 +471,8 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-foreground truncate">{item.title}</h3>
-                        <Badge className={statusColors[item.status] || ""}>
-                          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                        <Badge className={getStatusStyle(item.status)}>
+                          {getStatusLabel(item.status)}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mb-1">
@@ -423,6 +487,36 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleEditClick(item)}>
                         <Edit className="h-4 w-4" />
                       </Button>
+                      {item.status === 'draft' && (
+                        <>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={publishingId === item.item_id} onClick={() => handlePublishItem(item.item_id)} title="Publish">
+                            <Send className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={archivingId === item.item_id} onClick={() => handleArchiveItem(item.item_id)} title="Archive">
+                            <Archive className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      {item.status === 'active' && (
+                        <>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={draftingId === item.item_id} onClick={() => handleSetDraftItem(item.item_id)} title="Unpublish">
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={archivingId === item.item_id} onClick={() => handleArchiveItem(item.item_id)} title="Archive">
+                            <Archive className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      {item.status === 'archived' && (
+                        <>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={draftingId === item.item_id} onClick={() => handleSetDraftItem(item.item_id)} title="Set as Draft">
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8" disabled={publishingId === item.item_id} onClick={() => handlePublishItem(item.item_id)} title="Publish">
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleDeleteItem(item.item_id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>

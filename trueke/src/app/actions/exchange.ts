@@ -14,7 +14,8 @@ import type {
     CreateExchangeRequest,
     AcceptExchangeRequest,
     RejectExchangeRequest,
-    CancelExchangeRequest
+    CancelExchangeRequest,
+    CompleteExchangeRequest,
 } from '@/lib/entities/exchange'
 import type { Item } from '@/lib/entities/item'
 
@@ -187,7 +188,7 @@ export async function getMarketplaceItems(): Promise<ApiResponse<Item[]>> {
         const { data: items, error: itemsError } = await supabase
             .from('item')
             .select('item_id,title,description,condition,category,item_type,status,owner_user_id,last_date_uploaded,date_bought')
-            .eq('status', 'active')
+            .in('status', ['active', 'contested'])
             .order('last_date_uploaded', { ascending: false })
 
         if (itemsError) {
@@ -704,6 +705,52 @@ export async function cancelExchange(
         }
     } catch (err) {
         console.error('Error cancelling exchange:', err)
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : 'An error occurred',
+        }
+    }
+}
+
+/**
+ * Mark an accepted exchange as completed (both parties' items become traded).
+ */
+export async function completeExchange(
+    request: CompleteExchangeRequest
+): Promise<ApiResponse<null>> {
+    try {
+        const supabase = await createClient()
+
+        const { data, error } = await supabase.rpc('complete_exchange', {
+            p_exchange_id: request.exchange_id,
+            p_completing_user_id: request.completing_user_id,
+        })
+
+        if (error) {
+            return { success: false, error: error.message }
+        }
+
+        if (data && data.length > 0) {
+            const result = data[0]
+            if (!result.success) {
+                return { success: false, error: result.message }
+            }
+        } else {
+            return { success: false, error: 'Unknown error completing exchange' }
+        }
+
+        await sendExchangeNotification(
+            supabase,
+            request.exchange_id,
+            request.completing_user_id,
+            'system',
+            'Trade completed',
+            'Your trade has been marked complete. Involved items are now recorded as traded.'
+        )
+
+        return { success: true, message: 'Exchange marked complete' }
+    } catch (err) {
+        console.error('Error completing exchange:', err)
         return {
             success: false,
             error: err instanceof Error ? err.message : 'An error occurred',

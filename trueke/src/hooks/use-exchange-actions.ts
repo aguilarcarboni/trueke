@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { acceptExchange, rejectExchange, cancelExchange } from "@/app/actions/exchange"
+import { acceptExchange, rejectExchange, cancelExchange, completeExchange } from "@/app/actions/exchange"
 import { useToast } from "@/hooks/use-toast"
 import { getFriendlyErrorMessage } from "@/lib/error-messages"
 
@@ -88,6 +88,40 @@ export function useExchangeActions(
     [currentUserId, toast, onSuccess]
   )
 
+  const handleComplete = useCallback(
+    async (exchangeId: string) => {
+      setActionLoading(exchangeId)
+      try {
+        const result = await completeExchange({
+          exchange_id: exchangeId,
+          completing_user_id: currentUserId,
+        })
+        if (result.success) {
+          toast({
+            title: "Trade completed",
+            description: "This exchange is closed and the items are marked as traded.",
+          })
+          await onSuccess()
+        } else {
+          toast({
+            title: "Couldn't complete trade",
+            description: getFriendlyErrorMessage(result.error),
+            variant: "destructive",
+          })
+        }
+      } catch {
+        toast({
+          title: "Connection error",
+          description: "We couldn't reach the server. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setActionLoading(null)
+      }
+    },
+    [currentUserId, toast, onSuccess]
+  )
+
   const handleCancel = useCallback(
     async (exchangeId: string) => {
       setActionLoading(exchangeId)
@@ -98,8 +132,8 @@ export function useExchangeActions(
         })
         if (result.success) {
           toast({
-            title: "Proposal cancelled",
-            description: "Your trade proposal has been cancelled.",
+            title: "Trade cancelled",
+            description: "The trade has been cancelled.",
           })
           await onSuccess()
         } else {
@@ -122,5 +156,5 @@ export function useExchangeActions(
     [currentUserId, toast, onSuccess]
   )
 
-  return { actionLoading, handleAccept, handleReject, handleCancel }
+  return { actionLoading, handleAccept, handleReject, handleCancel, handleComplete }
 }

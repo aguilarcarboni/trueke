@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Country, State } from "country-state-city"
 import { getMarketplaceItems, getMarketplaceCategories } from "@/app/actions/marketplace"
-import { getConditionLabel, ITEM_CONDITION_LABELS, ITEM_TYPE_LABELS } from "@/lib/entities/item"
+import { getConditionLabel, getStatusLabel, ITEM_CONDITION_LABELS, ITEM_TYPE_LABELS } from "@/lib/entities/item"
 import type { Item, ItemCondition, ItemType } from "@/lib/entities/item"
 import type { ItemFilters } from "@/lib/entities/filters"
 import { useToast } from "@/hooks/use-toast"
@@ -306,7 +306,12 @@ export function Marketplace({ currentUserId }: MarketplaceProps) {
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     crossOrigin="anonymous"
                   />
-                  <div className="absolute top-2 right-2">
+                  <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                    {item.status === "contested" && (
+                      <Badge variant="secondary" className="bg-amber-500/90 text-white border-0 text-[10px] font-semibold">
+                        {getStatusLabel(item.status)}
+                      </Badge>
+                    )}
                     <Badge variant="outline" className="bg-card/90 text-card-foreground backdrop-blur-sm capitalize text-xs border-0">
                       {item.item_type}
                     </Badge>
@@ -327,7 +332,7 @@ export function Marketplace({ currentUserId }: MarketplaceProps) {
                       {getConditionLabel(item.condition)}
                     </Badge>
                   </div>
-                  {item.owner_user_id !== currentUserId && (
+                  {item.owner_user_id !== currentUserId && item.status === "active" && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -337,6 +342,11 @@ export function Marketplace({ currentUserId }: MarketplaceProps) {
                       <ArrowLeftRight className="h-3.5 w-3.5" />
                       Propose Exchange
                     </Button>
+                  )}
+                  {item.owner_user_id !== currentUserId && item.status === "contested" && (
+                    <p className="mt-3 text-center text-xs text-muted-foreground">
+                      {getStatusLabel(item.status)} — not available for new proposals
+                    </p>
                   )}
                 </div>
               </div>
@@ -366,7 +376,12 @@ export function Marketplace({ currentUserId }: MarketplaceProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold text-card-foreground">{item.title}</h3>
-                      <div className="flex gap-1.5 shrink-0">
+                      <div className="flex flex-wrap gap-1.5 shrink-0 justify-end">
+                        {item.status === "contested" && (
+                          <Badge variant="secondary" className="capitalize text-xs bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/30">
+                            {getStatusLabel(item.status)}
+                          </Badge>
+                        )}
                         <Badge variant="secondary" className="capitalize text-xs">{item.item_type}</Badge>
                         <Badge variant="outline" className="capitalize text-xs">{getConditionLabel(item.condition)}</Badge>
                       </div>
@@ -382,7 +397,7 @@ export function Marketplace({ currentUserId }: MarketplaceProps) {
                         <span className="text-xs text-muted-foreground">&middot;</span>
                         <span className="text-xs text-muted-foreground">{item.category}</span>
                       </div>
-                      {item.owner_user_id !== currentUserId && (
+                      {item.owner_user_id !== currentUserId && item.status === "active" && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -392,6 +407,11 @@ export function Marketplace({ currentUserId }: MarketplaceProps) {
                           <ArrowLeftRight className="h-3.5 w-3.5" />
                           Propose Exchange
                         </Button>
+                      )}
+                      {item.owner_user_id !== currentUserId && item.status === "contested" && (
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {getStatusLabel(item.status)}
+                        </span>
                       )}
                     </div>
                   </div>

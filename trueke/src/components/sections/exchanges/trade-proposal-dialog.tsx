@@ -27,7 +27,7 @@ import { format, differenceInCalendarDays, startOfDay, addDays } from "date-fns"
 import { cn } from "@/lib/utils"
 import { createExchangeProposal, getMyItems } from "@/app/actions/exchange"
 import { useToast } from "@/hooks/use-toast"
-import { getConditionLabel, getConditionBadgeStyle } from "@/lib/entities/item"
+import { getConditionLabel, getConditionBadgeStyle, getStatusLabel } from "@/lib/entities/item"
 import { getFriendlyErrorMessage } from "@/lib/error-messages"
 import type { CreateExchangeRequest } from "@/lib/entities/exchange"
 import type { Item } from "@/lib/entities/item"
@@ -124,7 +124,18 @@ export function TradeProposalDialog({
     )
   }
 
+  const requestedUnavailable = requestedItem.status !== "active"
+
   const handleSubmit = async () => {
+    if (requestedUnavailable) {
+      toast({
+        title: "Item not available",
+        description: "This item cannot be included in a new trade right now.",
+        variant: "destructive",
+      })
+      return
+    }
+
     if (selectedItems.length === 0) {
       toast({
         title: "No items selected",
@@ -211,6 +222,11 @@ export function TradeProposalDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
+          {requestedUnavailable && (
+            <p className="text-sm text-amber-700 dark:text-amber-400 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+              This listing is {getStatusLabel(requestedItem.status).toLowerCase()} and cannot be added to a new proposal.
+            </p>
+          )}
           {onBack ? (
             <button
               onClick={onBack}
@@ -472,7 +488,7 @@ export function TradeProposalDialog({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={selectedItems.length === 0 || isSubmitting}
+              disabled={selectedItems.length === 0 || isSubmitting || requestedUnavailable}
               className="gap-2"
             >
               {isSubmitting ? (

@@ -1,10 +1,9 @@
 "use server"
 
 import { createClient } from '@/utils/supabase/server'
-import { getServerSession } from 'next-auth'
 import { Item, ItemWithAddress } from '@/lib/entities/item';
 import { Address } from '@/lib/entities/address';
-import { authOptions } from '@/utils/auth';
+import { getAuthenticatedUserId } from '@/utils/auth-server';
 
 export interface ItemDetailsResponse {
   item: {
@@ -35,12 +34,6 @@ export interface ItemDetailsResponse {
     province_state: string
     zip_code: string
   } | null
-}
-
-async function getAuthenticatedUserId(): Promise<string | null> {
-  const session = await getServerSession(authOptions)
-  const userId = session?.user?.id?.trim()
-  return userId || null
 }
 
 export async function getItemDetails(itemId: string): Promise<{ status: number; data?: ItemDetailsResponse; error?: string }> {
@@ -493,6 +486,65 @@ export async function updateItemAddress(
   } catch (error) {
     console.error('Update item address error:', error)
     return { error: 'An error occurred while updating the item address' }
+  }
+}
+
+export async function changeItemStatus(
+  itemId: string,
+  action: 'publish' | 'archive' | 'set-draft'
+): Promise<{ error: string | null }> {
+  try {
+    const userId = await getAuthenticatedUserId()
+
+    if (!userId) {
+      return { error: 'Not authenticated' }
+    }
+
+    const supabase = await createClient()
+
+    const { data: item, error: fetchError } = await supabase
+      .from('item')
+      .select('owner_user_id, status')
+      .eq('item_id', itemId)
+      .single()
+
+    if (fetchError || !item) {
+      return { error: 'Item not found' }
+    }
+
+    if (item.owner_user_id !== userId) {
+      return { error: 'Unauthorized: You do not own this item' }
+    }
+
+    if (action === 'publish') {
+      if (item.status !== 'draft' && item.status !== 'archived') {
+        return { error: 'Only draft or archived items can be published' }
+      }
+    } else if (action === 'archive') {
+      if (item.status !== 'draft' && item.status !== 'active') {
+        return { error: 'Only draft or active items can be archived' }
+      }
+    } else if (action === 'set-draft') {
+      if (item.status !== 'active' && item.status !== 'archived') {
+        return { error: 'Only active or archived items can be set as draft' }
+      }
+    }
+
+    const newStatus = action === 'publish' ? 'active' : action === 'archive' ? 'archived' : 'draft'
+
+    const { error: updateError } = await supabase
+      .from('item')
+      .update({ status: newStatus })
+      .eq('item_id', itemId)
+
+    if (updateError) {
+      return { error: updateError.message }
+    }
+
+    return { error: null }
+  } catch (error) {
+    console.error('Change item status error:', error)
+    return { error: 'An error occurred while updating the item status' }
   }
 }
 

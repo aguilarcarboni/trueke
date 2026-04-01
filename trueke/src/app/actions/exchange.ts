@@ -257,6 +257,16 @@ export async function createExchangeProposal(
         if (data && data.length > 0) {
             const result = data[0]
             if (result.result_status === 'success') {
+                // AC1: Notify the target user about the new proposal
+                await sendExchangeNotification(
+                    supabase,
+                    result.exchange_id,
+                    request.initiator_id,
+                    'proposal_created',
+                    'New Trade Proposal',
+                    'Someone has sent you a new trade proposal!'
+                )
+
                 return {
                     success: true,
                     data: {
@@ -722,6 +732,9 @@ export async function cancelExchange(
 
 // ─── Internal Helpers ────────────────────────────────────────────────────────
 
+import { createNotification } from '@/utils/entities/notification'
+import type { NotificationType } from '@/lib/entities/notification'
+
 /**
  * Create an in-app notification for the other party in an exchange.
  * Resolves the recipient by finding a participant that is NOT the acting user.
@@ -731,7 +744,7 @@ async function sendExchangeNotification(
     supabase: Awaited<ReturnType<typeof createClient>>,
     exchangeId: string,
     actingUserId: string,
-    type: 'proposal_accepted' | 'proposal_rejected' | 'proposal_cancelled',
+    type: NotificationType,
     title: string,
     body: string
 ): Promise<void> {
@@ -747,18 +760,14 @@ async function sendExchangeNotification(
 
         const recipientId = participants[0].user_id
 
-        await supabase.from('notification').insert({
+        await createNotification({
             recipient_user_id: recipientId,
             sender_user_id: actingUserId,
             type,
-            reference_type: 'exchange',
-            reference_id: exchangeId,
             title,
             body,
-            is_read: false,
-            delivery_channel: 'in_app',
-            status: 'queued',
-            priority: 'normal',
+            reference_type: 'exchange',
+            reference_id: exchangeId,
         })
     } catch (err) {
         // Notification failure should not block the main action

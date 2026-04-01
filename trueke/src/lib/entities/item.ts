@@ -2,7 +2,7 @@ export type ItemCondition = 'new' | 'like new' | 'used' | 'heavily used' | 'brok
 
 export type ItemType = 'physical' | 'digital'
 
-export type ItemStatus = 'draft' | 'active' | 'contested' | 'traded' | 'deleted'
+export type ItemStatus = 'draft' | 'active' | 'contested' | 'traded' | 'deleted' | 'archived'
 
 export interface Item {
     item_id: string
@@ -60,6 +60,7 @@ export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
   'contested': 'Contested',
   'traded': 'Traded',
   'deleted': 'Deleted',
+  'archived': 'Archived',
 }
 
 export const ITEM_CONDITION_STYLES: Record<ItemCondition, string> = {
@@ -79,11 +80,12 @@ export const ITEM_CONDITION_BADGE_STYLES: Record<ItemCondition, string> = {
 }
 
 export const ITEM_STATUS_STYLES: Record<ItemStatus, string> = {
-  'draft': 'bg-muted/20 text-muted-foreground',
-  'active': 'bg-success/20 text-success',
-  'contested': 'bg-warning/20 text-warning-foreground',
-  'traded': 'bg-accent/20 text-accent-foreground',
-  'deleted': 'bg-destructive/20 text-destructive',
+  'draft':     'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  'active':    'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400',
+  'contested': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400',
+  'traded':    'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
+  'deleted':   'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
+  'archived':  'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400',
 }
 
 export function getConditionLabel(condition: string): string {
@@ -110,7 +112,7 @@ export const ITEM_CONDITIONS: ItemCondition[] = ['new', 'like new', 'used', 'hea
 
 export const ITEM_TYPES: ItemType[] = ['physical', 'digital']
 
-export const ITEM_STATUSES: ItemStatus[] = ['draft', 'active', 'contested', 'traded', 'deleted']
+export const ITEM_STATUSES: ItemStatus[] = ['draft', 'active', 'contested', 'traded', 'deleted', 'archived']
 
 export const REPORT_ITEM_REASONS = [
   { value: 'misleading_description', label: 'Misleading Description' },

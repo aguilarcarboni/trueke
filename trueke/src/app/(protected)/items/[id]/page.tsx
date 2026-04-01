@@ -1,12 +1,15 @@
 import Link from "next/link"
 import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, Plus, UserRound } from "lucide-react"
 import { getStatusLabel, getStatusStyle } from "@/lib/entities/item"
-import { getItemDetails, type ItemDetailsResponse } from "@/app/actions/item"
+import { getItemDetails, hasUserReportedItem, type ItemDetailsResponse } from "@/app/actions/item"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/utils/auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { ReportItemButton } from "@/components/sections/items/report-item-button"
 
 const conditionLabel: Record<string, string> = {
   new: "New",
@@ -74,6 +77,12 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
   const result = await getItemDetails(itemId || "")
   const data = result.data ?? null
   const error = result.status === 200 ? null : result.error || "Failed to load this item."
+
+  const session = await getServerSession(authOptions)
+  const currentUserId = session?.user?.id?.trim() ?? null
+
+  const isNonOwner = !!currentUserId && !!data && currentUserId !== data.owner.user_id
+  const alreadyReported = isNonOwner ? await hasUserReportedItem(itemId || "") : false
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -216,6 +225,9 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                           Go to My Items
                         </Link>
                       </Button>
+                      {currentUserId && currentUserId !== data.owner.user_id && (
+                        <ReportItemButton itemId={itemId || ""} itemTitle={data.item.title} alreadyReported={alreadyReported} />
+                      )}
                     </CardContent>
                   </Card>
                 </div>

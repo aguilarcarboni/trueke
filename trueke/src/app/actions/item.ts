@@ -547,3 +547,141 @@ export async function changeItemStatus(
     return { error: 'An error occurred while updating the item status' }
   }
 }
+
+export async function createItemReport(
+  itemId: string,
+  reason: string,
+  description?: string
+): Promise<{ status: number; error?: string }> {
+  try {
+    const userId = await getAuthenticatedUserId()
+    if (!userId) {
+      return { status: 401, error: 'You must be logged in to report an item.' }
+    }
+
+    const normalizedItemId = itemId.trim()
+    if (!normalizedItemId) {
+      return { status: 400, error: 'Item ID is required.' }
+    }
+    if (!reason.trim()) {
+      return { status: 400, error: 'A reason is required.' }
+    }
+
+    const supabase = await createClient()
+
+    const { data: item, error: itemError } = await supabase
+      .from('item')
+      .select('owner_user_id')
+      .eq('item_id', normalizedItemId)
+      .single()
+
+    if (itemError || !item) {
+      return { status: 404, error: 'Item not found.' }
+    }
+
+    if (item.owner_user_id === userId) {
+      return { status: 403, error: 'You cannot report your own item.' }
+    }
+
+    const { data: existing } = await supabase
+      .from('report')
+      .select('report_id')
+      .eq('reporter_user_id', userId)
+      .eq('target_id', normalizedItemId)
+      .eq('target_type', 'item')
+      .maybeSingle()
+
+    if (existing) {
+      return { status: 409, error: 'You have already reported this item.' }
+    }
+
+    const { error: insertError, data: reportData } = await supabase
+      .from('report')
+      .insert({
+        reporter_user_id: userId,
+        target_type: 'item',
+        target_id: normalizedItemId,
+        reason: reason.trim(),
+        description: description?.trim() || null,
+      })
+      .select('report_id')
+      .single()
+
+    if (insertError) {
+      console.error('Create item report error:', insertError)
+      return { status: 500, error: 'Failed to submit report. Please try again.' }
+    }
+
+    // Fetch item title for notification bodies
+    const { data: itemDetails } = await supabase
+      .from('item')
+      .select('title')
+      .eq('item_id', normalizedItemId)
+      .maybeSingle()
+
+    const itemTitle = itemDetails?.title ?? 'an item'
+    const reportId: string | undefined = reportData?.report_id
+
+    // Non-blocking: send confirmation to the reporter
+    supabase.from('notification').insert({
+      recipient_user_id: userId,
+      sender_user_id: null,
+      type: 'item_reported',
+      reference_type: 'report',
+      reference_id: reportId ?? null,
+      title: 'Report Submitted',
+      body: `Your report for "${itemTitle}" has been received and is under review.`,
+      is_read: false,
+      delivery_channel: 'in_app',
+      status: 'queued',
+      priority: 'normal',
+    }).then(({ error }) => {
+      if (error) console.error('Failed to send reporter notification:', error)
+    })
+
+    // Non-blocking: notify the item owner
+    supabase.from('notification').insert({
+      recipient_user_id: item.owner_user_id,
+      sender_user_id: null,
+      type: 'item_reported',
+      reference_type: 'report',
+      reference_id: reportId ?? null,
+      title: 'Your Item Has Been Reported',
+      body: `"${itemTitle}" has received a report. Our team will review it shortly.`,
+      is_read: false,
+      delivery_channel: 'in_app',
+      status: 'queued',
+      priority: 'normal',
+    }).then(({ error }) => {
+      if (error) console.error('Failed to send owner notification:', error)
+    })
+
+    return { status: 201 }
+  } catch (error) {
+    console.error('Create item report error:', error)
+    return { status: 500, error: 'An unexpected error occurred.' }
+  }
+}
+
+export async function hasUserReportedItem(
+  itemId: string
+): Promise<boolean> {
+  try {
+    const userId = await getAuthenticatedUserId()
+    if (!userId || !itemId.trim()) return false
+
+    const supabase = await createClient()
+
+    const { data } = await supabase
+      .from('report')
+      .select('report_id')
+      .eq('reporter_user_id', userId)
+      .eq('target_id', itemId.trim())
+      .eq('target_type', 'item')
+      .maybeSingle()
+
+    return !!data
+  } catch {
+    return false
+  }
+}

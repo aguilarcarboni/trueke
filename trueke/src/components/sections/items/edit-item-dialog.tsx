@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react"
 import { ItemCondition, ItemType, ItemStatus, ItemWithAddress, ITEM_CONDITIONS, ITEM_CONDITION_LABELS } from "@/lib/entities/item"
 import { ITEM_CATEGORIES } from "@/lib/data"
-import { X, Package } from "lucide-react"
+import { X, Package, ChevronUp, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { updateItem } from "@/app/actions/item"
+import { updateItem, updateItemImages } from "@/app/actions/item"
 import { AddressSchema, EMPTY_ADDRESS } from "@/lib/entities/address"
 import { AddressForm } from "@/components/misc/address-form"
 
@@ -107,6 +107,24 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
     }))
   }
 
+  const handleMoveImageUp = (index: number) => {
+    if (index === 0) return
+    setEditFormData((prev) => {
+      const updated = [...prev.imagePreviews]
+      ;[updated[index - 1], updated[index]] = [updated[index], updated[index - 1]]
+      return { ...prev, imagePreviews: updated }
+    })
+  }
+
+  const handleMoveImageDown = (index: number) => {
+    setEditFormData((prev) => {
+      if (index >= prev.imagePreviews.length - 1) return prev
+      const updated = [...prev.imagePreviews]
+      ;[updated[index], updated[index + 1]] = [updated[index + 1], updated[index]]
+      return { ...prev, imagePreviews: updated }
+    })
+  }
+
   const handleSaveEdit = async () => {
     if (!item) return
 
@@ -127,21 +145,29 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
     setUpdateMessage(null)
 
     try {
-      const result = await updateItem(
-        item.item_id,
-        {
-          title: editFormData.title,
-          item_type: editFormData.type,
-          status: editFormData.state,
-          category: editFormData.category,
-          condition: editFormData.condition,
-          description: editFormData.description,
-        },
-        editFormData.address
-      )
+      const [result, imagesResult] = await Promise.all([
+        updateItem(
+          item.item_id,
+          {
+            title: editFormData.title,
+            item_type: editFormData.type,
+            status: editFormData.state,
+            category: editFormData.category,
+            condition: editFormData.condition,
+            description: editFormData.description,
+          },
+          editFormData.address
+        ),
+        updateItemImages(item.item_id, editFormData.imagePreviews),
+      ])
 
       if (result.error) {
         setUpdateMessage({ type: 'error', text: result.error })
+        return
+      }
+
+      if (imagesResult.error) {
+        setUpdateMessage({ type: 'error', text: imagesResult.error })
         return
       }
 
@@ -190,10 +216,10 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
                     <div className="grid grid-cols-3 gap-2">
                       {editFormData.imagePreviews.map((preview, index) => (
                         <div key={index} className="relative group">
-                          <div className="w-full h-20 rounded-lg bg-muted overflow-hidden">
-                            <img 
-                              src={preview} 
-                              alt={`Preview ${index + 1}`} 
+                          <div className="w-full h-24 rounded-lg bg-muted overflow-hidden">
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none'
@@ -202,13 +228,37 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
                             />
                             <ImagePlaceholder className="w-full h-full hidden" />
                           </div>
+                          {/* Order badge */}
+                          <span className="absolute top-1 left-1 rounded bg-black/60 px-1 text-[10px] font-medium text-white">
+                            {index + 1}
+                          </span>
+                          {/* Delete button */}
                           <button
                             type="button"
                             onClick={() => handleRemoveImage(index)}
-                            className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
+                            className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white hover:bg-destructive transition-colors"
                           >
-                            <X className="h-5 w-5 text-white" />
+                            <X className="h-3 w-3" />
                           </button>
+                          {/* Reorder buttons */}
+                          <div className="absolute bottom-1 right-1 flex gap-0.5">
+                            <button
+                              type="button"
+                              disabled={index === 0}
+                              onClick={() => handleMoveImageUp(index)}
+                              className="flex h-5 w-5 items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={index === editFormData.imagePreviews.length - 1}
+                              onClick={() => handleMoveImageDown(index)}
+                              className="flex h-5 w-5 items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

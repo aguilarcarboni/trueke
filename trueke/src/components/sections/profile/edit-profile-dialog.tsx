@@ -39,6 +39,8 @@ export function EditProfileDialog({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [shakingFields, setShakingFields] = useState<Record<string, boolean>>({})
   const [addressKey, setAddressKey] = useState(0)
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
+  const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null)
 
   const triggerShake = (field: string) => {
     setShakingFields((prev) => ({ ...prev, [field]: true }))
@@ -75,8 +77,18 @@ export function EditProfileDialog({
   useEffect(() => {
     if (!open) return
     setForm(buildForm())
+    setSelectedImageFile(null)
+    setSelectedImagePreview(null)
     setAddressKey((k) => k + 1)
   }, [open, profile])
+
+  useEffect(() => {
+    return () => {
+      if (selectedImagePreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(selectedImagePreview)
+      }
+    }
+  }, [selectedImagePreview])
 
   // Re-sync when dialog opens; incrementing addressKey remounts AddressForm to reset its internal state
   const handleOpenChange = (next: boolean) => {
@@ -139,12 +151,46 @@ export function EditProfileDialog({
     setError(null)
 
     startTransition(async () => {
-      const result = await updateProfileAction(session.user.id, form)
-      if (result.error) {
-        setError(result.error)
-      } else {
+      try {
+        let nextProfilePictureUrl = form.profilePictureUrl
+
+        if (selectedImageFile) {
+          const uploadFormData = new FormData()
+          uploadFormData.append("file", selectedImageFile)
+
+          const uploadResponse = await fetch("/api/profile/upload-image", {
+            method: "POST",
+            body: uploadFormData,
+          })
+
+          const uploadPayload = (await uploadResponse.json().catch(() => ({}))) as {
+            url?: string
+            error?: string
+          }
+
+          if (!uploadResponse.ok || !uploadPayload.url) {
+            setError(uploadPayload.error || "Failed to upload profile image.")
+            return
+          }
+
+          nextProfilePictureUrl = uploadPayload.url
+        }
+
+        const result = await updateProfileAction(session.user.id, {
+          ...form,
+          profilePictureUrl: nextProfilePictureUrl,
+        })
+
+        if (result.error) {
+          setError(result.error)
+          return
+        }
+
         onOpenChange(false)
         window.location.reload()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to update profile."
+        setError(message)
       }
     })
   }
@@ -168,18 +214,36 @@ export function EditProfileDialog({
             {/* ── Avatar ── */}
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16 shrink-0">
-                <AvatarImage src={form.profilePictureUrl} alt={displayName} />
+                <AvatarImage src={selectedImagePreview || form.profilePictureUrl} alt={displayName} />
                 <AvatarFallback className="text-lg">{initials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 space-y-1">
-                <Label htmlFor="avatarUrl" className="text-xs">Profile picture URL</Label>
+                <Label htmlFor="avatarFile" className="text-xs">Profile picture</Label>
                 <Input
-                  id="avatarUrl"
-                  value={form.profilePictureUrl}
-                  onChange={(e) => setForm({ ...form, profilePictureUrl: e.target.value })}
-                  placeholder="https://..."
+                  id="avatarFile"
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null
+                    if (!file) {
+                      setSelectedImageFile(null)
+                      if (selectedImagePreview?.startsWith("blob:")) {
+                        URL.revokeObjectURL(selectedImagePreview)
+                      }
+                      setSelectedImagePreview(null)
+                      return
+                    }
+
+                    const preview = URL.createObjectURL(file)
+                    if (selectedImagePreview?.startsWith("blob:")) {
+                      URL.revokeObjectURL(selectedImagePreview)
+                    }
+                    setSelectedImageFile(file)
+                    setSelectedImagePreview(preview)
+                  }}
                   className="h-8 text-sm"
                 />
+                <p className="text-xs text-muted-foreground">Max 5MB. JPG, PNG, WEBP, or GIF.</p>
               </div>
             </div>
 

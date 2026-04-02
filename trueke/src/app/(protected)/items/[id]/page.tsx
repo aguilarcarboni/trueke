@@ -1,11 +1,15 @@
 import Link from "next/link"
 import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, Plus, UserRound } from "lucide-react"
-import { getItemDetails, type ItemDetailsResponse } from "@/app/actions/item"
+import { getStatusLabel, getStatusStyle } from "@/lib/entities/item"
+import { getItemDetails, hasUserReportedItem, type ItemDetailsResponse } from "@/app/actions/item"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/utils/auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { ReportItemButton } from "@/components/sections/items/report-item-button"
 
 const conditionLabel: Record<string, string> = {
   new: "New",
@@ -21,14 +25,6 @@ const conditionStyles: Record<string, string> = {
   used: "bg-warning/20 text-warning-foreground border-warning/25",
   "heavily used": "bg-accent/15 text-accent border-accent/25",
   broken: "bg-destructive/10 text-destructive border-destructive/20",
-}
-
-const statusStyles: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground border-border",
-  active: "bg-success/15 text-success border-success/20",
-  contested: "bg-warning/20 text-warning-foreground border-warning/25",
-  traded: "bg-primary/15 text-primary border-primary/20",
-  deleted: "bg-destructive/10 text-destructive border-destructive/20",
 }
 
 function formatLabel(value: string) {
@@ -81,6 +77,12 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
   const result = await getItemDetails(itemId || "")
   const data = result.data ?? null
   const error = result.status === 200 ? null : result.error || "Failed to load this item."
+
+  const session = await getServerSession(authOptions)
+  const currentUserId = session?.user?.id?.trim() ?? null
+
+  const isNonOwner = !!currentUserId && !!data && currentUserId !== data.owner.user_id
+  const alreadyReported = isNonOwner ? await hasUserReportedItem(itemId || "") : false
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -143,9 +145,9 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                         </div>
                         <Badge
                           variant="outline"
-                          className={statusStyles[data.item.status] || "bg-muted text-muted-foreground border-border"}
+                          className={getStatusStyle(data.item.status)}
                         >
-                          {formatLabel(data.item.status)}
+                          {getStatusLabel(data.item.status)}
                         </Badge>
                       </div>
 
@@ -223,6 +225,9 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                           Go to My Items
                         </Link>
                       </Button>
+                      {currentUserId && currentUserId !== data.owner.user_id && (
+                        <ReportItemButton itemId={itemId || ""} itemTitle={data.item.title} alreadyReported={alreadyReported} />
+                      )}
                     </CardContent>
                   </Card>
                 </div>

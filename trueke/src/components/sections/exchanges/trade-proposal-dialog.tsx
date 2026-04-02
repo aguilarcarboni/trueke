@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeftRight, Check, Package, Search, Loader2, ArrowLeft } from "lucide-react"
+import { ArrowLeftRight, Check, Package, Search, Loader2, ArrowLeft, CalendarIcon } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,8 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -21,6 +23,8 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
+import { format, differenceInCalendarDays, startOfDay, addDays } from "date-fns"
+import { cn } from "@/lib/utils"
 import { createExchangeProposal, getMyItems } from "@/app/actions/exchange"
 import { useToast } from "@/hooks/use-toast"
 import { getConditionLabel, getConditionBadgeStyle } from "@/lib/entities/item"
@@ -36,6 +40,8 @@ interface TradeProposalDialogProps {
   requestedItem: Item
   currentUserId: string
   onBack?: () => void
+  /** Called after a proposal is successfully created (e.g. to refresh a list). */
+  onSuccess?: () => void
 }
 
 // Helper component for item hover preview
@@ -71,11 +77,14 @@ export function TradeProposalDialog({
   onOpenChange, 
   requestedItem, 
   currentUserId,
-  onBack 
+  onBack,
+  onSuccess,
 }: TradeProposalDialogProps) {
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [message, setMessage] = useState("")
-  const [expirationDays, setExpirationDays] = useState<string>("7")
+  const [expirationDate, setExpirationDate] = useState<Date | undefined>(
+    addDays(new Date(), 7) // Default: 7 days from now
+  )
   const [searchQuery, setSearchQuery] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [myItems, setMyItems] = useState<Item[]>([])
@@ -125,22 +134,22 @@ export function TradeProposalDialog({
       return
     }
 
-    // Validate expiration days
-    const expirationNum = parseInt(expirationDays, 10)
-    if (isNaN(expirationNum) || expirationDays.trim() === "") {
+    // AC3/AC4 — Validate expiration date
+    if (!expirationDate) {
       toast({
-        title: "Invalid expiration",
-        description: "Please enter a valid number of days for the proposal expiration.",
+        title: "No expiration date",
+        description: "Please select an expiration date from the calendar.",
         variant: "destructive",
       })
       return
     }
+
+    const today = startOfDay(new Date())
+    const expirationNum = differenceInCalendarDays(startOfDay(expirationDate), today)
     if (expirationNum <= 0) {
       toast({
-        title: "Invalid expiration",
-        description: expirationNum < 0
-          ? "Negative days are not allowed. Please enter at least 1 day."
-          : "The expiration can't be 0 days. Please enter at least 1 day.",
+        title: "Invalid expiration date",
+        description: "Expiration date must be in the future.",
         variant: "destructive",
       })
       return
@@ -172,9 +181,10 @@ export function TradeProposalDialog({
         // Reset and close
         setSelectedItems([])
         setMessage("")
-        setExpirationDays("7")
+        setExpirationDate(addDays(new Date(), 7))
         setSearchQuery("")
         onOpenChange(false)
+        onSuccess?.()
       } else {
         console.error("Error response:", result.error)
         toast({
@@ -413,34 +423,41 @@ export function TradeProposalDialog({
             </p>
           </div>
 
-          {/* Expiration */}
+          {/* Expiration — AC3: Calendar picker, AC4: only future dates */}
           <div className="space-y-2">
-            <label htmlFor="expiration" className="text-sm font-semibold text-foreground">
-              Proposal Expiration <span className="text-muted-foreground font-normal">(days)</span>
+            <label className="text-sm font-semibold text-foreground">
+              Proposal Expiration Date
             </label>
-            <Input
-              id="expiration"
-              type="number"
-              min="1"
-              value={expirationDays}
-              onChange={(e) => {
-                const val = e.target.value
-                // Only allow positive numbers or empty (for typing)
-                if (val === "" || /^\d+$/.test(val)) {
-                  setExpirationDays(val)
-                }
-              }}
-              onKeyDown={(e) => {
-                // Block minus sign and 'e' (scientific notation) at keyboard level
-                if (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "+" || e.key === ".") {
-                  e.preventDefault()
-                }
-              }}
-              placeholder="7"
-              className="w-full"
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !expirationDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {expirationDate ? format(expirationDate, "PPP") : "Pick an expiration date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={expirationDate}
+                  onSelect={setExpirationDate}
+                  disabled={(date) => date <= new Date()}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
             <p className="text-xs text-muted-foreground">
-              How many days should the recipient have to respond? (default: 7 days)
+              Select the date by which the recipient must respond.
+              {expirationDate && (
+                <span className="font-medium text-foreground">
+                  {" "}({differenceInCalendarDays(startOfDay(expirationDate), startOfDay(new Date()))} days from today)
+                </span>
+              )}
             </p>
           </div>
 

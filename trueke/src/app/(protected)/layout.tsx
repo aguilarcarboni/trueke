@@ -31,12 +31,12 @@ export default function Layout({
   }, [status, session, pathname, router])
 
   return (
-    <div className="flex min-h-screen w-full flex-col scrollbar-hide scroll-smooth">
+    <div className="flex h-screen w-full flex-col overflow-hidden">
       {session?.user &&
         <SidebarProvider>
-          <div className="flex min-h-screen w-full scroll-smooth">
+          <div className="flex h-screen w-full">
             <AppSidebar isAdmin={isAdmin} />
-            <SidebarInset>
+            <SidebarInset className="overflow-y-auto">
               <div className="flex min-h-full flex-1 flex-col p-5">
                 {children}
               </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Sidebar as SidebarRoot,
   SidebarContent,
@@ -27,6 +27,7 @@ import {
   User,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
+import { NotificationBell } from '@/components/sections/notifications/notification-bell'
 import { signOut, useSession } from 'next-auth/react'
 import { getProfileAction } from '@/app/actions/profile'
 import type { UserProfile } from '@/lib/entities/profile'
@@ -38,6 +39,7 @@ interface AppSidebarProps {
 
 const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
   const pathname = usePathname()
+  const router = useRouter()
   const { data: session } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -103,8 +105,11 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
   return (
     <SidebarRoot collapsible="icon" className="bg-background text-foreground">
       <SidebarHeader className="border-b border-muted">
-        <div className="flex w-full items-center gap-3">
+        <div className="flex w-full items-center gap-3 group-data-[state=collapsed]/sidebar:flex-col group-data-[state=collapsed]/sidebar:gap-1">
           <SidebarTrigger />
+          <div className="ml-auto shrink-0 group-data-[state=collapsed]/sidebar:ml-0">
+            <NotificationBell />
+          </div>
         </div>
       </SidebarHeader>
 
@@ -126,15 +131,16 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-muted">
-        <div className="w-full group-data-[state=collapsed]/sidebar:justify-center">
+        <div className="w-full group-data-[state=collapsed]/sidebar:flex group-data-[state=collapsed]/sidebar:flex-col group-data-[state=collapsed]/sidebar:items-center">
           <button
-            className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted dark:hover:bg-sidebar-accent"
+            onClick={() => router.push('/profile')}
+            className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted dark:hover:bg-sidebar-accent group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
           >
-            <Avatar className="h-8 w-8">
+            <Avatar className="h-8 w-8 shrink-0">
               <AvatarImage src={profile?.profile_picture_url || undefined} alt={displayName} />
               <AvatarFallback className="text-xs text-muted-foreground">{initials}</AvatarFallback>
             </Avatar>
-            <div className="flex-1 min-w-0 text-left">
+            <div className="flex-1 min-w-0 text-left group-data-[state=collapsed]/sidebar:hidden">
               <p className="text-sm font-medium leading-none truncate">{displayName || profile?.username}</p>
               <p className="text-xs mt-0.5 truncate">{profile?.email || session?.user?.email}</p>
               {locationSummary && (
@@ -145,14 +151,14 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-muted dark:hover:bg-sidebar-accent disabled:opacity-50"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-muted dark:hover:bg-sidebar-accent disabled:opacity-50 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
           >
             {isLoggingOut ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
             ) : (
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-4 w-4 shrink-0" />
             )}
-            <span>{isLoggingOut ? "Signing out..." : "Log out"}</span>
+            <span className="group-data-[state=collapsed]/sidebar:hidden">{isLoggingOut ? "Signing out..." : "Log out"}</span>
           </button>
         </div>
       </SidebarFooter>

@@ -36,6 +36,7 @@ interface EditItemDialogProps {
 
 export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: EditItemDialogProps) {
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [updateMessage, setUpdateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [editFormData, setEditFormData] = useState({
@@ -85,20 +86,31 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
     }))
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (!files) return
-    
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setEditFormData((prev) => ({
-          ...prev,
-          imagePreviews: [...prev.imagePreviews, reader.result as string],
-        }))
+    if (!files || files.length === 0) return
+    e.target.value = ""
+
+    setIsUploading(true)
+    setUpdateMessage(null)
+    const uploaded: string[] = []
+    for (const file of Array.from(files)) {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch("/api/items/upload-image", { method: "POST", body: formData })
+      const payload = await res.json().catch(() => ({}) as { url?: string; error?: string })
+      if (!res.ok || !payload.url) {
+        setUpdateMessage({ type: 'error', text: payload.error || `Failed to upload ${file.name}.` })
+        setIsUploading(false)
+        return
       }
-      reader.readAsDataURL(file)
-    })
+      uploaded.push(payload.url)
+    }
+    setEditFormData((prev) => ({
+      ...prev,
+      imagePreviews: [...prev.imagePreviews, ...uploaded],
+    }))
+    setIsUploading(false)
   }
 
   const handleRemoveImage = (index: number) => {
@@ -372,8 +384,11 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
                         multiple
                         accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
                         onChange={handleImageUpload}
+                        disabled={isUploading}
                       />
-                      <p className="text-xs text-muted-foreground">Max 10MB. JPG, PNG, WEBP, or GIF.</p>
+                      <p className="text-xs text-muted-foreground">
+                        {isUploading ? 'Uploading...' : 'Max 10MB. JPG, PNG, WEBP, or GIF.'}
+                      </p>
                     </div>
                   </div>
 
@@ -391,10 +406,10 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
 
                   {/* Footer buttons */}
                   <div className="flex gap-3 pt-4 border-t border-border">
-                    <Button variant="outline" onClick={() => { setUpdateMessage(null); setFieldErrors({}); onOpenChange(false) }} type="button" disabled={isUpdating}>
+                    <Button variant="outline" onClick={() => { setUpdateMessage(null); setFieldErrors({}); onOpenChange(false) }} type="button" disabled={isUpdating || isUploading}>
                       Cancel
                     </Button>
-                    <Button onClick={handleSaveEdit} className="flex-1" disabled={isUpdating}>
+                    <Button onClick={handleSaveEdit} className="flex-1" disabled={isUpdating || isUploading}>
                       {isUpdating ? 'Saving...' : 'Save Changes'}
                     </Button>
                   </div>

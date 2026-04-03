@@ -17,6 +17,7 @@ export interface ItemDetailsResponse {
     date_bought: string | null
     last_date_uploaded: string
   }
+  images: string[]
   owner: {
     user_id: string
     username: string
@@ -86,6 +87,14 @@ export async function getItemDetails(itemId: string): Promise<{ status: number; 
       }
     }
 
+    const { data: mediaRows } = await supabase
+      .from('item_media')
+      .select('url')
+      .eq('item_id', normalizedItemId)
+      .order('display_order', { ascending: true })
+
+    const images = (mediaRows || []).map((r) => r.url as string)
+
     return {
       status: 200,
       data: {
@@ -100,6 +109,7 @@ export async function getItemDetails(itemId: string): Promise<{ status: number; 
           date_bought: item.date_bought,
           last_date_uploaded: item.last_date_uploaded,
         },
+        images,
         owner,
         address,
       },

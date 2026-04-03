@@ -127,6 +127,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
         item.item_id === updatedItem.item_id ? updatedItem : item
       )
     )
+    setEditingItem((prev) => prev?.item_id === updatedItem.item_id ? updatedItem : prev)
   }
 
   const handlePublishItem = async (itemId: string) => {
@@ -356,6 +357,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                     <div className="relative w-full overflow-hidden rounded-t-lg bg-muted h-40">
                       {item.images && item.images.length > 0 ? (
                         <img 
+                          key={item.images[0]}
                           src={item.images[0]} 
                           alt={item.title} 
                           className="h-full w-full object-cover"
@@ -457,6 +459,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                     <div className="h-16 w-16 rounded overflow-hidden">
                       {item.images && item.images.length > 0 ? (
                         <img 
+                          key={item.images[0]}
                           src={item.images[0]} 
                           alt={item.title} 
                           className="h-full w-full object-cover"

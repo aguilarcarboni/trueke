@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/utils/auth"
 import { createClient } from "@/utils/supabase/server"
 
-const ITEM_IMAGES_BUCKET = process.env.SUPABASE_ITEM_IMAGES_BUCKET || process.env.SUPABASE_PROFILE_IMAGES_BUCKET || "images"
+const ITEM_IMAGES_BUCKET = process.env.SUPABASE_ITEM_IMAGES_BUCKET || "item-images"
 const MAX_ITEM_IMAGE_BYTES = 10 * 1024 * 1024
 const ALLOWED_ITEM_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -41,12 +41,12 @@ export async function POST(request: Request) {
     }
 
     const rawFileName = file.name || "item-image"
-    const fileExt = rawFileName.includes(".")
-      ? rawFileName.split(".").pop()?.toLowerCase() || "jpg"
+    const safeFileName = rawFileName.replace(/[^a-zA-Z0-9._\-]/g, "_").replace(/^\.+/, "")
+    const fileExt = safeFileName.includes(".")
+      ? safeFileName.split(".").pop()?.toLowerCase() || "jpg"
       : "jpg"
     const safeFileExt = fileExt.replace(/[^a-z0-9]/g, "") || "jpg"
-    const uniquePart = `${Date.now()}-${crypto.randomUUID()}`
-    const path = `users/${userId}/items/${uniquePart}.${safeFileExt}`
+    const path = `${userId}/${crypto.randomUUID()}-${safeFileName}`
 
     const supabase = await createClient()
     const { error: uploadError } = await supabase.storage

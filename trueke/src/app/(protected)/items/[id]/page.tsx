@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, CalendarDays, MapPin, Package, Plus, UserRound } from "lucide-react"
+import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, Package, Plus, UserRound } from "lucide-react"
 import { getConditionLabel, getStatusLabel, getStatusStyle, ITEM_CONDITION_LABELS } from "@/lib/entities/item"
 import { getItemDetails, hasUserReportedItem, type ItemDetailsResponse } from "@/app/actions/item"
 import { getServerSession } from "next-auth"

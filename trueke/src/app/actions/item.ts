@@ -560,63 +560,206 @@ export async function updateItemAddress(
 
 export async function changeItemStatus(
   itemId: string,
-  action: 'publish' | 'archive' | 'set-draft'
+  action: "publish" | "archive" | "set-draft",
 ): Promise<{ error: string | null }> {
   try {
-    const userId = await getAuthenticatedUserId()
+    const userId = await getAuthenticatedUserId();
 
     if (!userId) {
-      return { error: 'Not authenticated' }
+      return { error: "Not authenticated" };
     }
 
-    const supabase = await createClient()
+    const supabase = await createClient();
 
     const { data: item, error: fetchError } = await supabase
-      .from('item')
-      .select('owner_user_id, status')
-      .eq('item_id', itemId)
-      .single()
+      .from("item")
+      .select("owner_user_id, status")
+      .eq("item_id", itemId)
+      .single();
 
     if (fetchError || !item) {
-      return { error: 'Item not found' }
+      return { error: "Item not found" };
     }
 
     if (item.owner_user_id !== userId) {
-      return { error: 'Unauthorized: You do not own this item' }
+      return { error: "Unauthorized: You do not own this item" };
     }
 
-    if (action === 'publish') {
-      if (item.status !== 'draft' && item.status !== 'archived') {
-        return { error: 'Only draft or archived items can be published' }
+    if (action === "publish") {
+      if (item.status !== "draft" && item.status !== "archived") {
+        return { error: "Only draft or archived items can be published" };
       }
-    } else if (action === 'archive') {
-      if (item.status !== 'draft' && item.status !== 'active') {
-        return { error: 'Only draft or active items can be archived' }
+    } else if (action === "archive") {
+      if (item.status !== "draft" && item.status !== "active") {
+        return { error: "Only draft or active items can be archived" };
       }
-    } else if (action === 'set-draft') {
-      if (item.status !== 'active' && item.status !== 'archived') {
-        return { error: 'Only active or archived items can be set as draft' }
+    } else if (action === "set-draft") {
+      if (item.status !== "active" && item.status !== "archived") {
+        return { error: "Only active or archived items can be set as draft" };
       }
     }
 
-    const newStatus = action === 'publish' ? 'active' : action === 'archive' ? 'archived' : 'draft'
+    const newStatus =
+      action === "publish"
+        ? "active"
+        : action === "archive"
+          ? "archived"
+          : "draft";
 
     const { error: updateError } = await supabase
-      .from('item')
+      .from("item")
       .update({ status: newStatus })
-      .eq('item_id', itemId)
+      .eq("item_id", itemId);
 
     if (updateError) {
-      return { error: updateError.message }
+      return { error: updateError.message };
     }
 
-    return { error: null }
+    return { error: null };
   } catch (error) {
-    console.error('Change item status error:', error)
-    return { error: 'An error occurred while updating the item status' }
+    console.error("Change item status error:", error);
+    return { error: "An error occurred while updating the item status" };
   }
 }
 
+export async function deleteItem(
+  itemId: string,
+): Promise<{
+  success?: boolean;
+  error?: string;
+  code?:
+    | "UNAUTHORIZED"
+    | "NOT_FOUND"
+    | "FORBIDDEN"
+    | "CONTESTED"
+    | "PENDING"
+    | "PENDING_AND_CONTESTED"
+    | "DELETE_FAILED";
+}> {
+  try {
+    const userId = await getAuthenticatedUserId();
+
+    if (!userId) {
+      return {
+        error: "You must be signed in to delete this item.",
+        code: "UNAUTHORIZED",
+      };
+    }
+
+    const normalizedItemId = itemId.trim();
+
+    if (!normalizedItemId) {
+      return {
+        error: "Item not found.",
+        code: "NOT_FOUND",
+      };
+    }
+
+    const supabase = await createClient();
+
+    const { data: item, error: itemError } = await supabase
+      .from("item")
+      .select("item_id, owner_user_id, status")
+      .eq("item_id", normalizedItemId)
+      .single();
+
+    if (itemError || !item) {
+      return {
+        error: "Item not found.",
+        code: "NOT_FOUND",
+      };
+    }
+
+    if (item.owner_user_id !== userId) {
+      return {
+        error: "You do not own this item.",
+        code: "FORBIDDEN",
+      };
+    }
+
+    const isContested = item.status === "contested";
+
+    const { data: exchangeItems, error: exchangeItemsError } = await supabase
+      .from("exchange_item")
+      .select("exchange_id")
+      .eq("item_id", normalizedItemId);
+
+    if (exchangeItemsError) {
+      console.error("Delete item exchange_item lookup error:", exchangeItemsError);
+      return {
+        error: "Could not verify whether this item is part of an active exchange.",
+        code: "DELETE_FAILED",
+      };
+    }
+
+    const exchangeIds = [
+      ...new Set((exchangeItems ?? []).map((row) => row.exchange_id)),
+    ];
+
+    let hasPendingExchange = false;
+
+    if (exchangeIds.length > 0) {
+      const { data: pendingExchanges, error: pendingError } = await supabase
+        .from("exchange")
+        .select("exchange_id")
+        .in("exchange_id", exchangeIds)
+        .eq("status", "pending");
+
+      if (pendingError) {
+        console.error("Delete item exchange status lookup error:", pendingError);
+        return {
+          error: "Could not verify whether this item is part of an active exchange.",
+          code: "DELETE_FAILED",
+        };
+      }
+
+      hasPendingExchange = !!pendingExchanges && pendingExchanges.length > 0;
+    }
+
+    if (isContested && hasPendingExchange) {
+      return {
+        error:
+          "This item cannot be deleted because it is currently contested and part of a pending exchange.",
+        code: "PENDING_AND_CONTESTED",
+      };
+    }
+
+    if (isContested) {
+      return {
+        error: "This item cannot be deleted because it is currently contested.",
+        code: "CONTESTED",
+      };
+    }
+
+    if (hasPendingExchange) {
+      return {
+        error: "This item cannot be deleted because it is part of a pending exchange.",
+        code: "PENDING",
+      };
+    }
+
+    const { error: updateError } = await supabase
+      .from("item")
+      .update({ status: "deleted" })
+      .eq("item_id", normalizedItemId);
+
+    if (updateError) {
+      console.error("Delete item update error:", updateError);
+      return {
+        error: "Failed to delete item.",
+        code: "DELETE_FAILED",
+      };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Delete item error:", error);
+    return {
+      error: "An unexpected error occurred while deleting the item.",
+      code: "DELETE_FAILED",
+    };
+  }
+}
 export async function createItemReport(
   itemId: string,
   reason: string,

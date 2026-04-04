@@ -28,6 +28,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Form } from "@/components/ui/form";
 import { AddressForm } from "@/components/misc/address-form";
 import { ITEM_CONDITIONS, ITEM_CONDITION_LABELS } from "@/lib/entities/item";
+import { ITEM_CATEGORIES } from "@/lib/data";
 import {
   AddressSchema,
   ADDRESS_LINE,
@@ -36,19 +37,7 @@ import {
 } from "@/lib/entities/address";
 import { createClient } from "@/utils/supabase/client";
 
-const categories = [
-  "Electronics",
-  "Fashion",
-  "Music",
-  "Education",
-  "Services",
-  "Sports",
-  "Home",
-  "Books",
-  "Art",
-] as const;
-
-type Category = (typeof categories)[number];
+type Category = string;
 type Condition = (typeof ITEM_CONDITIONS)[number];
 
 const conditionOptions = [...ITEM_CONDITIONS] as [Condition, ...Condition[]];
@@ -83,7 +72,7 @@ const getTodayDateInputValue = () => {
 const CreateItemSchema = z.object({
   title: z.string().trim().min(1, "Item title is required."),
   description: z.string().trim().optional(),
-  category: z.enum(categories, {
+  category: z.enum(ITEM_CATEGORIES as [string, ...string[]], {
     required_error: "Please select a category.",
   }),
   condition: z.enum(conditionOptions, {
@@ -512,7 +501,7 @@ const moveImage = (index: number, direction: -1 | 1) => {
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
-                          {categories.map((cat) => (
+                          {ITEM_CATEGORIES.map((cat) => (
                             <SelectItem key={cat} value={cat}>
                               {cat}
                             </SelectItem>

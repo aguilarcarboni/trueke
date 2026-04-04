@@ -2,8 +2,8 @@
 
 import { ShoppingBag, ArrowLeftRight, CheckCircle, Star, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { DashboardNotifications } from "./dashboard-notifications"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Admin } from "@/components/admin/admin"
@@ -89,16 +89,7 @@ export function Dashboard() {
         {/* Notifications & Activity */}
         <div className="space-y-6">
           {/* Notifications */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-foreground text-base">Notifications</CardTitle>
-              <Badge className="bg-primary text-primary-foreground">0 new</Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-              </div>
-            </CardContent>
-          </Card>
+          <DashboardNotifications />
 
           {/* Pending Exchanges */}
           <Card>

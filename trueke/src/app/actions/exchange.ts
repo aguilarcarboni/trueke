@@ -184,11 +184,30 @@ export async function getMarketplaceItems(): Promise<ApiResponse<Item[]>> {
     try {
         const supabase = await createClient()
 
-        const { data: items, error: itemsError } = await supabase
+        const { data: reportRows } = await supabase
+            .from('report')
+            .select('target_id')
+            .eq('target_type', 'item')
+
+        const reportCountMap: Record<string, number> = {}
+        for (const row of reportRows ?? []) {
+            reportCountMap[row.target_id] = (reportCountMap[row.target_id] ?? 0) + 1
+        }
+        const blockedItemIds = Object.entries(reportCountMap)
+            .filter(([, count]) => count >= 3)
+            .map(([id]) => id)
+
+        let itemQuery = supabase
             .from('item')
             .select('item_id,title,description,condition,category,item_type,status,owner_user_id,last_date_uploaded,date_bought')
             .eq('status', 'active')
             .order('last_date_uploaded', { ascending: false })
+
+        if (blockedItemIds.length > 0) {
+            itemQuery = itemQuery.not('item_id', 'in', `(${blockedItemIds.join(',')})`)
+        }
+
+        const { data: items, error: itemsError } = await itemQuery
 
         if (itemsError) {
             return {

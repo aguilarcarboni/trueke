@@ -89,7 +89,11 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
       <div className="flex flex-col flex-1 min-w-0 lg:ml-64">
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <div className="mx-auto max-w-5xl space-y-6">
-            <Button variant="ghost" className="gap-2 text-muted-foreground hover:text-foreground" asChild>
+            <Button
+              variant="ghost"
+              className="gap-2 text-muted-foreground hover:text-foreground"
+              asChild
+            >
               <Link href="/marketplace">
                 <ArrowLeft className="h-4 w-4" />
                 Back to Marketplace
@@ -110,14 +114,18 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
             {error && (
               <Card>
                 <CardContent className="pt-6 space-y-4">
-                  <h1 className="text-xl font-semibold text-card-foreground">Unable to show item details</h1>
+                  <h1 className="text-xl font-semibold text-card-foreground">
+                    Unable to show item details
+                  </h1>
                   <p className="text-sm text-muted-foreground">{error}</p>
                   <div className="flex gap-3">
                     <Button variant="outline" asChild>
                       <Link href="/items">Back to My Items</Link>
                     </Button>
                     <Button asChild>
-                      <Link href={`/items/${encodeURIComponent(itemId || "")}`}>Retry</Link>
+                      <Link href={`/items/${encodeURIComponent(itemId || "")}`}>
+                        Retry
+                      </Link>
                     </Button>
                   </div>
                 </CardContent>
@@ -131,16 +139,26 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                     <CardContent className="pt-6 space-y-5">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <h1 className="text-2xl font-bold text-card-foreground">{data.item.title}</h1>
+                          <h1 className="text-2xl font-bold text-card-foreground">
+                            {data.item.title}
+                          </h1>
                           <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <Badge variant="secondary">{data.item.category}</Badge>
+                            <Badge variant="secondary">
+                              {data.item.category}
+                            </Badge>
                             <Badge
                               variant="outline"
-                              className={conditionStyles[data.item.condition] || "bg-muted text-muted-foreground border-border"}
+                              className={
+                                conditionStyles[data.item.condition] ||
+                                "bg-muted text-muted-foreground border-border"
+                              }
                             >
-                              {conditionLabel[data.item.condition] || formatLabel(data.item.condition)}
+                              {conditionLabel[data.item.condition] ||
+                                formatLabel(data.item.condition)}
                             </Badge>
-                            <Badge variant="outline">{formatLabel(data.item.item_type)}</Badge>
+                            <Badge variant="outline">
+                              {formatLabel(data.item.item_type)}
+                            </Badge>
                           </div>
                         </div>
                         <Badge
@@ -149,12 +167,28 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                         >
                           {getStatusLabel(data.item.status)}
                         </Badge>
+                        <div>
+                          {data.item.images?.length > 0 && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {data.item.images.map((url, index) => (
+                                <img
+                                  key={`${url}-${index}`}
+                                  src={url}
+                                  alt={`${data.item.title} image ${index + 1}`}
+                                  className="h-64 w-full rounded-lg object-cover"
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <Separator />
 
                       <div className="space-y-2">
-                        <h2 className="text-sm font-semibold text-card-foreground">Description</h2>
+                        <h2 className="text-sm font-semibold text-card-foreground">
+                          Description
+                        </h2>
                         <p className="text-sm leading-relaxed text-muted-foreground">
                           {data.item.description || "No description provided."}
                         </p>
@@ -164,12 +198,20 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
 
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="rounded-lg bg-muted p-3">
-                          <p className="text-xs text-muted-foreground">Date Bought</p>
-                          <p className="text-sm font-medium text-foreground mt-1">{formatDate(data.item.date_bought)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Date Bought
+                          </p>
+                          <p className="text-sm font-medium text-foreground mt-1">
+                            {formatDate(data.item.date_bought)}
+                          </p>
                         </div>
                         <div className="rounded-lg bg-muted p-3">
-                          <p className="text-xs text-muted-foreground">Last Updated</p>
-                          <p className="text-sm font-medium text-foreground mt-1">{formatDate(data.item.last_date_uploaded)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Last Updated
+                          </p>
+                          <p className="text-sm font-medium text-foreground mt-1">
+                            {formatDate(data.item.last_date_uploaded)}
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -177,7 +219,9 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
 
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base text-card-foreground">Location</CardTitle>
+                      <CardTitle className="text-base text-card-foreground">
+                        Location
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -191,12 +235,17 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                 <div className="space-y-6">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base text-card-foreground">Owner</CardTitle>
+                      <CardTitle className="text-base text-card-foreground">
+                        Owner
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-11 w-11">
-                          <AvatarImage src={data.owner.profile_picture_url || undefined} alt={data.owner.username} />
+                          <AvatarImage
+                            src={data.owner.profile_picture_url || undefined}
+                            alt={data.owner.username}
+                          />
                           <AvatarFallback>
                             <UserRound className="h-4 w-4" />
                           </AvatarFallback>
@@ -205,7 +254,9 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                           <p className="text-sm font-semibold text-foreground">
                             {data.owner.first_name} {data.owner.last_name}
                           </p>
-                          <p className="text-xs text-muted-foreground">@{data.owner.username}</p>
+                          <p className="text-xs text-muted-foreground">
+                            @{data.owner.username}
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -219,15 +270,24 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                           Create An Item
                         </Link>
                       </Button>
-                      <Button variant="outline" className="w-full gap-2" asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2"
+                        asChild
+                      >
                         <Link href="/items">
                           <CalendarDays className="h-4 w-4" />
                           Go to My Items
                         </Link>
                       </Button>
-                      {currentUserId && currentUserId !== data.owner.user_id && (
-                        <ReportItemButton itemId={itemId || ""} itemTitle={data.item.title} alreadyReported={alreadyReported} />
-                      )}
+                      {currentUserId &&
+                        currentUserId !== data.owner.user_id && (
+                          <ReportItemButton
+                            itemId={itemId || ""}
+                            itemTitle={data.item.title}
+                            alreadyReported={alreadyReported}
+                          />
+                        )}
                     </CardContent>
                   </Card>
                 </div>
@@ -237,5 +297,5 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
         </main>
       </div>
     </div>
-  )
+  );
 }

@@ -20,9 +20,9 @@ import { Separator } from "@/components/ui/separator";
 import { TradeProposalDialog } from "@/components/sections/exchanges/trade-proposal-dialog";
 import type { Item } from "@/lib/entities/item";
 import {
+  getStatusLabel,
   getConditionLabel,
   getConditionStyle,
-  getStatusLabel,
 } from "@/lib/entities/item";
 
 // Temporary placeholder image for items without photos SHOULD BE REPLACED WITH A PROPER ASSET
@@ -33,7 +33,7 @@ interface ItemDetailProps {
   item: Item;
   currentUserId: string;
 }
-
+ 
 export function ItemDetail({ item, currentUserId }: ItemDetailProps) {
   const [isTradeDialogOpen, setIsTradeDialogOpen] = useState(false);
   const router = useRouter();
@@ -72,32 +72,17 @@ export function ItemDetail({ item, currentUserId }: ItemDetailProps) {
         {/* Image & Details */}
         <div className="lg:col-span-2 space-y-6">
           {/* Main Image */}
-          <Card className="overflow-hidden">
-            <div className="relative ">
-              <img
-                src={item.images?.[0] || PLACEHOLDER_IMAGE}
-                alt={item.title}
-                className="h-full w-full object-cover"
-                crossOrigin="anonymous"
-              />
-              <div className="absolute top-4 right-4 flex gap-2">
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-9 w-9 bg-card/90 backdrop-blur-sm hover:bg-card"
-                >
-                  <Heart className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-9 w-9 bg-card/90 backdrop-blur-sm hover:bg-card"
-                >
-                  <Share2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
+          {item.images && item.images.length > 0 ? (
+            <img
+              src={item.images[0]}
+              alt={item.title}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                e.currentTarget.nextElementSibling?.classList.remove("hidden");
+              }}
+            />
+          ) : null}
 
           {/* Item Info */}
           <Card>

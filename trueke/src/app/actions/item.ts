@@ -13,6 +13,7 @@ export interface ItemDetailsResponse {
     category: string
     condition: string
     status: string
+    images: string[]
     item_type: string
     date_bought: string | null
     last_date_uploaded: string
@@ -36,7 +37,9 @@ export interface ItemDetailsResponse {
   } | null
 }
 
-export async function getItemDetails(itemId: string): Promise<{ status: number; data?: ItemDetailsResponse; error?: string }> {
+export async function getItemDetails(
+  itemId: string
+): Promise<{ status: number; data?: ItemDetailsResponse; error?: string }> {
   try {
     const normalizedItemId = itemId.trim()
     if (!normalizedItemId) {
@@ -86,6 +89,18 @@ export async function getItemDetails(itemId: string): Promise<{ status: number; 
       }
     }
 
+    const { data: mediaRows, error: mediaError } = await supabase
+      .from('item_media')
+      .select('url,display_order')
+      .eq('item_id', normalizedItemId)
+      .order('display_order', { ascending: true })
+
+    if (mediaError) {
+      return { status: 500, error: mediaError.message }
+    }
+
+    const images = (mediaRows ?? []).map(row => row.url)
+
     return {
       status: 200,
       data: {
@@ -96,6 +111,7 @@ export async function getItemDetails(itemId: string): Promise<{ status: number; 
           category: item.category,
           condition: item.condition,
           status: item.status,
+          images,
           item_type: item.item_type,
           date_bought: item.date_bought,
           last_date_uploaded: item.last_date_uploaded,
@@ -109,7 +125,7 @@ export async function getItemDetails(itemId: string): Promise<{ status: number; 
     return { status: 500, error: 'Unable to load item details right now.' }
   }
 }
-
+ 
 export async function getItemsWithAddressByOwner(userId: string): Promise<{ success: boolean; data?: ItemWithAddress[]; error?: string }> {
   try {
     const normalizedUserId = userId.trim()

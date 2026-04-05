@@ -652,9 +652,8 @@ export async function rejectExchange(
 }
 
 /**
- * Cancel an exchange proposal
- * Calls the database function cancel_exchange
- * Only the initiator can cancel
+ * Cancel an exchange (pending: initiator only; accepted: any participant).
+ * Accepted cancellations release contested items back to active in the DB.
  */
 export async function cancelExchange(
     request: CancelExchangeRequest
@@ -664,7 +663,7 @@ export async function cancelExchange(
 
         const { data, error } = await supabase.rpc('cancel_exchange', {
             p_exchange_id: request.exchange_id,
-            p_initiator_user_id: request.initiator_user_id,
+            p_actor_user_id: request.actor_user_id,
         })
 
         if (error) {
@@ -681,7 +680,7 @@ export async function cancelExchange(
                 await sendExchangeNotification(
                     supabase,
                     request.exchange_id,
-                    request.initiator_user_id,
+                    request.actor_user_id,
                     'proposal_cancelled',
                     'Trade Proposal Cancelled',
                     'A trade proposal you were part of has been cancelled.'

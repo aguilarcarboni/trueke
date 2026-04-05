@@ -128,7 +128,7 @@ export function useExchangeActions(
       try {
         const result = await cancelExchange({
           exchange_id: exchangeId,
-          initiator_user_id: currentUserId,
+          actor_user_id: currentUserId,
         })
         if (result.success) {
           toast({

@@ -24,7 +24,7 @@ type ConfirmKind = "accept" | "reject" | "cancel" | "cancel_accepted" | "complet
  * Renders the appropriate action buttons for an exchange card.
  *
  * Pending: accept/reject (target), cancel proposal (initiator).
- * Accepted: mark complete (any participant), cancel trade (initiator only).
+ * Accepted: mark complete (any participant), cancel trade (any participant).
  */
 export function ExchangeActionButtons({
   exchangeId,
@@ -114,18 +114,16 @@ export function ExchangeActionButtons({
             )}
             Mark complete
           </Button>
-          {isInitiator && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
-              disabled={isLoading}
-              onClick={() => setConfirmAction("cancel_accepted")}
-            >
-              <X className="h-4 w-4" />
-              Cancel trade
-            </Button>
-          )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
+            disabled={isLoading}
+            onClick={() => setConfirmAction("cancel_accepted")}
+          >
+            <X className="h-4 w-4" />
+            Cancel trade
+          </Button>
         </div>
 
         {confirmAction && (

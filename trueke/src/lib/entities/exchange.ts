@@ -76,7 +76,8 @@ export interface RejectExchangeRequest {
 
 export interface CancelExchangeRequest {
     exchange_id: string
-    initiator_user_id: string
+    /** User cancelling: must be initiator if pending; any participant if accepted */
+    actor_user_id: string
 }
 
 export interface CompleteExchangeRequest {

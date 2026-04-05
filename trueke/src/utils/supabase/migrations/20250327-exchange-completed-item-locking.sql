@@ -77,9 +77,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Required when upgrading: PG cannot rename parameters (p_initiator_user_id → p_actor_user_id) with CREATE OR REPLACE
+DROP FUNCTION IF EXISTS public.cancel_exchange(uuid, uuid);
+
 CREATE OR REPLACE FUNCTION cancel_exchange(
     p_exchange_id UUID,
-    p_initiator_user_id UUID
+    p_actor_user_id UUID
 )
 RETURNS TABLE(
     success BOOLEAN,
@@ -98,14 +101,24 @@ BEGIN
         RETURN;
     END IF;
 
-    IF v_initiator_id <> p_initiator_user_id THEN
-        RETURN QUERY SELECT FALSE, 'Only the initiator can cancel'::TEXT;
-        RETURN;
-    END IF;
-
     IF v_exchange_status NOT IN ('pending'::exchange_status, 'accepted'::exchange_status) THEN
         RETURN QUERY SELECT FALSE, 'Exchange cannot be cancelled in its current state'::TEXT;
         RETURN;
+    END IF;
+
+    IF v_exchange_status = 'pending'::exchange_status THEN
+        IF v_initiator_id <> p_actor_user_id THEN
+            RETURN QUERY SELECT FALSE, 'Only the initiator can cancel a pending proposal'::TEXT;
+            RETURN;
+        END IF;
+    ELSE
+        IF NOT EXISTS (
+            SELECT 1 FROM exchange_participant
+            WHERE exchange_id = p_exchange_id AND user_id = p_actor_user_id
+        ) THEN
+            RETURN QUERY SELECT FALSE, 'Only participants in this exchange can cancel'::TEXT;
+            RETURN;
+        END IF;
     END IF;
 
     IF v_exchange_status = 'accepted'::exchange_status THEN

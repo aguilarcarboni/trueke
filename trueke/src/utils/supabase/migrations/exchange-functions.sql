@@ -368,10 +368,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to cancel an exchange (only initiator can cancel)
+-- Cancel exchange: pending → initiator only; accepted → any participant (items → active)
+DROP FUNCTION IF EXISTS public.cancel_exchange(uuid, uuid);
+
 CREATE OR REPLACE FUNCTION cancel_exchange(
     p_exchange_id UUID,
-    p_initiator_user_id UUID
+    p_actor_user_id UUID
 )
 RETURNS TABLE(
     success BOOLEAN,
@@ -381,27 +383,33 @@ DECLARE
     v_initiator_id UUID;
     v_exchange_status exchange_status;
 BEGIN
-    -- Get exchange info
     SELECT initiator_user_id, status INTO v_initiator_id, v_exchange_status
     FROM exchange
     WHERE exchange_id = p_exchange_id;
 
-    -- Check if exchange exists
     IF NOT FOUND THEN
         RETURN QUERY SELECT FALSE, 'Exchange not found'::TEXT;
         RETURN;
     END IF;
 
-    -- Check if user is the initiator
-    IF v_initiator_id <> p_initiator_user_id THEN
-        RETURN QUERY SELECT FALSE, 'Only the initiator can cancel'::TEXT;
-        RETURN;
-    END IF;
-
-    -- Check if exchange is still pending or accepted
     IF v_exchange_status NOT IN ('pending'::exchange_status, 'accepted'::exchange_status) THEN
         RETURN QUERY SELECT FALSE, 'Exchange cannot be cancelled in its current state'::TEXT;
         RETURN;
+    END IF;
+
+    IF v_exchange_status = 'pending'::exchange_status THEN
+        IF v_initiator_id <> p_actor_user_id THEN
+            RETURN QUERY SELECT FALSE, 'Only the initiator can cancel a pending proposal'::TEXT;
+            RETURN;
+        END IF;
+    ELSE
+        IF NOT EXISTS (
+            SELECT 1 FROM exchange_participant
+            WHERE exchange_id = p_exchange_id AND user_id = p_actor_user_id
+        ) THEN
+            RETURN QUERY SELECT FALSE, 'Only participants in this exchange can cancel'::TEXT;
+            RETURN;
+        END IF;
     END IF;
 
     -- Accepted exchanges: release item locks back to active

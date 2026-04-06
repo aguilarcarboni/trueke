@@ -30,6 +30,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { NotificationBell } from '@/components/sections/notifications/notification-bell'
 import { signOut, useSession } from 'next-auth/react'
 import { getProfileAction } from '@/app/actions/profile'
+import { getMyConversations } from '@/app/actions/message'
 import type { UserProfile } from '@/lib/entities/profile'
 import { useEffect, useState } from 'react'
 
@@ -43,6 +44,7 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
   const { data: session } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [unreadMessages, setUnreadMessages] = useState(0)
 
   useEffect(() => {
     async function fetchUserProfile() {
@@ -55,6 +57,36 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
     }
     fetchUserProfile()
   }, [session?.user?.id])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const fetchUnreadMessages = async () => {
+      if (!session?.user?.id || isAdmin) {
+        if (isMounted) setUnreadMessages(0)
+        return
+      }
+
+      const result = await getMyConversations(session.user.id)
+      if (!isMounted) return
+
+      if (result.success && result.data) {
+        const unreadCount = result.data.reduce(
+          (acc, conversation) => acc + conversation.unread_count,
+          0
+        )
+        setUnreadMessages(unreadCount)
+      }
+    }
+
+    fetchUnreadMessages()
+    const pollId = setInterval(fetchUnreadMessages, 30_000)
+
+    return () => {
+      isMounted = false
+      clearInterval(pollId)
+    }
+  }, [session?.user?.id, isAdmin])
 
   const userRoutes = [
     { name: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, scopeId: 'dashboard' },
@@ -119,10 +151,20 @@ const AppSidebar = ({ isAdmin = false }: AppSidebarProps) => {
             <SidebarMenuItem key={item.scopeId}>
               <SidebarMenuButton asChild isActive={pathname.startsWith(item.url)}>
                 <Link href={item.url} className="flex items-center gap-2">
-                  <item.icon className="h-4 w-4" />
+                  <div className="relative">
+                    <item.icon className="h-4 w-4" />
+                    {item.scopeId === 'messages' && unreadMessages > 0 && (
+                      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-destructive group-data-[state=expanded]/sidebar:hidden" />
+                    )}
+                  </div>
                   <span className="truncate group-data-[state=collapsed]/sidebar:hidden">
                     {item.name}
                   </span>
+                  {item.scopeId === 'messages' && unreadMessages > 0 && (
+                    <span className="ml-auto rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-semibold text-destructive-foreground group-data-[state=collapsed]/sidebar:hidden">
+                      {unreadMessages > 99 ? '99+' : unreadMessages}
+                    </span>
+                  )}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

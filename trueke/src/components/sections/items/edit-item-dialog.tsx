@@ -1,31 +1,20 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ItemCondition, ItemType, ItemWithAddress, ITEM_STATUSES, ITEM_STATUS_LABELS } from "@/lib/entities/item"
-import { X, Package } from "lucide-react"
+import { ItemCondition, ItemType, ItemStatus, ItemWithAddress, ITEM_CONDITIONS, ITEM_CONDITION_LABELS, ITEM_STATUSES, ITEM_STATUS_LABELS } from "@/lib/entities/item"
+import { ITEM_CATEGORIES } from "@/lib/data"
+import { X, Package, ChevronUp, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { updateItem, updateItemAddress } from "@/app/actions/item"
-import { Country, State, City } from "country-state-city"
-
-// Validation patterns for location fields
-const LOCATION_TEXT = /^[a-zA-ZÀ-ÖØ-öø-ÿ\s'\-,\.]+$/
-const ZIPCODE_PATTERN = /^[a-zA-Z0-9\s\-]+$/
-const ADDRESS_LINE_PATTERN = /^[a-zA-Z0-9À-ÖØ-öø-ÿ\s'\-\.,#\/]+$/
-
-const EMPTY_ADDRESS = {
-  countryCode: "",
-  addressLine1: "",
-  addressLine2: "",
-  muniDistrict: "",
-  city: "",
-  province: "",
-  zipCode: "",
-}
+import { updateItem, updateItemImages } from "@/app/actions/item"
+import { AddressSchema, EMPTY_ADDRESS } from "@/lib/entities/address"
+import { AddressForm } from "@/components/misc/address-form"
 
 // Placeholder component for items without images
 function ImagePlaceholder({ className = "" }: { className?: string }) {
@@ -34,14 +23,6 @@ function ImagePlaceholder({ className = "" }: { className?: string }) {
       <Package className="h-12 w-12 text-muted-foreground" />
     </div>
   )
-}
-
-const conditionLabel: Record<string, string> = {
-  "new": "New",
-  "like new": "Like New",
-  "used": "Used",
-  "heavily used": "Heavily Used",
-  "broken": "Broken",
 }
 
 const itemTypes = ["physical", "digital"]
@@ -55,10 +36,9 @@ interface EditItemDialogProps {
 
 export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: EditItemDialogProps) {
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [updateMessage, setUpdateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [stateCode, setStateCode] = useState<string>("")
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [shakingFields, setShakingFields] = useState<Record<string, boolean>>({})
   const [editFormData, setEditFormData] = useState({
     title: "",
     type: "physical" as ItemType,
@@ -70,9 +50,9 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
     address: { ...EMPTY_ADDRESS },
   })
 
-  // Initialize form data when item changes
+  // Initialize form data when dialog opens or item changes
   useEffect(() => {
-    if (item) {
+    if (item && open) {
       setEditFormData({
         title: item.title,
         type: item.item_type,
@@ -91,22 +71,13 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
           zipCode: item.address.zipCode,
         } : { ...EMPTY_ADDRESS },
       })
-      setStateCode("")
       setFieldErrors({})
       setUpdateMessage(null)
     }
-  }, [item])
-
-  const triggerShake = (field: string) => {
-    setShakingFields((prev) => ({ ...prev, [field]: true }))
-    setTimeout(() => setShakingFields((prev) => ({ ...prev, [field]: false })), 400)
-  }
+  }, [item, open])
 
   const clearFieldError = (field: string) =>
     setFieldErrors((prev) => ({ ...prev, [field]: "" }))
-
-  const inputCls = (field: string) =>
-    `${fieldErrors[field] || shakingFields[field] ? " border-destructive" : ""}${shakingFields[field] ? " shake" : ""}`
 
   const handleEditFormChange = (field: string, value: string) => {
     setEditFormData((prev) => ({
@@ -115,20 +86,31 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
     }))
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (!files) return
-    
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setEditFormData((prev) => ({
-          ...prev,
-          imagePreviews: [...prev.imagePreviews, reader.result as string],
-        }))
+    if (!files || files.length === 0) return
+    e.target.value = ""
+
+    setIsUploading(true)
+    setUpdateMessage(null)
+    const uploaded: string[] = []
+    for (const file of Array.from(files)) {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch("/api/items/upload-image", { method: "POST", body: formData })
+      const payload = await res.json().catch(() => ({}) as { url?: string; error?: string })
+      if (!res.ok || !payload.url) {
+        setUpdateMessage({ type: 'error', text: payload.error || `Failed to upload ${file.name}.` })
+        setIsUploading(false)
+        return
       }
-      reader.readAsDataURL(file)
-    })
+      uploaded.push(payload.url)
+    }
+    setEditFormData((prev) => ({
+      ...prev,
+      imagePreviews: [...prev.imagePreviews, ...uploaded],
+    }))
+    setIsUploading(false)
   }
 
   const handleRemoveImage = (index: number) => {
@@ -138,20 +120,35 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
     }))
   }
 
+  const handleMoveImageUp = (index: number) => {
+    if (index === 0) return
+    setEditFormData((prev) => {
+      const updated = [...prev.imagePreviews]
+      ;[updated[index - 1], updated[index]] = [updated[index], updated[index - 1]]
+      return { ...prev, imagePreviews: updated }
+    })
+  }
+
+  const handleMoveImageDown = (index: number) => {
+    setEditFormData((prev) => {
+      if (index >= prev.imagePreviews.length - 1) return prev
+      const updated = [...prev.imagePreviews]
+      ;[updated[index], updated[index + 1]] = [updated[index + 1], updated[index]]
+      return { ...prev, imagePreviews: updated }
+    })
+  }
+
   const handleSaveEdit = async () => {
     if (!item) return
 
-    // Validate required location fields
-    const errors: Record<string, string> = {}
-    if (!editFormData.address.countryCode.trim()) errors.countryCode = "Country is required."
-    if (!editFormData.address.province.trim()) errors.province = "Province / State is required."
-    else if (!LOCATION_TEXT.test(editFormData.address.province.trim())) errors.province = "Province may only contain letters."
-    if (!editFormData.address.city.trim()) errors.city = "City is required."
-    else if (!LOCATION_TEXT.test(editFormData.address.city.trim())) errors.city = "City may only contain letters."
-    if (!editFormData.address.zipCode.trim()) errors.zipCode = "Zip code is required."
-    else if (!ZIPCODE_PATTERN.test(editFormData.address.zipCode.trim())) errors.zipCode = "Zip code may only contain letters, numbers and hyphens."
-
-    if (Object.keys(errors).length > 0) {
+    // Validate address using AddressSchema
+    const addressValidation = AddressSchema.safeParse(editFormData.address)
+    if (!addressValidation.success) {
+      const errors: Record<string, string> = {}
+      for (const err of addressValidation.error.errors) {
+        const field = err.path[0] as string
+        if (!errors[field]) errors[field] = err.message
+      }
       setFieldErrors(errors)
       return
     }
@@ -161,34 +158,29 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
     setUpdateMessage(null)
 
     try {
-      // Update item basic info
-      const result = await updateItem(item.item_id, {
-        title: editFormData.title,
-        item_type: editFormData.type,
-        status: editFormData.state,
-        category: editFormData.category,
-        condition: editFormData.condition,
-        description: editFormData.description,
-      })
+      const [result, imagesResult] = await Promise.all([
+        updateItem(
+          item.item_id,
+          {
+            title: editFormData.title,
+            item_type: editFormData.type,
+            status: editFormData.state,
+            category: editFormData.category,
+            condition: editFormData.condition,
+            description: editFormData.description,
+          },
+          editFormData.address
+        ),
+        updateItemImages(item.item_id, editFormData.imagePreviews),
+      ])
 
       if (result.error) {
         setUpdateMessage({ type: 'error', text: result.error })
         return
       }
 
-      // Update item address
-      const addressResult = await updateItemAddress(item.item_id, {
-        countryCode: editFormData.address.countryCode,
-        addressLine1: editFormData.address.addressLine1,
-        addressLine2: editFormData.address.addressLine2,
-        muniDistrict: editFormData.address.muniDistrict,
-        city: editFormData.address.city,
-        province: editFormData.address.province,
-        zipCode: editFormData.address.zipCode,
-      })
-
-      if (addressResult.error) {
-        setUpdateMessage({ type: 'error', text: addressResult.error })
+      if (imagesResult.error) {
+        setUpdateMessage({ type: 'error', text: imagesResult.error })
         return
       }
 
@@ -219,378 +211,214 @@ export function EditItemDialog({ open, onOpenChange, item, onItemUpdated }: Edit
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col w-full max-w-lg max-h-[90vh]">
+    <Dialog open={open} onOpenChange={(next) => { if (!next) { setUpdateMessage(null); setFieldErrors({}) } onOpenChange(next) }}>
+      <DialogContent className="flex flex-col w-full max-w-3xl max-h-[90vh]">
         <DialogHeader className="shrink-0">
           <DialogTitle>Edit Item</DialogTitle>
         </DialogHeader>
 
         {item && (
           <ScrollArea className="flex-1 overflow-y-auto pr-4">
-            <div className="space-y-4 py-1">
-              {/* Image Preview and Upload */}
-              <div className="space-y-2">
-                <Label>Item Images</Label>
-                <div className="space-y-3">
-                  {/* Image Previews Grid */}
-                  {editFormData.imagePreviews.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      {editFormData.imagePreviews.map((preview, index) => (
-                        <div key={index} className="relative group">
-                          <div className="w-full h-20 rounded-lg bg-muted overflow-hidden">
-                            <img 
-                              src={preview} 
-                              alt={`Preview ${index + 1}`} 
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none'
-                                e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                              }}
-                            />
-                            <ImagePlaceholder className="w-full h-full hidden" />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveImage(index)}
-                            className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
-                          >
-                            <X className="h-5 w-5 text-white" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="w-full h-20 rounded-lg bg-muted overflow-hidden">
-                      <ImagePlaceholder className="w-full h-full" />
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-6">
+
+                  {updateMessage && (
+                    <div className={`rounded-md border px-4 py-3 text-sm ${
+                      updateMessage.type === 'success'
+                        ? 'border-green-300 bg-green-50 text-green-700'
+                        : 'border-red-300 bg-red-50 text-red-700'
+                    }`}>
+                      {updateMessage.text}
                     </div>
                   )}
-                  {/* Upload Input */}
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    id="edit-image-upload"
+
+                  {/* Title */}
+                  <div className="space-y-2">
+                    <Label htmlFor="item-title">Item Name *</Label>
+                    <Input
+                      id="item-title"
+                      value={editFormData.title}
+                      onChange={(e) => handleEditFormChange("title", e.target.value)}
+                      placeholder="Enter a descriptive title for your item"
+                    />
+                  </div>
+
+                  {/* Category + Type */}
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="item-category">Category *</Label>
+                      <Select value={editFormData.category} onValueChange={(value) => handleEditFormChange("category", value)}>
+                        <SelectTrigger id="item-category">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ITEM_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="item-type">Type *</Label>
+                      <Select value={editFormData.type} onValueChange={(value) => handleEditFormChange("type", value)}>
+                        <SelectTrigger id="item-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {itemTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type.charAt(0).toUpperCase() + type.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Condition + Status */}
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="item-condition">Condition *</Label>
+                      <Select value={editFormData.condition} onValueChange={(value) => handleEditFormChange("condition", value)}>
+                        <SelectTrigger id="item-condition">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ITEM_CONDITIONS.map((cond) => (
+                            <SelectItem key={cond} value={cond}>
+                              {ITEM_CONDITION_LABELS[cond]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="item-status">Status *</Label>
+                      <Select value={editFormData.state} onValueChange={(value) => handleEditFormChange("state", value)}>
+                        <SelectTrigger id="item-status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(['draft', 'active', 'archived'] as typeof ITEM_STATUSES[number][]).map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {ITEM_STATUS_LABELS[status]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <AddressForm
+                    value={editFormData.address}
+                    onChange={(addr) => setEditFormData({ ...editFormData, address: addr })}
+                    errors={fieldErrors}
+                    onClearError={clearFieldError}
                   />
-                  <Label htmlFor="edit-image-upload" className="cursor-pointer">
-                    <Button variant="outline" type="button" asChild>
-                      <span>Add Images</span>
+
+                  {/* Images */}
+                  <div className="space-y-2">
+                    <Label>Item Images</Label>
+                    <div className="space-y-3">
+                      {editFormData.imagePreviews.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-2">
+                          {editFormData.imagePreviews.map((preview, index) => (
+                            <div key={preview} className="relative group">
+                              <div className="w-full h-24 rounded-lg bg-muted overflow-hidden">
+                                <img
+                                  src={preview}
+                                  alt={`Preview ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none'
+                                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                                  }}
+                                />
+                                <ImagePlaceholder className="w-full h-full hidden" />
+                              </div>
+                              <span className="absolute top-1 left-1 rounded bg-black/60 px-1 text-[10px] font-medium text-white">
+                                {index + 1}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveImage(index)}
+                                className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white hover:bg-destructive transition-colors"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                              <div className="absolute bottom-1 right-1 flex gap-0.5">
+                                <button
+                                  type="button"
+                                  disabled={index === 0}
+                                  onClick={() => handleMoveImageUp(index)}
+                                  className="flex h-5 w-5 items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  <ChevronUp className="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={index === editFormData.imagePreviews.length - 1}
+                                  onClick={() => handleMoveImageDown(index)}
+                                  className="flex h-5 w-5 items-center justify-center rounded bg-black/60 text-white hover:bg-black/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  <ChevronDown className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="w-full h-20 rounded-lg bg-muted overflow-hidden">
+                          <ImagePlaceholder className="w-full h-full" />
+                        </div>
+                      )}
+                      <Input
+                        id="edit-image-upload"
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                        onChange={handleImageUpload}
+                        disabled={isUploading}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {isUploading ? 'Uploading...' : 'Max 10MB. JPG, PNG, WEBP, or GIF.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="space-y-2">
+                    <Label htmlFor="item-description">Description *</Label>
+                    <Textarea
+                      id="item-description"
+                      value={editFormData.description}
+                      onChange={(e) => handleEditFormChange("description", e.target.value)}
+                      placeholder="Describe your item in detail. Include important condition notes, features, or history."
+                      className="min-h-32"
+                    />
+                  </div>
+
+                  {/* Footer buttons */}
+                  <div className="flex gap-3 pt-4 border-t border-border">
+                    <Button variant="outline" onClick={() => { setUpdateMessage(null); setFieldErrors({}); onOpenChange(false) }} type="button" disabled={isUpdating || isUploading}>
+                      Cancel
                     </Button>
-                  </Label>
-                </div>
-              </div>
-
-              {/* Item Title/Name */}
-              <div className="space-y-2">
-                <Label htmlFor="item-title">Item Name</Label>
-                <Input
-                  id="item-title"
-                  value={editFormData.title}
-                  onChange={(e) => handleEditFormChange("title", e.target.value)}
-                  placeholder="Enter item name"
-                />
-              </div>
-
-              {/* Item Type */}
-              <div className="space-y-2">
-                <Label htmlFor="item-type">Type</Label>
-                <Select value={editFormData.type} onValueChange={(value) => handleEditFormChange("type", value)}>
-                  <SelectTrigger id="item-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {itemTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Item Status */}
-              <div className="space-y-2">
-                <Label htmlFor="item-status">Status</Label>
-                <Select value={editFormData.state} onValueChange={(value) => handleEditFormChange("state", value)}>
-                  <SelectTrigger id="item-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(['draft', 'active', 'archived'] as typeof ITEM_STATUSES[number][]).map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {ITEM_STATUS_LABELS[status]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Item Category */}
-              <div className="space-y-2">
-                <Label htmlFor="item-category">Category</Label>
-                <Input
-                  id="item-category"
-                  value={editFormData.category}
-                  onChange={(e) => handleEditFormChange("category", e.target.value)}
-                  placeholder="Enter item category"
-                />
-              </div>
-
-              {/* Item Condition */}
-              <div className="space-y-2">
-                <Label htmlFor="item-condition">Condition</Label>
-                <Select value={editFormData.condition} onValueChange={(value) => handleEditFormChange("condition", value)}>
-                  <SelectTrigger id="item-condition">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(conditionLabel).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Item Description */}
-              <div className="space-y-2">
-                <Label htmlFor="item-description">Description</Label>
-                <textarea
-                  id="item-description"
-                  value={editFormData.description}
-                  onChange={(e) => handleEditFormChange("description", e.target.value)}
-                  placeholder="Enter item description"
-                  className="w-full min-h-24 px-3 py-2 border border-input rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-
-              {/* Location Section */}
-              <div className="space-y-3 pt-2">
-                <p className="text-sm font-medium text-muted-foreground">Item Location</p>
-
-                {/* Country */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Country <span className="text-destructive">*</span></Label>
-                  <Select
-                    value={editFormData.address.countryCode}
-                    onValueChange={(val) => {
-                      setEditFormData({
-                        ...editFormData,
-                        address: { ...editFormData.address, countryCode: val, province: "", city: "" },
-                      })
-                      setStateCode("")
-                      if (fieldErrors.countryCode) clearFieldError("countryCode")
-                      if (fieldErrors.province) clearFieldError("province")
-                      if (fieldErrors.city) clearFieldError("city")
-                    }}
-                  >
-                    <SelectTrigger className={`h-8 text-sm w-full${fieldErrors.countryCode ? " border-destructive" : ""}`}>
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Country.getAllCountries()
-                        .filter((c) => c.isoCode === "CR")
-                        .map((c) => (
-                          <SelectItem key={c.isoCode} value={c.isoCode}>
-                            {c.name} ({c.isoCode})
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  {fieldErrors.countryCode && <p className="text-xs text-destructive">{fieldErrors.countryCode}</p>}
-                </div>
-
-                {/* Province / State */}
-                {(() => {
-                  const states = editFormData.address.countryCode
-                    ? State.getStatesOfCountry(editFormData.address.countryCode)
-                    : []
-                  return (
-                    <div className="space-y-1">
-                      <Label className="text-xs">Province / State <span className="text-destructive">*</span></Label>
-                      {states.length > 0 ? (
-                        <Select
-                          value={stateCode}
-                          onValueChange={(val) => {
-                            const state = states.find((s) => s.isoCode === val)
-                            setStateCode(val)
-                            setEditFormData({
-                              ...editFormData,
-                              address: { ...editFormData.address, province: state?.name ?? val, city: "" },
-                            })
-                            if (fieldErrors.province) clearFieldError("province")
-                            if (fieldErrors.city) clearFieldError("city")
-                          }}
-                        >
-                          <SelectTrigger className={`h-8 text-sm w-full${fieldErrors.province ? " border-destructive" : ""}`}>
-                            <SelectValue placeholder="Select state / province" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {states.map((s) => (
-                              <SelectItem key={s.isoCode} value={s.isoCode}>
-                                {s.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          value={editFormData.address.province}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            if (val.length > 75) { triggerShake("province"); return }
-                            if (val !== "" && !LOCATION_TEXT.test(val)) { triggerShake("province"); return }
-                            setEditFormData({ ...editFormData, address: { ...editFormData.address, province: val } })
-                            if (fieldErrors.province) clearFieldError("province")
-                          }}
-                          placeholder="Province / State"
-                          className={`h-8 text-sm${inputCls("province")}`}
-                        />
-                      )}
-                      {fieldErrors.province && <p className="text-xs text-destructive">{fieldErrors.province}</p>}
-                    </div>
-                  )
-                })()}
-
-                {/* City */}
-                {(() => {
-                  const cities = stateCode
-                    ? City.getCitiesOfState(editFormData.address.countryCode, stateCode)
-                    : editFormData.address.countryCode && !State.getStatesOfCountry(editFormData.address.countryCode).length
-                      ? City.getCitiesOfCountry(editFormData.address.countryCode) ?? []
-                      : []
-                  return (
-                    <div className="space-y-1">
-                      <Label className="text-xs">City <span className="text-destructive">*</span></Label>
-                      {cities.length > 0 ? (
-                        <Select
-                          value={editFormData.address.city}
-                          onValueChange={(val) => {
-                            setEditFormData({ ...editFormData, address: { ...editFormData.address, city: val } })
-                            if (fieldErrors.city) clearFieldError("city")
-                          }}
-                        >
-                          <SelectTrigger className={`h-8 text-sm w-full${fieldErrors.city ? " border-destructive" : ""}`}>
-                            <SelectValue placeholder="Select city" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {cities.map((c) => (
-                              <SelectItem key={`${c.name}-${c.stateCode}`} value={c.name}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          value={editFormData.address.city}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            if (val.length > 75) { triggerShake("city"); return }
-                            if (val !== "" && !LOCATION_TEXT.test(val)) { triggerShake("city"); return }
-                            setEditFormData({ ...editFormData, address: { ...editFormData.address, city: val } })
-                            if (fieldErrors.city) clearFieldError("city")
-                          }}
-                          placeholder="City"
-                          className={`h-8 text-sm${inputCls("city")}`}
-                        />
-                      )}
-                      {fieldErrors.city && <p className="text-xs text-destructive">{fieldErrors.city}</p>}
-                    </div>
-                  )
-                })()}
-
-                {/* Municipality / Zip */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="muniDistrict" className="text-xs">Municipality / District</Label>
-                    <Input
-                      id="muniDistrict"
-                      value={editFormData.address.muniDistrict}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        if (val.length > 100) { triggerShake("muniDistrict"); return }
-                        if (val !== "" && !LOCATION_TEXT.test(val)) { triggerShake("muniDistrict"); return }
-                        setEditFormData({ ...editFormData, address: { ...editFormData.address, muniDistrict: val } })
-                        if (fieldErrors.muniDistrict) clearFieldError("muniDistrict")
-                      }}
-                      placeholder="Mata Redonda"
-                      className={`h-8 text-sm${inputCls("muniDistrict")}`}
-                    />
-                    {fieldErrors.muniDistrict && <p className="text-xs text-destructive">{fieldErrors.muniDistrict}</p>}
+                    <Button onClick={handleSaveEdit} className="flex-1" disabled={isUpdating || isUploading}>
+                      {isUpdating ? 'Saving...' : 'Save Changes'}
+                    </Button>
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="zipCode" className="text-xs">Zip code <span className="text-destructive">*</span></Label>
-                    <Input
-                      id="zipCode"
-                      value={editFormData.address.zipCode}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        if (val.length > 10) { triggerShake("zipCode"); return }
-                        if (val !== "" && !ZIPCODE_PATTERN.test(val)) { triggerShake("zipCode"); return }
-                        setEditFormData({ ...editFormData, address: { ...editFormData.address, zipCode: val } })
-                        if (fieldErrors.zipCode) clearFieldError("zipCode")
-                      }}
-                      placeholder="10103"
-                      className={`h-8 text-sm${inputCls("zipCode")}`}
-                    />
-                    {fieldErrors.zipCode && <p className="text-xs text-destructive">{fieldErrors.zipCode}</p>}
-                  </div>
-                </div>
 
-                {/* Address lines */}
-                <div className="space-y-1">
-                  <Label htmlFor="addressLine1" className="text-xs">Address line 1</Label>
-                  <Input
-                    id="addressLine1"
-                    value={editFormData.address.addressLine1}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      if (val !== "" && !ADDRESS_LINE_PATTERN.test(val)) { triggerShake("addressLine1"); return }
-                      setEditFormData({ ...editFormData, address: { ...editFormData.address, addressLine1: val } })
-                    }}
-                    placeholder="Street, building..."
-                    className={`h-8 text-sm${shakingFields.addressLine1 ? " border-destructive shake" : ""}`}
-                  />
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="addressLine2" className="text-xs">Address line 2</Label>
-                  <Input
-                    id="addressLine2"
-                    value={editFormData.address.addressLine2}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      if (val !== "" && !ADDRESS_LINE_PATTERN.test(val)) { triggerShake("addressLine2"); return }
-                      setEditFormData({ ...editFormData, address: { ...editFormData.address, addressLine2: val } })
-                    }}
-                    placeholder="Apartment, suite..."
-                    className={`h-8 text-sm${shakingFields.addressLine2 ? " border-destructive shake" : ""}`}
-                  />
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </ScrollArea>
         )}
-
-        <DialogFooter className="gap-2 pt-2 shrink-0">
-          {updateMessage && (
-            <div className={`text-sm py-2 px-3 rounded ${
-              updateMessage.type === 'success' 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-red-100 text-red-800'
-            }`}>
-              {updateMessage.text}
-            </div>
-          )}
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUpdating}>
-            Cancel
-          </Button>
-          <Button onClick={handleSaveEdit} disabled={isUpdating}>
-            {isUpdating ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

@@ -18,6 +18,7 @@ export interface ItemDetailsResponse {
     date_bought: string | null
     last_date_uploaded: string
   }
+  images: string[]
   owner: {
     user_id: string
     username: string
@@ -99,7 +100,7 @@ export async function getItemDetails(
       return { status: 500, error: mediaError.message }
     }
 
-    const images = (mediaRows ?? []).map(row => row.url)
+    const images = (mediaRows ?? []).map(row => row.url as string)
 
     return {
       status: 200,
@@ -116,6 +117,7 @@ export async function getItemDetails(
           date_bought: item.date_bought,
           last_date_uploaded: item.last_date_uploaded,
         },
+        images,
         owner,
         address,
       },
@@ -317,9 +319,61 @@ export async function createItem(
   }
 }
 
+export async function updateItemImages(
+  itemId: string,
+  imageUrls: string[]
+): Promise<{ error: string | null }> {
+  try {
+    const userId = await getAuthenticatedUserId()
+    if (!userId) return { error: 'Not authenticated' }
+
+    const supabase = await createClient()
+
+    const { data: item, error: fetchError } = await supabase
+      .from('item')
+      .select('owner_user_id')
+      .eq('item_id', itemId)
+      .single()
+
+    if (fetchError || !item) return { error: 'Item not found' }
+    if (item.owner_user_id !== userId) return { error: 'Unauthorized: You do not own this item' }
+
+    const { error: deleteError } = await supabase
+      .from('item_media')
+      .delete()
+      .eq('item_id', itemId)
+
+    if (deleteError) return { error: deleteError.message }
+
+    if (imageUrls.length > 0) {
+      const inserts = imageUrls.map((url, index) => {
+        const ext = url.startsWith('data:')
+          ? '.jpg'
+          : '.' + (url.split('.').pop()?.split('?')[0]?.toLowerCase() ?? 'jpg')
+        return {
+          item_id: itemId,
+          url,
+          media_type: ext,
+          display_order: index + 1,
+        }
+      })
+
+      const { error: insertError } = await supabase.from('item_media').insert(inserts)
+      if (insertError) return { error: insertError.message }
+    }
+
+    return { error: null }
+  } catch (err) {
+    console.error('updateItemImages error:', err)
+    return { error: 'An unexpected error occurred.' }
+  }
+}
+
+
 export async function updateItem(
   itemId: string,
-  updates: Partial<Omit<Item, 'id' | 'owner' | 'createdAt' | 'images'>>
+  updates: Partial<Omit<Item, 'id' | 'owner' | 'createdAt' | 'images'>>,
+  address?: Omit<Address, 'addressId'>
 ) {
   try {
     const userId = await getAuthenticatedUserId()
@@ -362,6 +416,13 @@ export async function updateItem(
     if (error) {
       console.error('Error updating item:', error)
       return { error: 'Failed to update item' }
+    }
+
+    if (address) {
+      const addressResult = await updateItemAddress(itemId, address)
+      if (addressResult.error) {
+        return { error: addressResult.error }
+      }
     }
 
     return { success: true, data }

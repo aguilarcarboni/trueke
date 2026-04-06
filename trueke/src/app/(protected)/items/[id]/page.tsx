@@ -1,6 +1,6 @@
 import Link from "next/link"
-import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, Plus, UserRound } from "lucide-react"
-import { getStatusLabel, getStatusStyle } from "@/lib/entities/item"
+import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, Package, Plus, UserRound } from "lucide-react"
+import { getConditionLabel, getStatusLabel, getStatusStyle, ITEM_CONDITION_LABELS } from "@/lib/entities/item"
 import { getItemDetails, hasUserReportedItem, type ItemDetailsResponse } from "@/app/actions/item"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/utils/auth"
@@ -134,85 +134,107 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
 
             {!error && data && (
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <div className="space-y-6 lg:col-span-2">
+                {/* Main card */}
+                <div className="lg:col-span-2">
                   <Card>
-                    <CardContent className="pt-6 space-y-5">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <h1 className="text-2xl font-bold text-card-foreground">
-                            {data.item.title}
-                          </h1>
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <Badge variant="secondary">
-                              {data.item.category}
-                            </Badge>
-                            <Badge
-                              variant="outline"
-                              className={
-                                conditionStyles[data.item.condition] ||
-                                "bg-muted text-muted-foreground border-border"
-                              }
-                            >
-                              {conditionLabel[data.item.condition] ||
-                                formatLabel(data.item.condition)}
-                            </Badge>
-                            <Badge variant="outline">
-                              {formatLabel(data.item.item_type)}
-                            </Badge>
+                    <CardContent className="pt-6">
+                      <div className="space-y-6">
+
+                        {/* Header: title + badges */}
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <h1 className="text-xl font-bold text-card-foreground">{data.item.title}</h1>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <Badge variant="secondary">{data.item.category}</Badge>
+                              <Badge
+                                variant="outline"
+                                className={conditionStyles[data.item.condition] || "bg-muted text-muted-foreground border-border"}
+                              >
+                                {ITEM_CONDITION_LABELS[data.item.condition as keyof typeof ITEM_CONDITION_LABELS] ?? formatLabel(data.item.condition)}
+                              </Badge>
+                              <Badge variant="outline">{formatLabel(data.item.item_type)}</Badge>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className={getStatusStyle(data.item.status)}>
+                            {getStatusLabel(data.item.status)}
+                          </Badge>
+                        </div>
+
+                        {/* Images */}
+                        {data.images.length > 0 ? (
+                          <div className="space-y-2">
+                            <div className="w-full aspect-video rounded-lg bg-muted overflow-hidden">
+                              <img
+                                src={data.images[0]}
+                                alt={data.item.title}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            {data.images.length > 1 && (
+                              <div className="grid grid-cols-4 gap-2">
+                                {data.images.map((img, i) => (
+                                  <div key={img} className="relative">
+                                    <div className="w-full h-16 rounded-lg bg-muted overflow-hidden">
+                                      <img src={img} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
+                                    </div>
+                                    {i === 0 && (
+                                      <span className="absolute top-1 left-1 rounded bg-black/60 px-1 text-[10px] font-medium text-white">Main</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="w-full aspect-video rounded-lg bg-muted flex items-center justify-center">
+                            <Package className="h-16 w-16 text-muted-foreground" />
+                          </div>
+                        )}
+
+                        <Separator />
+
+                        {/* Description */}
+                        <div className="space-y-2">
+                          <h2 className="text-sm font-semibold text-card-foreground">Description</h2>
+                          <p className="text-sm leading-relaxed text-card-foreground">
+                            {data.item.description || "No description provided."}
+                          </p>
+                        </div>
+
+                        <Separator />
+
+                        {/* Category + Type */}
+                        <div className="grid gap-6 sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">Category</p>
+                            <p className="text-sm font-semibold text-card-foreground">{data.item.category}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">Type</p>
+                            <p className="text-sm font-semibold text-card-foreground capitalize">{data.item.item_type}</p>
                           </div>
                         </div>
-                        <Badge
-                          variant="outline"
-                          className={getStatusStyle(data.item.status)}
-                        >
-                          {getStatusLabel(data.item.status)}
-                        </Badge>
-                        <div>
-                          {data.item.images?.length > 0 && (
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {data.item.images.map((url, index) => (
-                                <img
-                                  key={`${url}-${index}`}
-                                  src={url}
-                                  alt={`${data.item.title} image ${index + 1}`}
-                                  className="h-64 w-full rounded-lg object-cover"
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
 
-                      <Separator />
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-semibold text-card-foreground">
-                          Description
-                        </h2>
-                        <p className="text-sm leading-relaxed text-muted-foreground">
-                          {data.item.description || "No description provided."}
-                        </p>
-                      </div>
-
-                      <Separator />
-
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-lg bg-muted p-3">
-                          <p className="text-xs text-muted-foreground">
-                            Date Bought
-                          </p>
-                          <p className="text-sm font-medium text-foreground mt-1">
-                            {formatDate(data.item.date_bought)}
+                        {/* Condition */}
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">Condition</p>
+                          <p className="text-sm font-semibold text-card-foreground">
+                            {ITEM_CONDITION_LABELS[data.item.condition as keyof typeof ITEM_CONDITION_LABELS] ?? formatLabel(data.item.condition)}
                           </p>
                         </div>
-                        <div className="rounded-lg bg-muted p-3">
-                          <p className="text-xs text-muted-foreground">
-                            Last Updated
-                          </p>
-                          <p className="text-sm font-medium text-foreground mt-1">
-                            {formatDate(data.item.last_date_uploaded)}
-                          </p>
+
+                        {/* Date Bought + Last Updated */}
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-lg bg-muted p-3">
+                            <p className="text-xs text-muted-foreground">Date Bought</p>
+                            <p className="text-sm font-medium text-foreground mt-1">{formatDate(data.item.date_bought)}</p>
+                          </div>
+                          <div className="rounded-lg bg-muted p-3">
+                            <p className="text-xs text-muted-foreground">Last Updated</p>
+                            <p className="text-sm font-medium text-foreground mt-1">{formatDate(data.item.last_date_uploaded)}</p>
+                          </div>
                         </div>
+
                       </div>
                     </CardContent>
                   </Card>
@@ -232,6 +254,7 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                   </Card>
                 </div>
 
+                {/* Sidebar */}
                 <div className="space-y-6">
                   <Card>
                     <CardHeader>

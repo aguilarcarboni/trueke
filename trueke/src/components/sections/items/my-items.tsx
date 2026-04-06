@@ -305,6 +305,9 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
         item.item_id === updatedItem.item_id ? updatedItem : item,
       ),
     );
+    setEditingItem((prev) =>
+      prev?.item_id === updatedItem.item_id ? updatedItem : prev,
+    );
   };
 
   const renderEmptyState = () => {
@@ -664,6 +667,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                     <div className="relative h-40 w-full overflow-hidden rounded-t-lg bg-muted">
                       {item.images && item.images.length > 0 ? (
                         <img
+                          key={item.images[0]}
                           src={item.images[0]}
                           alt={item.title}
                           className="h-full w-full object-cover"
@@ -741,15 +745,17 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
 
                           {!isDeleted && (
                             <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="flex-1 gap-1"
-                                onClick={() => handleEditClick(item)}
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                                Edit
-                              </Button>
+                              {item.status !== "traded" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="flex-1 gap-1"
+                                  onClick={() => handleEditClick(item)}
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                  Edit
+                                </Button>
+                              )}
 
                               <Button
                                 size="sm"
@@ -840,6 +846,7 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
                     <div className="h-16 w-16 overflow-hidden rounded">
                       {item.images && item.images.length > 0 ? (
                         <img
+                          key={item.images[0]}
                           src={item.images[0]}
                           alt={item.title}
                           className="h-full w-full object-cover"
@@ -899,14 +906,16 @@ export function MyItems({ userItems, onCreateItem }: MyItemsProps) {
 
                       {!isDeleted && (
                         <>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => handleEditClick(item)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          {item.status !== "traded" && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => handleEditClick(item)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
 
                           {item.status === "draft" && (
                             <>

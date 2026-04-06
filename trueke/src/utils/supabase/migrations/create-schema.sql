@@ -10,7 +10,7 @@ DO $$ BEGIN
     EXCEPTION WHEN duplicate_object THEN NULL; 
 END $$;
 DO $$ BEGIN 
-    CREATE TYPE item_status         AS ENUM ('draft', 'active', 'contested', 'traded', 'deleted');                                                     
+    CREATE TYPE item_status         AS ENUM ('draft', 'active', 'contested', 'traded', 'deleted', 'archived');                                                     
     EXCEPTION WHEN duplicate_object THEN NULL; 
 END $$;
 DO $$ BEGIN 
@@ -22,7 +22,7 @@ DO $$ BEGIN
     EXCEPTION WHEN duplicate_object THEN NULL; 
 END $$;
 DO $$ BEGIN 
-    CREATE TYPE exchange_status     AS ENUM ('pending', 'accepted', 'rejected', 'expired', 'cancelled');                                               
+    CREATE TYPE exchange_status     AS ENUM ('pending', 'accepted', 'rejected', 'expired', 'cancelled', 'completed');                                               
     EXCEPTION WHEN duplicate_object THEN NULL; 
 END $$;
 DO $$ BEGIN 

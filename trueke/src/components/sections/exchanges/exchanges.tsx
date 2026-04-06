@@ -46,7 +46,7 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
   const { exchanges, availableItems, isLoading, reloadExchanges } =
     useExchangeData(currentUserId)
 
-  const { actionLoading, handleAccept, handleReject, handleCancel } =
+  const { actionLoading, handleAccept, handleReject, handleCancel, handleComplete } =
     useExchangeActions(currentUserId, reloadExchanges)
 
   // ─── Derived state ───────────────────────────────────────────
@@ -78,6 +78,7 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
       pending: base.filter((e) => e.status === "pending").length,
       accepted: base.filter((e) => e.status === "accepted").length,
       rejected: base.filter((e) => e.status === "rejected").length,
+      completed: base.filter((e) => e.status === "completed").length,
     }
   }, [exchanges, directionFilter, currentUserId])
 
@@ -242,6 +243,9 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
           <TabsTrigger value="rejected">
             Rejected ({countByStatus.rejected})
           </TabsTrigger>
+          <TabsTrigger value="completed">
+            Completed ({countByStatus.completed})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value={statusTab} className="mt-6 space-y-4">
@@ -254,6 +258,7 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
               onAccept={handleAccept}
               onReject={handleReject}
               onCancel={handleCancel}
+              onComplete={handleComplete}
             />
           ))}
 

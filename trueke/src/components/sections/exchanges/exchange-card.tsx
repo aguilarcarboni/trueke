@@ -19,6 +19,7 @@ interface ExchangeCardProps {
   onAccept: (exchangeId: string) => Promise<void>
   onReject: (exchangeId: string) => Promise<void>
   onCancel: (exchangeId: string) => Promise<void>
+  onComplete: (exchangeId: string) => Promise<void>
 }
 
 /**
@@ -35,6 +36,7 @@ export function ExchangeCard({
   onAccept,
   onReject,
   onCancel,
+  onComplete,
 }: ExchangeCardProps) {
   const {
     exchange_id,
@@ -152,6 +154,7 @@ export function ExchangeCard({
               onAccept={onAccept}
               onReject={onReject}
               onCancel={onCancel}
+              onComplete={onComplete}
             />
           </div>
         </div>

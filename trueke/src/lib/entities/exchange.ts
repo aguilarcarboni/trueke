@@ -1,4 +1,4 @@
-export type ExchangeStatus = 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled'
+export type ExchangeStatus = 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled' | 'completed'
 export type ExchangeRole = 'initiator' | 'member'
 export type ExchangeDirection = 'offered' | 'requested'
 
@@ -76,7 +76,13 @@ export interface RejectExchangeRequest {
 
 export interface CancelExchangeRequest {
     exchange_id: string
-    initiator_user_id: string
+    /** User cancelling: must be initiator if pending; any participant if accepted */
+    actor_user_id: string
+}
+
+export interface CompleteExchangeRequest {
+    exchange_id: string
+    completing_user_id: string
 }
 
 // ─── Status Display Helpers ──────────────────────────────────────────────────
@@ -87,6 +93,7 @@ export const EXCHANGE_STATUS_LABELS: Record<ExchangeStatus, string> = {
     rejected: 'Rejected',
     expired: 'Expired',
     cancelled: 'Cancelled',
+    completed: 'Completed',
 }
 
 export const EXCHANGE_STATUS_STYLES: Record<ExchangeStatus, string> = {
@@ -95,6 +102,7 @@ export const EXCHANGE_STATUS_STYLES: Record<ExchangeStatus, string> = {
     rejected: 'bg-destructive/10 text-destructive border-destructive/20',
     expired: 'bg-muted text-muted-foreground border-border',
     cancelled: 'bg-muted text-muted-foreground border-border',
+    completed: 'bg-success/15 text-success border-success/25',
 }
 
 export function getExchangeStatusLabel(status: string): string {

@@ -57,7 +57,7 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
 export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
   'draft': 'Draft',
   'active': 'Active',
-  'contested': 'Contested',
+  'contested': 'In exchange',
   'traded': 'Traded',
   'deleted': 'Deleted',
   'archived': 'Archived',

@@ -89,7 +89,7 @@ export async function getMarketplaceItems(
             .select(
                 'item_id,title,description,condition,category,item_type,status,owner_user_id,last_date_uploaded,date_bought'
             )
-            .eq('status', 'active')
+            .in('status', ['active', 'contested'])
 
         if (filters.search) {
             // Escape SQL wildcard characters to prevent unintended matches
@@ -160,7 +160,7 @@ export async function getMarketplaceCategories(): Promise<ApiResponse<string[]>>
         const { data, error } = await supabase
             .from('item')
             .select('category')
-            .eq('status', 'active')
+            .in('status', ['active', 'contested'])
 
         if (error) return { success: false, error: error.message }
 

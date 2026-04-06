@@ -334,10 +334,28 @@ BEGIN
         RETURN;
     END IF;
 
+    -- All involved items must still be active (race-safe with app pre-check)
+    IF EXISTS (
+        SELECT 1 FROM exchange_item ei
+        JOIN item i ON i.item_id = ei.item_id
+        WHERE ei.exchange_id = p_exchange_id
+        AND i.status <> 'active'::item_status
+    ) THEN
+        RETURN QUERY SELECT FALSE, 'One or more items are no longer available for trading.'::TEXT;
+        RETURN;
+    END IF;
+
     -- Update exchange status
     UPDATE exchange
     SET status = 'accepted'::exchange_status
     WHERE exchange_id = p_exchange_id;
+
+    -- Lock items: cannot join other exchanges until cancelled or completed
+    UPDATE item
+    SET status = 'contested'::item_status
+    WHERE item_id IN (
+        SELECT item_id FROM exchange_item WHERE exchange_id = p_exchange_id
+    );
 
     RETURN QUERY SELECT TRUE, 'Exchange accepted successfully'::TEXT;
 END;
@@ -431,10 +449,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to cancel an exchange (only initiator can cancel)
+-- Cancel exchange: pending → initiator only; accepted → any participant (items → active)
+DROP FUNCTION IF EXISTS public.cancel_exchange(uuid, uuid);
+
 CREATE OR REPLACE FUNCTION cancel_exchange(
     p_exchange_id UUID,
-    p_initiator_user_id UUID
+    p_actor_user_id UUID
 )
 RETURNS TABLE(
     success BOOLEAN,
@@ -444,27 +464,43 @@ DECLARE
     v_initiator_id UUID;
     v_exchange_status exchange_status;
 BEGIN
-    -- Get exchange info
     SELECT initiator_user_id, status INTO v_initiator_id, v_exchange_status
     FROM exchange
     WHERE exchange_id = p_exchange_id;
 
-    -- Check if exchange exists
     IF NOT FOUND THEN
         RETURN QUERY SELECT FALSE, 'Exchange not found'::TEXT;
         RETURN;
     END IF;
 
-    -- Check if user is the initiator
-    IF v_initiator_id <> p_initiator_user_id THEN
-        RETURN QUERY SELECT FALSE, 'Only the initiator can cancel'::TEXT;
-        RETURN;
-    END IF;
-
-    -- Check if exchange is still pending or accepted
     IF v_exchange_status NOT IN ('pending'::exchange_status, 'accepted'::exchange_status) THEN
         RETURN QUERY SELECT FALSE, 'Exchange cannot be cancelled in its current state'::TEXT;
         RETURN;
+    END IF;
+
+    IF v_exchange_status = 'pending'::exchange_status THEN
+        IF v_initiator_id <> p_actor_user_id THEN
+            RETURN QUERY SELECT FALSE, 'Only the initiator can cancel a pending proposal'::TEXT;
+            RETURN;
+        END IF;
+    ELSE
+        IF NOT EXISTS (
+            SELECT 1 FROM exchange_participant
+            WHERE exchange_id = p_exchange_id AND user_id = p_actor_user_id
+        ) THEN
+            RETURN QUERY SELECT FALSE, 'Only participants in this exchange can cancel'::TEXT;
+            RETURN;
+        END IF;
+    END IF;
+
+    -- Accepted exchanges: release item locks back to active
+    IF v_exchange_status = 'accepted'::exchange_status THEN
+        UPDATE item
+        SET status = 'active'::item_status
+        WHERE item_id IN (
+            SELECT item_id FROM exchange_item WHERE exchange_id = p_exchange_id
+        )
+        AND status = 'contested'::item_status;
     END IF;
 
     -- Update exchange status
@@ -475,3 +511,54 @@ BEGIN
     RETURN QUERY SELECT TRUE, 'Exchange cancelled successfully'::TEXT;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Mark an accepted exchange as completed; items move contested → traded
+CREATE OR REPLACE FUNCTION complete_exchange(
+    p_exchange_id UUID,
+    p_completing_user_id UUID
+)
+RETURNS TABLE(
+    success BOOLEAN,
+    message TEXT
+) AS $$
+DECLARE
+    v_exchange_status exchange_status;
+BEGIN
+    SELECT status INTO v_exchange_status
+    FROM exchange
+    WHERE exchange_id = p_exchange_id;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT FALSE, 'Exchange not found'::TEXT;
+        RETURN;
+    END IF;
+
+    IF v_exchange_status <> 'accepted'::exchange_status THEN
+        RETURN QUERY SELECT FALSE, 'Only an accepted exchange can be marked complete'::TEXT;
+        RETURN;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM exchange_participant
+        WHERE exchange_id = p_exchange_id AND user_id = p_completing_user_id
+    ) THEN
+        RETURN QUERY SELECT FALSE, 'Not a participant in this exchange'::TEXT;
+        RETURN;
+    END IF;
+
+    UPDATE exchange
+    SET status = 'completed'::exchange_status
+    WHERE exchange_id = p_exchange_id;
+
+    UPDATE item
+    SET status = 'traded'::item_status
+    WHERE item_id IN (
+        SELECT item_id FROM exchange_item WHERE exchange_id = p_exchange_id
+    )
+    AND status = 'contested'::item_status;
+
+    RETURN QUERY SELECT TRUE, 'Exchange marked complete'::TEXT;
+END;
+$$ LANGUAGE plpgsql;
+
+GRANT EXECUTE ON FUNCTION public.complete_exchange(uuid, uuid) TO authenticated, service_role;

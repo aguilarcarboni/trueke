@@ -225,7 +225,7 @@ export function Messages({ currentUserId }: MessagesProps) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <Card className="h-[70vh] overflow-hidden">
+        <Card className="flex h-[70vh] min-h-0 flex-col overflow-hidden">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-base">
               Conversations
@@ -234,7 +234,7 @@ export function Messages({ currentUserId }: MessagesProps) {
               ) : null}
             </CardTitle>
           </CardHeader>
-          <CardContent className="h-[calc(70vh-78px)] overflow-y-auto p-2">
+          <CardContent className="min-h-0 flex-1 overflow-y-auto p-2">
             {isLoadingConversations ? (
               <div className="flex h-full items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -299,9 +299,9 @@ export function Messages({ currentUserId }: MessagesProps) {
           </CardContent>
         </Card>
 
-        <Card className="h-[70vh] overflow-hidden">
+        <Card className="flex h-[70vh] min-h-0 flex-col overflow-hidden">
           {!selectedConversation ? (
-            <CardContent className="flex h-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+            <CardContent className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center text-muted-foreground">
               <MessageSquare className="h-10 w-10" />
               <p>Select a conversation to view your message history.</p>
             </CardContent>
@@ -316,8 +316,8 @@ export function Messages({ currentUserId }: MessagesProps) {
                 </CardTitle>
               </CardHeader>
 
-              <CardContent className="flex h-[calc(70vh-78px)] flex-col p-0">
-                <div className="flex-1 overflow-y-auto px-4 py-4">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
                   {isLoadingMessages ? (
                     <div className="flex h-full items-center justify-center">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -425,7 +425,7 @@ export function Messages({ currentUserId }: MessagesProps) {
                       className="resize-none"
                     />
 
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-xs text-muted-foreground">
                         {draft.length}/{MESSAGE_MAX_LENGTH}
                       </p>
@@ -433,7 +433,7 @@ export function Messages({ currentUserId }: MessagesProps) {
                       <Button
                         onClick={handleSendMessage}
                         disabled={isSendDisabled}
-                        className="gap-2"
+                        className="gap-2 self-end sm:self-auto"
                       >
                         {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         Send a message

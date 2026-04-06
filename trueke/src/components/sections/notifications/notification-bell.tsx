@@ -38,11 +38,13 @@ function getIcon(type: NotificationType) {
 
 // ─── Deep-link routes by reference_type ──────────────────────────────────────
 
-function getDeepLink(referenceType: string | null): string | null {
+function getDeepLink(referenceType: string | null, referenceId: string | null): string | null {
   if (!referenceType) return null
+  if (referenceType === 'message' && referenceId) {
+    return `/messages?conversationId=${referenceId}`
+  }
   const routes: Record<string, string> = {
     exchange: '/exchanges',
-    message: '/messages',
     meeting: '/exchanges', // meetings are exchange-related for now
     item: '/items',
     user: '/profile',
@@ -86,9 +88,13 @@ export function NotificationBell() {
   }
 
   /** Navigate to the related page (closes popover). */
-  const handleNavigate = (e: React.MouseEvent, referenceType: string | null) => {
+  const handleNavigate = (
+    e: React.MouseEvent,
+    referenceType: string | null,
+    referenceId: string | null
+  ) => {
     e.stopPropagation()
-    const route = getDeepLink(referenceType)
+    const route = getDeepLink(referenceType, referenceId)
     if (route) {
       setOpen(false)
       router.push(route)
@@ -172,12 +178,16 @@ export function NotificationBell() {
                       </div>
 
                       {/* Navigate link (if applicable) */}
-                      {getDeepLink(n.reference_type) && (
+                      {getDeepLink(n.reference_type, n.reference_id) && (
                         <div
                           role="button"
                           tabIndex={0}
-                          onClick={(e) => handleNavigate(e, n.reference_type)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleNavigate(e as unknown as React.MouseEvent, n.reference_type) }}
+                          onClick={(e) => handleNavigate(e, n.reference_type, n.reference_id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleNavigate(e as unknown as React.MouseEvent, n.reference_type, n.reference_id)
+                            }
+                          }}
                           className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors"
                           title="Go to page"
                         >

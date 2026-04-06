@@ -1,9 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowLeftRight, ArrowUpRight, ArrowDownLeft } from "lucide-react"
+import Link from "next/link"
+import { ArrowLeftRight, ArrowUpRight, ArrowDownLeft, MessageSquare } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { ExchangeStatusBadge } from "@/components/sections/exchanges/exchange-status-badge"
 import { ExchangeItemList } from "@/components/sections/exchanges/exchange-item-list"
 import { ExchangeActionButtons } from "@/components/sections/exchanges/exchange-action-buttons"
@@ -134,7 +136,13 @@ export function ExchangeCard({
           </div>
 
           {/* Right: Action buttons */}
-          <div className="shrink-0">
+          <div className="shrink-0 space-y-2">
+            <Button asChild variant="outline" size="sm" className="w-full gap-2">
+              <Link href={`/messages?exchangeId=${exchange_id}`}>
+                <MessageSquare className="h-4 w-4" />
+                Send a message
+              </Link>
+            </Button>
             <ExchangeActionButtons
               exchangeId={exchange_id}
               status={status}

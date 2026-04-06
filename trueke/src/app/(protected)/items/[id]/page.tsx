@@ -7,7 +7,7 @@ import { authOptions } from "@/utils/auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ReportItemButton } from "@/components/sections/items/report-item-button"
 
@@ -89,7 +89,11 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
       <div className="flex flex-col flex-1 min-w-0 lg:ml-64">
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <div className="mx-auto max-w-5xl space-y-6">
-            <Button variant="ghost" className="gap-2 text-muted-foreground hover:text-foreground" asChild>
+            <Button
+              variant="ghost"
+              className="gap-2 text-muted-foreground hover:text-foreground"
+              asChild
+            >
               <Link href="/marketplace">
                 <ArrowLeft className="h-4 w-4" />
                 Back to Marketplace
@@ -110,14 +114,18 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
             {error && (
               <Card>
                 <CardContent className="pt-6 space-y-4">
-                  <h1 className="text-xl font-semibold text-card-foreground">Unable to show item details</h1>
+                  <h1 className="text-xl font-semibold text-card-foreground">
+                    Unable to show item details
+                  </h1>
                   <p className="text-sm text-muted-foreground">{error}</p>
                   <div className="flex gap-3">
                     <Button variant="outline" asChild>
                       <Link href="/items">Back to My Items</Link>
                     </Button>
                     <Button asChild>
-                      <Link href={`/items/${encodeURIComponent(itemId || "")}`}>Retry</Link>
+                      <Link href={`/items/${encodeURIComponent(itemId || "")}`}>
+                        Retry
+                      </Link>
                     </Button>
                   </div>
                 </CardContent>
@@ -132,45 +140,68 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                     <CardContent className="pt-6">
                       <div className="space-y-6">
 
-                        {/* Images */}
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-muted-foreground">Item Images</p>
-                          {data.images.length > 0 ? (
-                            <div className="space-y-2">
-                              <div className="w-full aspect-video rounded-lg bg-muted overflow-hidden">
-                                <img
-                                  src={data.images[0]}
-                                  alt={data.item.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              {data.images.length > 1 && (
-                                <div className="grid grid-cols-4 gap-2">
-                                  {data.images.map((img, i) => (
-                                    <div key={img} className="relative">
-                                      <div className="w-full h-16 rounded-lg bg-muted overflow-hidden">
-                                        <img src={img} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
-                                      </div>
-                                      {i === 0 && (
-                                        <span className="absolute top-1 left-1 rounded bg-black/60 px-1 text-[10px] font-medium text-white">Main</span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+                        {/* Header: title + badges */}
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <h1 className="text-xl font-bold text-card-foreground">{data.item.title}</h1>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <Badge variant="secondary">{data.item.category}</Badge>
+                              <Badge
+                                variant="outline"
+                                className={conditionStyles[data.item.condition] || "bg-muted text-muted-foreground border-border"}
+                              >
+                                {ITEM_CONDITION_LABELS[data.item.condition as keyof typeof ITEM_CONDITION_LABELS] ?? formatLabel(data.item.condition)}
+                              </Badge>
+                              <Badge variant="outline">{formatLabel(data.item.item_type)}</Badge>
                             </div>
-                          ) : (
-                            <div className="w-full aspect-video rounded-lg bg-muted flex items-center justify-center">
-                              <Package className="h-16 w-16 text-muted-foreground" />
-                            </div>
-                          )}
+                          </div>
+                          <Badge variant="outline" className={getStatusStyle(data.item.status)}>
+                            {getStatusLabel(data.item.status)}
+                          </Badge>
                         </div>
 
-                        {/* Title */}
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Item Name</p>
-                          <h1 className="text-xl font-bold text-card-foreground">{data.item.title}</h1>
+                        {/* Images */}
+                        {data.images.length > 0 ? (
+                          <div className="space-y-2">
+                            <div className="w-full aspect-video rounded-lg bg-muted overflow-hidden">
+                              <img
+                                src={data.images[0]}
+                                alt={data.item.title}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            {data.images.length > 1 && (
+                              <div className="grid grid-cols-4 gap-2">
+                                {data.images.map((img, i) => (
+                                  <div key={img} className="relative">
+                                    <div className="w-full h-16 rounded-lg bg-muted overflow-hidden">
+                                      <img src={img} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
+                                    </div>
+                                    {i === 0 && (
+                                      <span className="absolute top-1 left-1 rounded bg-black/60 px-1 text-[10px] font-medium text-white">Main</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="w-full aspect-video rounded-lg bg-muted flex items-center justify-center">
+                            <Package className="h-16 w-16 text-muted-foreground" />
+                          </div>
+                        )}
+
+                        <Separator />
+
+                        {/* Description */}
+                        <div className="space-y-2">
+                          <h2 className="text-sm font-semibold text-card-foreground">Description</h2>
+                          <p className="text-sm leading-relaxed text-card-foreground">
+                            {data.item.description || "No description provided."}
+                          </p>
                         </div>
+
+                        <Separator />
 
                         {/* Category + Type */}
                         <div className="grid gap-6 sm:grid-cols-2">
@@ -184,51 +215,40 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                           </div>
                         </div>
 
-                        {/* Condition + Status */}
-                        <div className="grid gap-6 sm:grid-cols-2">
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-muted-foreground">Condition</p>
-                            <p className="text-sm font-semibold text-card-foreground">
-                              {ITEM_CONDITION_LABELS[data.item.condition as keyof typeof ITEM_CONDITION_LABELS] ?? formatLabel(data.item.condition)}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-muted-foreground">Status</p>
-                            <Badge variant="outline" className={getStatusStyle(data.item.status)}>
-                              {getStatusLabel(data.item.status)}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        {/* Address */}
+                        {/* Condition */}
                         <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Location</p>
-                          <div className="flex items-start gap-2 text-sm text-card-foreground">
-                            <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-                            <p>{formatAddress(data.address)}</p>
-                          </div>
-                        </div>
-
-                        {/* Description */}
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-muted-foreground">Description</p>
-                          <p className="text-sm leading-relaxed text-card-foreground">
-                            {data.item.description || "No description provided."}
+                          <p className="text-sm font-medium text-muted-foreground">Condition</p>
+                          <p className="text-sm font-semibold text-card-foreground">
+                            {ITEM_CONDITION_LABELS[data.item.condition as keyof typeof ITEM_CONDITION_LABELS] ?? formatLabel(data.item.condition)}
                           </p>
                         </div>
 
                         {/* Date Bought + Last Updated */}
-                        <div className="grid gap-6 sm:grid-cols-2">
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-muted-foreground">Date Bought</p>
-                            <p className="text-sm font-semibold text-card-foreground">{formatDate(data.item.date_bought)}</p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-lg bg-muted p-3">
+                            <p className="text-xs text-muted-foreground">Date Bought</p>
+                            <p className="text-sm font-medium text-foreground mt-1">{formatDate(data.item.date_bought)}</p>
                           </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-muted-foreground">Last Updated</p>
-                            <p className="text-sm font-semibold text-card-foreground">{formatDate(data.item.last_date_uploaded)}</p>
+                          <div className="rounded-lg bg-muted p-3">
+                            <p className="text-xs text-muted-foreground">Last Updated</p>
+                            <p className="text-sm font-medium text-foreground mt-1">{formatDate(data.item.last_date_uploaded)}</p>
                           </div>
                         </div>
 
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base text-card-foreground">
+                        Location
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4 mt-0.5 text-primary" />
+                        <p>{formatAddress(data.address)}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -237,11 +257,18 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                 {/* Sidebar */}
                 <div className="space-y-6">
                   <Card>
-                    <CardContent className="pt-6 space-y-4">
-                      <p className="text-sm font-semibold text-card-foreground">Owner</p>
+                    <CardHeader>
+                      <CardTitle className="text-base text-card-foreground">
+                        Owner
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-11 w-11">
-                          <AvatarImage src={data.owner.profile_picture_url || undefined} alt={data.owner.username} />
+                          <AvatarImage
+                            src={data.owner.profile_picture_url || undefined}
+                            alt={data.owner.username}
+                          />
                           <AvatarFallback>
                             <UserRound className="h-4 w-4" />
                           </AvatarFallback>
@@ -250,7 +277,9 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                           <p className="text-sm font-semibold text-foreground">
                             {data.owner.first_name} {data.owner.last_name}
                           </p>
-                          <p className="text-xs text-muted-foreground">@{data.owner.username}</p>
+                          <p className="text-xs text-muted-foreground">
+                            @{data.owner.username}
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -264,15 +293,24 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
                           Create An Item
                         </Link>
                       </Button>
-                      <Button variant="outline" className="w-full gap-2" asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2"
+                        asChild
+                      >
                         <Link href="/items">
                           <CalendarDays className="h-4 w-4" />
                           Go to My Items
                         </Link>
                       </Button>
-                      {currentUserId && currentUserId !== data.owner.user_id && (
-                        <ReportItemButton itemId={itemId || ""} itemTitle={data.item.title} alreadyReported={alreadyReported} />
-                      )}
+                      {currentUserId &&
+                        currentUserId !== data.owner.user_id && (
+                          <ReportItemButton
+                            itemId={itemId || ""}
+                            itemTitle={data.item.title}
+                            alreadyReported={alreadyReported}
+                          />
+                        )}
                     </CardContent>
                   </Card>
                 </div>
@@ -282,5 +320,5 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
         </main>
       </div>
     </div>
-  )
+  );
 }

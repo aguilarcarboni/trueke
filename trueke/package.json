@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "NODE_OPTIONS=--experimental-require-module vitest run",
+    "test:watch": "NODE_OPTIONS=--experimental-require-module vitest",
+    "test:coverage": "NODE_OPTIONS=--experimental-require-module vitest run --coverage"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -70,13 +73,20 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.13",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22",
     "@types/nodemailer": "^7.0.11",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "^4.1.2",
+    "jsdom": "^27.0.1",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "vitest": "^4.1.2"
   }
 }

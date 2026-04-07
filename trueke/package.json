@@ -83,6 +83,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^4.1.2",
     "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.2",
     "jsdom": "^27.0.1",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",

@@ -12,8 +12,6 @@ import {
   ITEM_STATUS_STYLES,
   ITEM_CONDITIONS,
   ITEM_STATUSES,
-  type ItemCondition,
-  type ItemStatus,
 } from './item'
 
 describe('getConditionLabel', () => {

@@ -18,7 +18,7 @@ describe('AddressSchema', () => {
   })
 
   it('accepts an address without optional fields (addressLine2, muniDistrict)', () => {
-    const { addressLine2: _l2, muniDistrict: _md, ...minimal } = VALID_ADDRESS
+    const { addressLine2: _, muniDistrict: __, ...minimal } = VALID_ADDRESS
     const result = AddressSchema.safeParse(minimal)
     expect(result.success).toBe(true)
   })

@@ -1,5 +1,5 @@
 'use client'
-import "../globals.css";
+// import "../globals.css";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";

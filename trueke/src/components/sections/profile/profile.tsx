@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Star, MapPin, Calendar, Edit, Shield, Lock, Mail} from "lucide-react"
+import { MapPin, Calendar, Edit, Shield, Lock, Mail} from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -12,16 +12,21 @@ import { EditProfileDialog } from "@/components/sections/profile/edit-profile-di
 import { getConditionLabel, getStatusLabel } from "@/lib/entities/item"
 import { useSession } from "next-auth/react"
 import { getProfileAction } from "@/app/actions/profile"
+import { getUserRatingSummary } from "@/app/actions/review"
 import type { UserProfile } from "@/lib/entities/profile"
+import type { UserRatingSummary } from "@/lib/entities/review"
 import { createClient } from "@/utils/supabase/client"
 import { ChangePasswordDialog } from "@/components/sections/profile/credentials/ChangePasswordDialog"
 import { ChangeEmailDialog } from "@/components/sections/profile/credentials/ChangeEmailDialog"
+import { UserRatingStars } from "@/components/sections/profile/user-rating-stars"
+import { UserReviewsList } from "@/components/sections/profile/user-reviews-list"
 
 const PROFILE_IMAGES_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_PROFILE_IMAGES_BUCKET || "images"
 
 export function Profile() {
   const { data: session } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [ratingSummary, setRatingSummary] = useState<UserRatingSummary | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [credentialsDialogOpen, setCredentialsDialogOpen] = useState(false)
   const [credentialsDialogMode, setCredentialsDialogMode] = useState<"password" | "email" | null>(null)
@@ -32,9 +37,14 @@ export function Profile() {
 
     async function fetchProfile() {
       if (!session?.user?.id) return
-      const userProfile = await getProfileAction(session.user.id)
-      console.log("Fetched profile:", userProfile)
+      const [userProfile, ratingResult] = await Promise.all([
+        getProfileAction(session.user.id),
+        getUserRatingSummary(session.user.id),
+      ])
       setProfile(userProfile)
+      if (ratingResult.success && ratingResult.data) {
+        setRatingSummary(ratingResult.data)
+      }
     }
     fetchProfile()
   }, [session?.user?.id, profileRefreshKey])
@@ -100,11 +110,13 @@ export function Profile() {
               )}
             </div>
             
-            {/* Static 5-star rating for now */} 
-            <div className="flex items-center justify-center gap-1">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} className="h-5 w-5 text-muted" />
-              ))}
+            {/* User rating stars */}
+            <div className="flex justify-center">
+              <UserRatingStars
+                averageRating={ratingSummary?.average_rating ?? 0}
+                totalReviews={ratingSummary?.total_reviews ?? 0}
+                size="lg"
+              />
             </div>
               
 
@@ -150,23 +162,42 @@ export function Profile() {
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="flex items-center justify-between">
-              <span className="text-3xl font-bold text-foreground">92</span>
-              <Badge className="bg-success/10 text-success border border-success/20">Trusted Trader</Badge>
+              <span className="text-3xl font-bold text-foreground">
+                {ratingSummary && ratingSummary.total_reviews > 0
+                  ? ratingSummary.average_rating.toFixed(1)
+                  : "—"}
+              </span>
+              {ratingSummary && ratingSummary.total_reviews > 0 && (
+                <Badge className="bg-success/10 text-success border border-success/20">
+                  {ratingSummary.average_rating >= 4
+                    ? "Trusted Trader"
+                    : ratingSummary.average_rating >= 3
+                    ? "Good Trader"
+                    : "New Trader"}
+                </Badge>
+              )}
             </div>
-            <Progress value={92} className="h-2" />
+            {ratingSummary && ratingSummary.total_reviews > 0 && (
+              <Progress value={(ratingSummary.average_rating / 5) * 100} className="h-2" />
+            )}
 
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {[
-                { label: "Completed Trades", value: "47" },
-                { label: "Response Rate", value: "96%" },
-                { label: "Meeting Participation Rate", value: "98%" },
-                { label: "Positive Reviews", value: "45" },
-              ].map((metric) => (
-                <div key={metric.label} className="rounded-lg bg-muted p-3">
-                  <p className="text-lg font-bold text-foreground">{metric.value}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{metric.label}</p>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="rounded-lg bg-muted p-3">
+                <p className="text-lg font-bold text-foreground">
+                  {ratingSummary?.average_rating?.toFixed(1) ?? "0.0"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Avg Rating</p>
+              </div>
+              <div className="rounded-lg bg-muted p-3">
+                <p className="text-lg font-bold text-foreground">
+                  {ratingSummary?.total_reviews ?? 0}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Total Reviews</p>
+              </div>
+              <div className="rounded-lg bg-muted p-3">
+                <p className="text-lg font-bold text-foreground">{exchanges.length}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Completed Trades</p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -238,35 +269,10 @@ export function Profile() {
           </CardContent>
         </Card>
 
-        {/* Recent Trades */}
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-card-foreground">Trade History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {exchanges.slice(0, 3).map((ex) => (
-                <div key={ex.id} className="flex items-center gap-4 rounded-lg border border-border p-3">
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarImage src={ex.initiator.avatar} alt={ex.initiator.name} />
-                    <AvatarFallback>{ex.initiator.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{ex.initiator.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {ex.type} trade &middot;{" "}
-                      {new Date(ex.createdAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="capitalize text-xs">{ex.status}</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* User Reviews */}
+        <div className="lg:col-span-3">
+          {session?.user?.id && <UserReviewsList userId={session.user.id} />}
+        </div>
       </div>
     </div>
 

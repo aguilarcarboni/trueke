@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeftRight, ArrowUpRight, ArrowDownLeft, MessageSquare } from "lucide-react"
+import { ArrowLeftRight, ArrowUpRight, ArrowDownLeft, MessageSquare, Star } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,8 @@ import { ExchangeStatusBadge } from "@/components/sections/exchanges/exchange-st
 import { ExchangeItemList } from "@/components/sections/exchanges/exchange-item-list"
 import { ExchangeActionButtons } from "@/components/sections/exchanges/exchange-action-buttons"
 import { UserProfileDialog } from "@/components/sections/exchanges/user-profile-dialog"
+import { ReviewDialog } from "@/components/sections/exchanges/review-dialog"
+import { hasUserReviewedExchange } from "@/app/actions/review"
 import type { ExchangeListItemEnriched } from "@/lib/entities/exchange"
 
 interface ExchangeCardProps {
@@ -56,6 +58,25 @@ export function ExchangeCard({
   const otherUserId = isSent ? exchange.target_user_id : initiator_id
 
   const [profileOpen, setProfileOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [hasReviewed, setHasReviewed] = useState(false)
+
+  // Check if user already reviewed this completed exchange
+  useEffect(() => {
+    if (status !== "completed") return
+    let cancelled = false
+    async function check() {
+      const result = await hasUserReviewedExchange(exchange_id, currentUserId)
+      if (!cancelled && result.success) {
+        setHasReviewed(result.data ?? false)
+      }
+    }
+    check()
+    return () => { cancelled = true }
+  }, [status, exchange_id, currentUserId])
+
+  // The items the current user RECEIVED (for condition reviews)
+  const receivedItems = isSent ? requested_items : offered_items
 
   return (
     <>
@@ -63,6 +84,16 @@ export function ExchangeCard({
       userId={otherUserId}
       open={profileOpen}
       onOpenChange={setProfileOpen}
+    />
+    <ReviewDialog
+      open={reviewOpen}
+      onOpenChange={setReviewOpen}
+      exchangeId={exchange_id}
+      currentUserId={currentUserId}
+      otherUserId={otherUserId}
+      otherUserName={otherUserName}
+      receivedItems={receivedItems}
+      onSuccess={() => setHasReviewed(true)}
     />
     <Card className="transition-all hover:shadow-md">
       <CardContent className="pt-6">
@@ -145,6 +176,22 @@ export function ExchangeCard({
                 Send a message
               </Link>
             </Button>
+            {status === "completed" && !hasReviewed && (
+              <Button
+                size="sm"
+                variant="default"
+                className="w-full gap-2"
+                onClick={() => setReviewOpen(true)}
+              >
+                <Star className="h-4 w-4" />
+                Leave Review
+              </Button>
+            )}
+            {status === "completed" && hasReviewed && (
+              <Badge variant="outline" className="w-full justify-center py-1.5 text-xs bg-success/10 text-success border-success/20">
+                Reviewed
+              </Badge>
+            )}
             <ExchangeActionButtons
               exchangeId={exchange_id}
               status={status}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { MapPin, Calendar, Star } from "lucide-react"
+import { MapPin, Calendar } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getPublicProfileAction } from "@/app/actions/profile"
+import { getUserRatingSummary, getUserReviews } from "@/app/actions/review"
+import { UserRatingStars } from "@/components/sections/profile/user-rating-stars"
 import type { PublicUserProfile } from "@/lib/entities/profile"
+import type { UserRatingSummary } from "@/lib/entities/review"
+import type { Review } from "@/lib/entities/review"
+import { Star } from "lucide-react"
 
 interface UserProfileDialogProps {
   userId: string | null
@@ -29,6 +34,8 @@ interface UserProfileDialogProps {
  */
 export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDialogProps) {
   const [profile, setProfile] = useState<PublicUserProfile | null>(null)
+  const [ratingSummary, setRatingSummary] = useState<UserRatingSummary | null>(null)
+  const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -37,9 +44,19 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
     async function load() {
       setLoading(true)
-      const data = await getPublicProfileAction(userId!)
+      const [profileData, ratingResult, reviewsResult] = await Promise.all([
+        getPublicProfileAction(userId!),
+        getUserRatingSummary(userId!),
+        getUserReviews(userId!, 5),
+      ])
       if (!cancelled) {
-        setProfile(data)
+        setProfile(profileData)
+        if (ratingResult.success && ratingResult.data) {
+          setRatingSummary(ratingResult.data)
+        }
+        if (reviewsResult.success && reviewsResult.data) {
+          setReviews(reviewsResult.data)
+        }
         setLoading(false)
       }
     }
@@ -52,7 +69,11 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
 
   // Reset when closed so stale data doesn't flash on reopen
   useEffect(() => {
-    if (!open) setProfile(null)
+    if (!open) {
+      setProfile(null)
+      setRatingSummary(null)
+      setReviews([])
+    }
   }, [open])
 
   const displayName = profile
@@ -105,14 +126,43 @@ export function UserProfileDialog({ userId, open, onOpenChange }: UserProfileDia
               </p>
             )}
 
-            {/* Star rating placeholder */}
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} className="h-4 w-4 text-muted" />
-              ))}
-            </div>
+            {/* User rating */}
+            <UserRatingStars
+              averageRating={ratingSummary?.average_rating ?? 0}
+              totalReviews={ratingSummary?.total_reviews ?? 0}
+              size="md"
+            />
 
             <Separator />
+
+            {/* Recent reviews */}
+            {reviews.length > 0 && (
+              <div className="w-full space-y-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recent Reviews</p>
+                {reviews.map((review) => (
+                  <div key={review.review_id} className="flex items-start gap-2 text-left">
+                    <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          className={`h-3 w-3 ${s <= review.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      {review.comment && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{review.comment}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">
+                        by {review.reviewer_name ?? "Anonymous"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {reviews.length > 0 && <Separator />}
 
             {/* Joined date */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

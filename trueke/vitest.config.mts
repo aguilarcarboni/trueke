@@ -10,6 +10,7 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     exclude: ['node_modules', '.next', 'src/components/ui/**'],
+    pool: 'threads',
     coverage: {
       provider: 'v8',
       include: [

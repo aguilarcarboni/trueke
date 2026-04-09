@@ -99,7 +99,7 @@ export function useExchangeActions(
         if (result.success) {
           toast({
             title: "Trade completed",
-            description: "This exchange is closed and the items are marked as traded.",
+            description: "This exchange is closed. Don't forget to leave a review!",
           })
           await onSuccess()
         } else {

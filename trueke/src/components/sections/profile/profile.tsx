@@ -13,8 +13,10 @@ import { getConditionLabel, getStatusLabel } from "@/lib/entities/item"
 import { useSession } from "next-auth/react"
 import { getProfileAction } from "@/app/actions/profile"
 import { getUserRatingSummary } from "@/app/actions/review"
+import { getMyItems, getUserExchanges } from "@/app/actions/exchange"
 import type { UserProfile } from "@/lib/entities/profile"
 import type { UserRatingSummary } from "@/lib/entities/review"
+import type { Item } from "@/lib/entities/item"
 import { createClient } from "@/utils/supabase/client"
 import { ChangePasswordDialog } from "@/components/sections/profile/credentials/ChangePasswordDialog"
 import { ChangeEmailDialog } from "@/components/sections/profile/credentials/ChangeEmailDialog"
@@ -27,6 +29,8 @@ export function Profile() {
   const { data: session } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [ratingSummary, setRatingSummary] = useState<UserRatingSummary | null>(null)
+  const [userItems, setUserItems] = useState<Item[]>([])
+  const [completedTradesCount, setCompletedTradesCount] = useState(0)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [credentialsDialogOpen, setCredentialsDialogOpen] = useState(false)
   const [credentialsDialogMode, setCredentialsDialogMode] = useState<"password" | "email" | null>(null)
@@ -37,13 +41,21 @@ export function Profile() {
 
     async function fetchProfile() {
       if (!session?.user?.id) return
-      const [userProfile, ratingResult] = await Promise.all([
+      const [userProfile, ratingResult, itemsResult, completedResult] = await Promise.all([
         getProfileAction(session.user.id),
         getUserRatingSummary(session.user.id),
+        getMyItems(session.user.id),
+        getUserExchanges(session.user.id, "completed"),
       ])
       setProfile(userProfile)
       if (ratingResult.success && ratingResult.data) {
         setRatingSummary(ratingResult.data)
+      }
+      if (itemsResult.success && itemsResult.data) {
+        setUserItems(itemsResult.data)
+      }
+      if (completedResult.success && completedResult.data) {
+        setCompletedTradesCount(completedResult.data.length)
       }
     }
     fetchProfile()
@@ -52,9 +64,6 @@ export function Profile() {
   if (!session?.user) {
     return null
   }
-
-  const userItems:any[] = []
-  const exchanges: any[] = []
 
   const displayName = `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim() || profile?.username || "User"
 
@@ -124,8 +133,8 @@ export function Profile() {
 
             <div className="grid grid-cols-2 gap-4 text-center">
               <div>
-                <p className="text-2xl font-bold text-foreground">{exchanges.length}</p>
-                <p className="text-xs text-muted-foreground">Total Trades</p>
+                <p className="text-2xl font-bold text-foreground">{completedTradesCount}</p>
+                <p className="text-xs text-muted-foreground">Completed Trades</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{userItems.length}</p>
@@ -195,7 +204,7 @@ export function Profile() {
                 <p className="text-xs text-muted-foreground mt-0.5">Total Reviews</p>
               </div>
               <div className="rounded-lg bg-muted p-3">
-                <p className="text-lg font-bold text-foreground">{exchanges.length}</p>
+                <p className="text-lg font-bold text-foreground">{completedTradesCount}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">Completed Trades</p>
               </div>
             </div>
@@ -246,20 +255,24 @@ export function Profile() {
             {userItems.length > 0 ? (
               <div className="space-y-3">
                 {userItems.map((item) => (
-                  <div key={item.id} className="flex items-center gap-4 rounded-lg border border-border p-3">
-                    <img
-                      src={item.images[0]}
-                      alt={item.title}
-                      className="h-14 w-14 rounded-lg object-cover"
-                      crossOrigin="anonymous"
-                    />
+                  <div key={item.item_id} className="flex items-center gap-4 rounded-lg border border-border p-3">
+                    {item.images?.[0] ? (
+                      <img
+                        src={item.images[0]}
+                        alt={item.title}
+                        className="h-14 w-14 rounded-lg object-cover"
+                        crossOrigin="anonymous"
+                      />
+                    ) : (
+                      <div className="h-14 w-14 rounded-lg bg-muted" />
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {item.category} &middot; {getConditionLabel(item.condition)}
                       </p>
                     </div>
-                    <Badge variant="outline" className="capitalize text-xs">{getStatusLabel(item.state)}</Badge>
+                    <Badge variant="outline" className="capitalize text-xs">{getStatusLabel(item.status)}</Badge>
                   </div>
                 ))}
               </div>

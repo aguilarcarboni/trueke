@@ -297,9 +297,9 @@ export function Marketplace({ currentUserId }: MarketplaceProps) {
               <div
                 key={item.item_id}
                 onClick={() => router.push(`/items/${item.item_id}`)}
-                className="group cursor-pointer overflow-hidden rounded-xl border border-border bg-card transition-all hover:shadow-lg"
+                className="group cursor-pointer overflow-hidden rounded-xl border border-border bg-card transition-all hover:shadow-lg flex flex-col"
               >
-                <div className="relative overflow-hidden">
+                <div className="relative overflow-hidden aspect-square">
                   <img
                     src={item.images?.[0] || PLACEHOLDER_IMAGE}
                     alt={item.title}
@@ -317,10 +317,10 @@ export function Marketplace({ currentUserId }: MarketplaceProps) {
                     </Badge>
                   </div>
                 </div>
-                <div className="p-4">
+                <div className="p-4 flex flex-col flex-1">
                   <h3 className="text-sm font-semibold text-card-foreground truncate">{item.title}</h3>
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
-                  <div className="mt-3 flex items-center justify-between">
+                  <div className="mt-auto pt-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={item.owner_avatar || ""} alt={item.owner_name} />

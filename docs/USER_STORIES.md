@@ -136,6 +136,65 @@ AC5: The total number of ratings is shown alongside the average (e.g., "4.5 (12 
 
 ---
 
+### [AUTH-3.5] Credential Change Notifications
+
+**Status:** New
+
+**Description**
+
+Credential Change Email Notifications.
+As a user
+I want to receive an email notification when my password or email is changed
+So that I am immediately aware of any credential changes on my account and can take action if the change was not authorized
+
+**Acceptance Criteria:** JIRA
+
+AC1: When my password is successfully changed, I receive an email notification at my registered email address confirming the change.
+AC2: The password change notification email includes the date and time of the change and a recommendation to secure the account if the change was not initiated by me.
+AC3: When my email address is successfully changed, a confirmation notification is sent to both the old email address and the new email address.
+AC4: The notification sent to the old email informs that the email was changed and provides a way to contact support if the change was not authorized.
+AC5: The notification sent to the new email confirms that it is now the active email address for the account.
+
+**Comments:**
+
+- Email delivery depends on the same transactional email infrastructure required by [AUTH-3.1] (password recovery). If using Resend/SendGrid, the password-change and email-change notifications are additional email templates.
+- For the email change flow (AC3–AC5), the server action should send both emails before (or immediately after) committing the email update to the DB. Sending to the old email first ensures delivery even if the old email is no longer associated.
+- **Security note:** The notification to the old email (AC4) serves as an alert mechanism in case of account takeover—it should include a support contact or a link to report unauthorized changes.
+- Consider including a "If this wasn't you, reset your password immediately" call-to-action with a link to the password recovery flow ([AUTH-3.1]) in the password change notification email.
+
+---
+
+### [AUTH-3.6] Password Reuse Prevention
+
+**Status:** New
+
+**Description**
+
+Password History Enforcement.
+As a user
+I want to be prevented from reusing my recent passwords when changing my password
+So that my account stays secure and I am encouraged to use new, unique passwords
+
+**Acceptance Criteria:** JIRA
+
+AC1: I cannot set a new password that matches any of my previous 3 passwords. If I attempt to, a clear error message is displayed (e.g., "You cannot reuse any of your last 3 passwords").
+AC2: The password history check also includes my current active password (i.e., I cannot "change" to the same password I already have).
+AC3: Password history is maintained automatically — each time my password is changed, the old password is recorded in the history.
+AC4: The password history is not visible or accessible to me or anyone else — it is used only for validation purposes.
+
+**Comments:**
+
+- Implementation requires a new `password_history` table with columns: `history_id` (PK), `user_id` (FK → user), `password_hash CHAR(60)`, and `created_at TIMESTAMPTZ DEFAULT NOW()`. Each time a password is changed, the old hash is inserted into this table before updating `user.password_hash`.
+- On password change, the server action must compare the new password (via `bcrypt.compare`) against the most recent 3 entries in `password_history` for that user. If any match, reject the change.
+- The query to check history: `SELECT password_hash FROM password_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 3`.
+- AC2 requires also comparing against the current `user.password_hash` (the active password) in addition to the 3 historical entries — effectively checking the last 4 hashes total (1 current + 3 historical).
+- Since `bcrypt.compare` is an async operation, the check requires iterating over the historical hashes and comparing each one. There is no shortcut — bcrypt hashes are salted, so direct string comparison is not possible.
+- Consider periodically pruning old `password_history` entries (e.g., keep only the last 5 per user) to prevent unbounded table growth, though with only one entry per password change the growth rate is minimal.
+- AC4 (security): The `password_history` table should never be exposed through any API or server action response. It is strictly an internal validation mechanism.
+- This story extends [AUTH-3.3] (Change Password or Email) with password reuse prevention. It also applies to [AUTH-3.1] (Password Recovery) — when resetting a password via the recovery flow, the same history check should be enforced.
+
+---
+
 ## EPIC: User Control & Management *(new)*
 
 ---
@@ -899,6 +958,61 @@ AC6: Email and web pop-up notifications are opt-in.
 - **Email notifications (AC3):** Requires an email delivery service (same dependency as [AUTH-3.1] password recovery). Emails would be triggered by a background worker or Supabase Edge Function that processes queued notifications with `delivery_channel = 'email'`.
 - **For MVP, recommend focusing on in-app notifications only.** Email and web push can be addressed in a later iteration once the email service infrastructure is in place.
 - The `priority` column (`'low' | 'normal' | 'high'`) and `expires_at` column can be used to order the notification inbox and auto-dismiss stale alerts.
+
+---
+
+## EPIC: Account Consolidation *(new)*
+
+---
+
+### [ACCT-1.1] Merge Accounts
+
+**Status:** New
+
+**Description**
+
+Account Merging.
+As a user who has multiple accounts (e.g., registered with different email addresses)
+I want to merge two accounts into one
+So that all my items, exchanges, ratings, messages, and history are consolidated under a single account
+
+**Acceptance Criteria:** JIRA
+
+AC1: From my account settings, I can initiate a request to merge another account into my current one.
+AC2: To start the merge, I must provide the email address of the other account I own.
+AC3: The system sends a verification email to the other account's email address with a confirmation link or code to prove ownership.
+AC4: The merge only proceeds after the other account's ownership is verified (e.g., by clicking the confirmation link or entering the code).
+AC5: After a successful merge, all data from the secondary account is transferred to the primary (current) account, including: items, exchange history, messages/conversations, ratings received, list memberships, and notification history.
+AC6: The secondary account is deactivated after the merge and can no longer be used to log in.
+AC7: A confirmation email is sent to both email addresses informing them that the merge was completed.
+AC8: If the secondary account has active (pending or contested) exchanges, the user is informed and must resolve or cancel them before the merge can proceed.
+AC9: After the merge, the primary account retains its original email, username, and profile. The secondary account's email becomes an alias or is simply disassociated.
+AC10: The merge action is recorded in an audit log for administrative reference.
+
+**Comments:**
+
+- This is a complex data migration operation that must be executed within a single DB transaction (or a carefully ordered series of updates) to avoid partial merges.
+- **Data transfer checklist** — the following tables have `user_id` foreign keys that must be re-pointed from the secondary user to the primary user:
+  - `item.owner_id` — transfer all items.
+  - `exchange` — update `initiator_user_id` or participant references (depends on exchange schema).
+  - `exchange_item` — items already transfer via `item.owner_id`.
+  - `negotiation_participant.user_id` — re-assign conversation memberships.
+  - `message.sender_user_id` — re-attribute sent messages.
+  - `user_rating.rated_user_id` and `user_rating.by_user_id` — transfer both received and given ratings.
+  - `user_list.owner_id` — transfer custom lists.
+  - `user_list_member.member_user_id` — update list memberships where the secondary user appears in other users' lists.
+  - `notification.recipient_user_id` and `notification.sender_user_id` — transfer notification history.
+  - `meeting_invitee.user_id` — transfer meeting invitations.
+  - `report.reporter_user_id` — transfer filed reports.
+  - `login_event.user_id` — transfer login history (optional, may choose to discard).
+- **Conflict handling:** If both accounts have rated the same user for the same exchange, or are participants in the same conversation, deduplication logic is needed.
+- **User rating recalculation:** After merging, the primary account's rating average should be recalculated to include ratings from both accounts.
+- After the merge, the secondary user's `status` should be set to `'inactive'` (reusing the soft delete mechanism from [AUTH-3.2]).
+- A dedicated DB function (e.g., `merge_accounts(p_primary_user_id UUID, p_secondary_user_id UUID)`) is strongly recommended to encapsulate all the re-pointing logic in a single atomic transaction.
+- **Security:** Ownership verification (AC3–AC4) is critical to prevent unauthorized data theft. The verification token should follow the same secure pattern as password reset tokens (cryptographically random, hashed in DB, time-limited).
+- **Admin visibility (AC10):** Consider adding a `merge_log` table or recording the event in a general audit log with details of both user IDs and the timestamp.
+- **Edge case:** If the secondary account is currently banned, the merge should be blocked (a banned account cannot be merged into an active one).
+- **Open question for PO:** Should the secondary email be preserved as an alternative login email for the primary account, or completely disassociated after merge?
 
 ---
 ---

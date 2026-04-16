@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Check, CheckCircle2, Loader2, X } from "lucide-react"
+import { Check, CheckCircle2, Loader2, X, ArrowLeftRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ConfirmActionDialog } from "@/components/sections/exchanges/confirm-action-dialog"
 import type { ExchangeStatus } from "@/lib/entities/exchange"
@@ -16,6 +16,7 @@ interface ExchangeActionButtonsProps {
   onReject: (exchangeId: string) => Promise<void>
   onCancel: (exchangeId: string) => Promise<void>
   onComplete: (exchangeId: string) => Promise<void>
+  onCounteroffer?: () => void
 }
 
 type ConfirmKind = "accept" | "reject" | "cancel" | "cancel_accepted" | "complete" | null
@@ -36,6 +37,7 @@ export function ExchangeActionButtons({
   onReject,
   onCancel,
   onComplete,
+  onCounteroffer,
 }: ExchangeActionButtonsProps) {
   const [confirmAction, setConfirmAction] = useState<ConfirmKind>(null)
 
@@ -43,7 +45,8 @@ export function ExchangeActionButtons({
     status === "completed" ||
     status === "rejected" ||
     status === "expired" ||
-    status === "cancelled"
+    status === "cancelled" ||
+    status === "countered"
   ) {
     return null
   }
@@ -165,6 +168,16 @@ export function ExchangeActionButtons({
                 <Check className="h-4 w-4" />
               )}
               Accept
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1 border-amber-400 text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
+              disabled={isLoading}
+              onClick={onCounteroffer}
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+              Counteroffer
             </Button>
             <Button
               size="sm"

@@ -46,7 +46,7 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
   const { exchanges, availableItems, isLoading, reloadExchanges } =
     useExchangeData(currentUserId)
 
-  const { actionLoading, handleAccept, handleReject, handleCancel, handleComplete } =
+  const { actionLoading, handleAccept, handleReject, handleCancel, handleComplete, handleCounteroffer } =
     useExchangeActions(currentUserId, reloadExchanges)
 
   // ─── Derived state ───────────────────────────────────────────
@@ -259,6 +259,7 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
               onReject={handleReject}
               onCancel={handleCancel}
               onComplete={handleComplete}
+              onCounteroffered={reloadExchanges}
             />
           ))}
 

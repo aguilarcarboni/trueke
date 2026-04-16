@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { acceptExchange, rejectExchange, cancelExchange, completeExchange } from "@/app/actions/exchange"
+import { acceptExchange, rejectExchange, cancelExchange, completeExchange, createCounteroffer } from "@/app/actions/exchange"
 import { useToast } from "@/hooks/use-toast"
 import { getFriendlyErrorMessage } from "@/lib/error-messages"
+import type { CounterOfferRequest } from "@/lib/entities/exchange"
 
 /**
  * Encapsulates accept/reject/cancel logic + loading state.
@@ -156,5 +157,36 @@ export function useExchangeActions(
     [currentUserId, toast, onSuccess]
   )
 
-  return { actionLoading, handleAccept, handleReject, handleCancel, handleComplete }
+  const handleCounteroffer = useCallback(
+    async (request: CounterOfferRequest) => {
+      setActionLoading(request.parent_exchange_id)
+      try {
+        const result = await createCounteroffer(request)
+        if (result.success) {
+          toast({
+            title: "Counteroffer sent!",
+            description: "Your counteroffer has been sent. You'll be notified when they respond.",
+          })
+          await onSuccess()
+        } else {
+          toast({
+            title: "Couldn't send counteroffer",
+            description: getFriendlyErrorMessage(result.error),
+            variant: "destructive",
+          })
+        }
+      } catch {
+        toast({
+          title: "Connection error",
+          description: "We couldn't reach the server. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setActionLoading(null)
+      }
+    },
+    [toast, onSuccess]
+  )
+
+  return { actionLoading, handleAccept, handleReject, handleCancel, handleComplete, handleCounteroffer }
 }

@@ -23,6 +23,7 @@ import { ChangePasswordDialog } from "@/components/sections/profile/credentials/
 import { ChangeEmailDialog } from "@/components/sections/profile/credentials/ChangeEmailDialog"
 import { UserRatingStars } from "@/components/sections/profile/user-rating-stars"
 import { UserReviewsList } from "@/components/sections/profile/user-reviews-list"
+import { DeactivateAccountDialog } from "@/components/sections/profile/deactivate-account-dialog"
 
 const PROFILE_IMAGES_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_PROFILE_IMAGES_BUCKET || "images"
 
@@ -35,6 +36,7 @@ export function Profile() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [credentialsDialogOpen, setCredentialsDialogOpen] = useState(false)
   const [credentialsDialogMode, setCredentialsDialogMode] = useState<"password" | "email" | null>(null)
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false)
   const [profileRefreshKey, setProfileRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -100,7 +102,10 @@ export function Profile() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onSelect={() => setDeactivateDialogOpen(true)}
+                >
                   Deactivate account
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -330,6 +335,11 @@ export function Profile() {
       }}
       currentEmail={profile?.email ?? ""}
       onSuccess={() => setProfileRefreshKey((k) => k + 1)}
+    />
+
+    <DeactivateAccountDialog
+      open={deactivateDialogOpen}
+      onOpenChange={setDeactivateDialogOpen}
     />
     </>
   )

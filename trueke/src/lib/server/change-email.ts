@@ -2,7 +2,11 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { EMAIL_PATTERN } from '@/lib/validation/email'
 import { generateSixDigitCode } from '@/lib/server/verification-code'
-import { sendEmailChangeVerificationEmail } from '@/lib/server/mail/account-emails'
+import {
+  sendEmailChangeVerificationEmail,
+  sendEmailChangeNotificationToOldEmail,
+  sendEmailChangeConfirmationToNewEmail,
+} from '@/lib/server/mail/account-emails'
 import { updateUserEmailAddress } from '@/lib/server/account/user-email'
 import { passwordsMatch } from '@/lib/server/account/user-password'
 
@@ -94,6 +98,14 @@ export async function runConfirmEmailChange(
 
   const supabase = await createClient()
 
+  const { data: currentUser, error: userError } = await supabase
+    .from('user')
+    .select('email')
+    .eq('user_id', userId)
+    .single()
+
+  const oldEmail = currentUser?.email as string | undefined
+
   const { data: existing, error: existingError } = await supabase
     .from('user')
     .select('user_id')
@@ -106,6 +118,16 @@ export async function runConfirmEmailChange(
 
   const persist = await updateUserEmailAddress(supabase, userId, pendingNewEmail)
   if (persist.error) return { error: persist.error }
+
+  const changedAt = new Date()
+  if (oldEmail) {
+    sendEmailChangeNotificationToOldEmail(oldEmail, pendingNewEmail, changedAt).catch((err) =>
+      console.error('Failed to send email change notification to old email:', err)
+    )
+  }
+  sendEmailChangeConfirmationToNewEmail(pendingNewEmail).catch((err) =>
+    console.error('Failed to send email change confirmation to new email:', err)
+  )
 
   revalidatePath('/', 'layout')
   return { success: 'Email updated successfully.' }

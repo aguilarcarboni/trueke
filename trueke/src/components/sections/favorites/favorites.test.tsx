@@ -94,31 +94,31 @@ describe('Favorites', () => {
   // ── AC1: Both predefined lists are always created ──────────────────────────
 
   describe('AC1 – predefined lists are present', () => {
-    it('renders the "Favorites" tab trigger', async () => {
+    it('renders the "Favorites" chip', async () => {
       setupEmptyLists()
       render(<Favorites />)
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /favorites/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /favorites/i })).toBeInTheDocument()
       })
     })
 
-    it('renders the "Frequent Users" tab trigger', async () => {
+    it('renders the "Frequent Users" chip', async () => {
       setupEmptyLists()
       render(<Favorites />)
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /frequent users/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /frequent users/i })).toBeInTheDocument()
       })
     })
 
-    it('renders both predefined tabs even when member counts are zero', async () => {
+    it('renders both predefined chips even when member counts are zero', async () => {
       setupEmptyLists()
       render(<Favorites />)
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /favorites/i })).toBeInTheDocument()
-        expect(screen.getByRole('tab', { name: /frequent users/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /favorites/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /frequent users/i })).toBeInTheDocument()
       })
     })
   })
@@ -126,55 +126,66 @@ describe('Favorites', () => {
   // ── AC2: Predefined lists show no delete / rename controls ────────────────
 
   describe('AC2 – predefined lists cannot be deleted or renamed', () => {
-    it('renders no delete button for the Favorites tab', async () => {
+    it('renders no delete button for the Favorites chip', async () => {
       setupEmptyLists()
       render(<Favorites />)
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /favorites/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /favorites/i })).toBeInTheDocument()
       })
 
       expect(screen.queryByRole('button', { name: /delete.*favorites/i })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /remove.*list/i })).not.toBeInTheDocument()
     })
 
-    it('renders no rename input for the Frequent Users tab', async () => {
+    it('renders no rename input for the Frequent Users chip', async () => {
       setupEmptyLists()
       render(<Favorites />)
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /frequent users/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /frequent users/i })).toBeInTheDocument()
       })
 
       expect(screen.queryByRole('textbox', { name: /rename/i })).not.toBeInTheDocument()
     })
   })
 
-  // ── AC3: Lists are accessible from the Favorites section ─────────────────
+  // ── AC3: Lists are accessible via chip bar ─────────────────────────────────
 
-  describe('AC3 – lists are accessible via tabs', () => {
-    it('defaults to the Favorites tab', async () => {
+  describe('AC3 – lists are accessible via chip bar', () => {
+    it('defaults to the first predefined list (Favorites)', async () => {
       setupEmptyLists()
       render(<Favorites />)
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /favorites/i })).toHaveAttribute('data-state', 'active')
+        // Favorites is auto-selected and its members fetched
+        expect(mockGetUserListMembersAction).toHaveBeenCalledWith(FAVORITES_LIST.listId)
       })
     })
 
-    it('switches to the Frequent Users tab when clicked', async () => {
+    it('marks the selected chip with aria-selected', async () => {
+      setupEmptyLists()
+      render(<Favorites />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: /favorites/i })).toHaveAttribute('aria-selected', 'true')
+        expect(screen.getByRole('option', { name: /frequent users/i })).toHaveAttribute('aria-selected', 'false')
+      })
+    })
+
+    it('switches to the Frequent Users list when its chip is clicked', async () => {
       const user = userEvent.setup()
       setupEmptyLists()
       render(<Favorites />)
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /frequent users/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /frequent users/i })).toBeInTheDocument()
       })
 
-      await user.click(screen.getByRole('tab', { name: /frequent users/i }))
+      await user.click(screen.getByRole('option', { name: /frequent users/i }))
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /frequent users/i })).toHaveAttribute('data-state', 'active')
+        expect(mockGetUserListMembersAction).toHaveBeenCalledWith(FREQUENT_LIST.listId)
       })
     })
 
@@ -193,18 +204,8 @@ describe('Favorites', () => {
       })
     })
 
-    it('does not show the "My Lists" tab when there are no custom lists', async () => {
-      setupEmptyLists()
-      render(<Favorites />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /favorites/i })).toBeInTheDocument()
-      })
-
-      expect(screen.queryByRole('tab', { name: /my lists/i })).not.toBeInTheDocument()
-    })
-
-    it('shows the "My Lists" tab when custom lists exist', async () => {
+    it('shows "Custom Lists" chip and clicking it shows custom list cards', async () => {
+      const user = userEvent.setup()
       mockGetUserListsAction.mockResolvedValue({
         success: true,
         data: [FAVORITES_LIST, FREQUENT_LIST, CUSTOM_LIST],
@@ -214,7 +215,57 @@ describe('Favorites', () => {
       render(<Favorites />)
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /my lists/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /custom lists/i })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('option', { name: /custom lists/i }))
+
+      await waitFor(() => {
+        // The custom list card should appear
+        expect(screen.getByRole('button', { name: /trading partners/i })).toBeInTheDocument()
+      })
+    })
+
+    it('clicking a custom list card navigates to that list', async () => {
+      const user = userEvent.setup()
+      mockGetUserListsAction.mockResolvedValue({
+        success: true,
+        data: [FAVORITES_LIST, FREQUENT_LIST, CUSTOM_LIST],
+      })
+      mockGetUserListMembersAction.mockResolvedValue({ success: true, data: [] })
+
+      render(<Favorites />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: /custom lists/i })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('option', { name: /custom lists/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /trading partners/i })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: /trading partners/i }))
+
+      await waitFor(() => {
+        expect(mockGetUserListMembersAction).toHaveBeenCalledWith(CUSTOM_LIST.listId)
+      })
+    })
+
+    it('shows the "Create new list" button inside the Custom Lists view', async () => {
+      const user = userEvent.setup()
+      setupEmptyLists()
+      render(<Favorites />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: /custom lists/i })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('option', { name: /custom lists/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create new list/i })).toBeInTheDocument()
       })
     })
   })
@@ -222,7 +273,7 @@ describe('Favorites', () => {
   // ── AC4: Members are fetched and rendered ─────────────────────────────────
 
   describe('AC4 – list members are displayed', () => {
-    it('fetches members for the active (Favorites) tab on mount', async () => {
+    it('fetches members for the active (Favorites) list on mount', async () => {
       setupEmptyLists()
       render(<Favorites />)
 
@@ -277,7 +328,7 @@ describe('Favorites', () => {
       })
     })
 
-    it('fetches Frequent Users members when that tab is clicked', async () => {
+    it('fetches Frequent Users members when its chip is clicked', async () => {
       const user = userEvent.setup()
       mockGetUserListsAction.mockResolvedValue({
         success: true,
@@ -288,10 +339,10 @@ describe('Favorites', () => {
       render(<Favorites />)
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /frequent users/i })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /frequent users/i })).toBeInTheDocument()
       })
 
-      await user.click(screen.getByRole('tab', { name: /frequent users/i }))
+      await user.click(screen.getByRole('option', { name: /frequent users/i }))
 
       await waitFor(() => {
         expect(mockGetUserListMembersAction).toHaveBeenCalledWith(FREQUENT_LIST.listId)
@@ -306,9 +357,9 @@ describe('Favorites', () => {
 
       render(<Favorites />)
 
-      // Should not crash and should show no tabs
+      // Should not crash and should show no list chips
       await waitFor(() => {
-        expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+        expect(screen.queryByRole('option', { name: /favorites/i })).not.toBeInTheDocument()
       })
     })
   })

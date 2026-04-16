@@ -1,23 +1,24 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { Heart, Users, List } from "lucide-react"
+import { Heart, Users, List, Plus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
 import { getUserListsAction, getUserListMembersAction, removeUserFromListAction } from "@/app/actions/user-list"
 import {
   UserListMembers,
   UserListMembersSkeleton,
 } from "@/components/sections/favorites/user-list-members"
 import type { UserList, UserListMember } from "@/lib/entities/user-list"
+import { cn } from "@/lib/utils"
 
-// ─── Per-list tab ─────────────────────────────────────────────────────────────
+// ─── Per-list panel ───────────────────────────────────────────────────────────
 
-interface UserListTabProps {
+interface UserListPanelProps {
   list: UserList
 }
 
-function UserListTab({ list }: UserListTabProps) {
+function UserListPanel({ list }: UserListPanelProps) {
   const [members, setMembers] = useState<UserListMember[]>([])
   const [loading, setLoading] = useState(true)
   const [removingUserId, setRemovingUserId] = useState<string | null>(null)
@@ -52,44 +53,54 @@ function UserListTab({ list }: UserListTabProps) {
   )
 }
 
+// ─── Icon helper ──────────────────────────────────────────────────────────────
+const listIcon: Record<string, React.ReactNode> = {
+  Favorites: <Heart className="h-3.5 w-3.5" />,
+  "Frequent Users": <Users className="h-3.5 w-3.5" />,
+}
+
+function getListIcon(name: string) {
+  return listIcon[name] ?? <List className="h-3.5 w-3.5" />
+}
+
 // ─── Main Favorites component ─────────────────────────────────────────────────
 
 export function Favorites() {
   const [lists, setLists] = useState<UserList[]>([])
   const [loadingLists, setLoadingLists] = useState(true)
-  const [selectedCustomListId, setSelectedCustomListId] = useState<string | null>(null)
+  const [selectedListId, setSelectedListId] = useState<string | null>(null)
+  const [showCustomLists, setShowCustomLists] = useState(false)
 
   useEffect(() => {
     async function fetchLists() {
       const result = await getUserListsAction()
       if (result.success && result.data) {
         setLists(result.data)
-        const custom = result.data.filter((l) => !l.isPredefined)
-        if (custom.length > 0) setSelectedCustomListId(custom[0].listId)
+        const first = result.data[0]
+        if (first) setSelectedListId(first.listId)
       }
       setLoadingLists(false)
     }
     fetchLists()
   }, [])
 
-  const predefinedLists = lists.filter((l) => l.isPredefined)
+  const predefinedLists = lists.filter((l) => l.isPredefined && l.name !== "Blocked Users")
+  const customLists = lists.filter((l) => !l.isPredefined)
+  const selectedList = lists.find((l) => l.listId === selectedListId) ?? null
 
-  // Map predefined list names to their tab values and icons
-  const listTabConfig: Record<string, { value: string; icon: React.ReactNode }> = {
-    Favorites: { value: "favorites", icon: <Heart className="h-4 w-4" /> },
-    "Frequent Users": { value: "frequent", icon: <Users className="h-4 w-4" /> },
+  function selectPredefined(listId: string) {
+    setSelectedListId(listId)
+    setShowCustomLists(false)
   }
 
-  const customLists = lists.filter((l) => !l.isPredefined)
-  const selectedCustomList = customLists.find((l) => l.listId === selectedCustomListId) ?? null
-
-  const defaultTab =
-    predefinedLists.length > 0
-      ? (listTabConfig[predefinedLists[0].name]?.value ?? "favorites")
-      : "favorites"
+  function selectCustomList(listId: string) {
+    setSelectedListId(listId)
+    setShowCustomLists(false)
+  }
 
   return (
     <div className="flex min-h-full w-full flex-1 flex-col space-y-6">
+      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Favorites & Lists</h1>
         <p className="text-muted-foreground mt-1">
@@ -100,65 +111,143 @@ export function Favorites() {
       {loadingLists ? (
         <UserListMembersSkeleton />
       ) : (
-        <Tabs defaultValue={defaultTab}>
-          <TabsList>
-            {predefinedLists.map((list) => {
-              const cfg = listTabConfig[list.name]
-              if (!cfg) return null
-              return (
-                <TabsTrigger key={list.listId} value={cfg.value} className="gap-1.5">
-                  {cfg.icon}
-                  {list.name}
-                  {list.memberCount > 0 && (
-                    <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                      {list.memberCount}
-                    </Badge>
+        <>
+          {/* ── Chip bar ──────────────────────────────────────── */}
+          <div className="flex items-center gap-2 pb-1" role="listbox" aria-label="Select a list">
+            {/* Predefined chips */}
+            {predefinedLists.map((list) => (
+              <button
+                key={list.listId}
+                type="button"
+                role="option"
+                aria-selected={selectedListId === list.listId && !showCustomLists}
+                onClick={() => selectPredefined(list.listId)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-colors shrink-0",
+                  selectedListId === list.listId && !showCustomLists
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {getListIcon(list.name)}
+                {list.name}
+                {list.memberCount > 0 && (
+                  <Badge
+                    variant={selectedListId === list.listId && !showCustomLists ? "outline" : "secondary"}
+                    className={cn(
+                      "ml-0.5 text-xs px-1.5 py-0",
+                      selectedListId === list.listId && !showCustomLists && "border-primary-foreground/30 text-primary-foreground"
+                    )}
+                  >
+                    {list.memberCount}
+                  </Badge>
+                )}
+              </button>
+            ))}
+
+            {/* Custom Lists chip */}
+            <button
+              type="button"
+              role="option"
+              aria-selected={showCustomLists}
+              onClick={() => setShowCustomLists(true)}
+              className={cn(
+                "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-colors shrink-0",
+                showCustomLists
+                  ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <List className="h-3.5 w-3.5" />
+              Custom Lists
+              {customLists.length > 0 && (
+                <Badge
+                  variant={showCustomLists ? "outline" : "secondary"}
+                  className={cn(
+                    "ml-0.5 text-xs px-1.5 py-0",
+                    showCustomLists && "border-primary-foreground/30 text-primary-foreground"
                   )}
-                </TabsTrigger>
-              )
-            })}
-            {customLists.length > 0 && (
-              <TabsTrigger value="custom" className="gap-1.5">
-                <List className="h-4 w-4" />
-                My Lists
-                <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
+                >
                   {customLists.length}
                 </Badge>
-              </TabsTrigger>
-            )}
-          </TabsList>
+              )}
+            </button>
 
-          {predefinedLists.map((list) => {
-            const cfg = listTabConfig[list.name]
-            if (!cfg) return null
-            return (
-              <TabsContent key={list.listId} value={cfg.value} className="mt-6">
-                <UserListTab list={list} />
-              </TabsContent>
-            )
-          })}
+          </div>
 
-          {customLists.length > 0 && (
-            <TabsContent value="custom" className="mt-6">
-              <div className="mb-4">
-                <span className="text-sm text-muted-foreground mr-2">Select a list:</span>
-                <select
-                  id="custom-list-select"
-                  className="rounded-md border border-muted bg-popover text-foreground px-2 py-1.5 text-sm focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-100"
-                  value={selectedCustomListId ?? ""}
-                  onChange={(e) => setSelectedCustomListId(e.target.value)}
-                >
-                  {customLists.map((list) => (
-                    <option key={list.listId} value={list.listId} style={{ color: "#000000", backgroundColor: "#ffffff" }}>
-                      {list.name} ({list.memberCount})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {selectedCustomList && <UserListTab key={selectedCustomList.listId} list={selectedCustomList} />}
-            </TabsContent>
+          {/* ── Content ───────────────────────────────────────── */}
+          {showCustomLists ? (
+            <CustomListsView
+              customLists={customLists}
+              onSelect={selectCustomList}
+            />
+          ) : selectedList ? (
+            <UserListPanel key={selectedList.listId} list={selectedList} />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-12">
+              No lists available.
+            </p>
           )}
-        </Tabs>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ─── Custom Lists view (grid of list cards) ───────────────────────────────────
+
+interface CustomListsViewProps {
+  customLists: UserList[]
+  onSelect: (listId: string) => void
+}
+
+function CustomListsView({ customLists, onSelect }: CustomListsViewProps) {
+  return (
+    <div className="space-y-4">
+      {/* Create list button */}
+      <div>
+        <Button
+          variant="default"
+          size="sm"
+          className="gap-1.5"
+          aria-label="Create new list"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Create List
+        </Button>
+      </div>
+
+      {customLists.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-14 text-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <List className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium text-foreground">No custom lists yet</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Create a list to organize your contacts however you like.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {customLists.map((list) => (
+        <button
+          key={list.listId}
+          type="button"
+          onClick={() => onSelect(list.listId)}
+          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-muted"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
+            <List className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{list.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {list.memberCount} {list.memberCount === 1 ? "member" : "members"}
+            </p>
+          </div>
+          </button>
+        ))}
+        </div>
       )}
     </div>
   )

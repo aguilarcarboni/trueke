@@ -38,7 +38,18 @@ export function DeactivateAccountDialog({ open, onOpenChange }: DeactivateAccoun
     }
 
     startTransition(async () => {
-      // Leave empty for now
+      const res = await fetch("/api/account/deactivate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password }),
+      })
+      const data = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.")
+        return
+      }
+      handleOpenChange(false)
     })
   }
 

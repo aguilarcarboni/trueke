@@ -1,12 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { MapPin, Calendar, Edit, Shield, Lock, Mail, MoreHorizontal } from "lucide-react"
+import { MapPin, Calendar, Edit, Shield, Lock, Mail, TriangleAlert } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger} from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { EditProfileDialog } from "@/components/sections/profile/edit-profile-dialog"
@@ -92,26 +91,7 @@ export function Profile() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Profile Card — view only */}
         <Card className="lg:row-span-2">
-          <CardHeader className="flex flex-row items-center justify-end pb-0 pt-4 px-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">More options</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onSelect={() => setDeactivateDialogOpen(true)}
-                >
-                  Deactivate account
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </CardHeader>
-          <CardContent className="pt-2 text-center space-y-4">
+          <CardContent className="pt-6 text-center space-y-4">
             {/* Avatar */}
             <div className="relative inline-block">
               <Avatar className="h-24 w-24 mx-auto">
@@ -263,6 +243,14 @@ export function Profile() {
             >
               <Mail className="h-4 w-4" />
               Change email
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setDeactivateDialogOpen(true)}
+            >
+              <TriangleAlert className="h-4 w-4" />
+              Deactivate account
             </Button>
           </CardContent>
         </Card>

@@ -38,6 +38,7 @@ describe('EXCHANGE_STATUS_LABELS completeness', () => {
       'expired',
       'cancelled',
       'completed',
+      'countered',
     ]
     expect(ALL_STATUSES.sort()).toEqual(expected.sort())
   })

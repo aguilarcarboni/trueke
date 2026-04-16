@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcrypt'
+import { ensurePredefinedLists } from '@/utils/entities/user-list'
 
 const SALT_ROUNDS = 10
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -171,6 +172,9 @@ export async function register(formData: FormData) {
       console.error('Registration user_address error:', userAddressError)
       return { error: 'Account created could not be completed with location. Please try again.' }
     }
+
+    // Ensure predefined user lists exist (safety net alongside the DB trigger)
+    await ensurePredefinedLists(newUser.user_id)
 
     revalidatePath('/', 'layout')
 

@@ -1,4 +1,4 @@
-export type ExchangeStatus = 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled' | 'completed'
+export type ExchangeStatus = 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled' | 'completed' | 'countered'
 export type ExchangeRole = 'initiator' | 'member'
 export type ExchangeDirection = 'offered' | 'requested'
 
@@ -45,6 +45,7 @@ export interface ExchangeListItem {
     expires_at: string
     offered_count: number
     requested_count: number
+    parent_exchange_id: string | null
 }
 
 /** Enriched list item with actual item details (AC1). */
@@ -85,6 +86,29 @@ export interface CompleteExchangeRequest {
     completing_user_id: string
 }
 
+export interface CounterOfferRequest {
+    parent_exchange_id: string
+    actor_user_id: string
+    offered_item_ids: string[]
+    requested_item_ids: string[]
+    message?: string
+    expiration_days?: number
+}
+
+/** A single entry in the exchange history chain (AC8). */
+export interface ExchangeHistoryEntry {
+    exchange_id: string
+    parent_exchange_id: string | null
+    initiator_id: string
+    initiator_name: string
+    status: ExchangeStatus
+    message: string | null
+    created_at: string
+    expires_at: string
+    offered_items: ExchangeItem[]
+    requested_items: ExchangeItem[]
+}
+
 // ─── Status Display Helpers ──────────────────────────────────────────────────
 
 export const EXCHANGE_STATUS_LABELS: Record<ExchangeStatus, string> = {
@@ -94,6 +118,7 @@ export const EXCHANGE_STATUS_LABELS: Record<ExchangeStatus, string> = {
     expired: 'Expired',
     cancelled: 'Cancelled',
     completed: 'Completed',
+    countered: 'Countered',
 }
 
 export const EXCHANGE_STATUS_STYLES: Record<ExchangeStatus, string> = {
@@ -103,6 +128,7 @@ export const EXCHANGE_STATUS_STYLES: Record<ExchangeStatus, string> = {
     expired: 'bg-muted text-muted-foreground border-border',
     cancelled: 'bg-muted text-muted-foreground border-border',
     completed: 'bg-success/15 text-success border-success/25',
+    countered: 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400',
 }
 
 export function getExchangeStatusLabel(status: string): string {

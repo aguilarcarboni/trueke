@@ -11,6 +11,8 @@ import { ExchangeItemList } from "@/components/sections/exchanges/exchange-item-
 import { ExchangeActionButtons } from "@/components/sections/exchanges/exchange-action-buttons"
 import { UserProfileDialog } from "@/components/sections/exchanges/user-profile-dialog"
 import { ReviewDialog } from "@/components/sections/exchanges/review-dialog"
+import { CounterOfferDialog } from "@/components/sections/exchanges/counteroffer-dialog"
+import { ExchangeHistory } from "@/components/sections/exchanges/exchange-history"
 import { hasUserReviewedExchange } from "@/app/actions/review"
 import type { ExchangeListItemEnriched } from "@/lib/entities/exchange"
 
@@ -22,6 +24,7 @@ interface ExchangeCardProps {
   onReject: (exchangeId: string) => Promise<void>
   onCancel: (exchangeId: string) => Promise<void>
   onComplete: (exchangeId: string) => Promise<void>
+  onCounteroffered?: () => void
 }
 
 /**
@@ -39,6 +42,7 @@ export function ExchangeCard({
   onReject,
   onCancel,
   onComplete,
+  onCounteroffered,
 }: ExchangeCardProps) {
   const {
     exchange_id,
@@ -59,6 +63,7 @@ export function ExchangeCard({
 
   const [profileOpen, setProfileOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [counterofferOpen, setCounterofferOpen] = useState(false)
   const [hasReviewed, setHasReviewed] = useState(false)
 
   // Check if user already reviewed this completed exchange
@@ -94,6 +99,13 @@ export function ExchangeCard({
       otherUserName={otherUserName}
       receivedItems={receivedItems}
       onSuccess={() => setHasReviewed(true)}
+    />
+    <CounterOfferDialog
+      open={counterofferOpen}
+      onOpenChange={setCounterofferOpen}
+      exchange={exchange}
+      currentUserId={currentUserId}
+      onSuccess={onCounteroffered}
     />
     <Card className="transition-all hover:shadow-md">
       <CardContent className="pt-6">
@@ -165,6 +177,12 @@ export function ExchangeCard({
                 Created {new Date(created_at).toLocaleDateString()}
                 {expires_at && ` · Expires ${new Date(expires_at).toLocaleDateString()}`}
               </p>
+
+              {/* AC8: Exchange history for counteroffer chains */}
+              <ExchangeHistory
+                exchangeId={exchange_id}
+                parentExchangeId={exchange.parent_exchange_id}
+              />
             </div>
           </div>
 
@@ -202,6 +220,7 @@ export function ExchangeCard({
               onReject={onReject}
               onCancel={onCancel}
               onComplete={onComplete}
+              onCounteroffer={() => setCounterofferOpen(true)}
             />
           </div>
         </div>

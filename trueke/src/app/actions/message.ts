@@ -327,6 +327,8 @@ export async function getConversationMessages(
       .from('exchange')
       .select('exchange_id, negotiation_id, status, creation_date, optional_message, initiator_user_id')
       .eq('negotiation_id', conversationId)
+      .order('creation_date', { ascending: false })
+      .limit(1)
       .maybeSingle()
 
     if (exchangeError) {
@@ -557,6 +559,8 @@ export async function sendMessage(
       .from('exchange')
       .select('exchange_id, negotiation_id, status, creation_date, optional_message, initiator_user_id')
       .eq('negotiation_id', conversationId)
+      .order('creation_date', { ascending: false })
+      .limit(1)
       .maybeSingle()
 
     if (exchangeError) {

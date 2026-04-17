@@ -13,12 +13,14 @@ const mockAcceptExchange = vi.fn()
 const mockRejectExchange = vi.fn()
 const mockCancelExchange = vi.fn()
 const mockCompleteExchange = vi.fn()
+const mockCreateCounteroffer = vi.fn()
 
 vi.mock('@/app/actions/exchange', () => ({
   acceptExchange: (...args: unknown[]) => mockAcceptExchange(...args),
   rejectExchange: (...args: unknown[]) => mockRejectExchange(...args),
   cancelExchange: (...args: unknown[]) => mockCancelExchange(...args),
   completeExchange: (...args: unknown[]) => mockCompleteExchange(...args),
+  createCounteroffer: (...args: unknown[]) => mockCreateCounteroffer(...args),
 }))
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -246,6 +248,111 @@ describe('useExchangeActions', () => {
       await waitFor(() => {
         expect(result.current.actionLoading).toBeNull()
       })
+    })
+  })
+
+  describe('handleCounteroffer', () => {
+    const counterofferRequest = {
+      parent_exchange_id: 'ex-10',
+      actor_user_id: 'user-1',
+      offered_item_ids: ['item-1', 'item-2'],
+      requested_item_ids: ['item-3'],
+      message: 'How about this instead?',
+      expiration_days: 5,
+    }
+
+    it('calls createCounteroffer with the full request', async () => {
+      mockCreateCounteroffer.mockResolvedValue({ success: true, data: { exchange_id: 'ex-11' } })
+      const { result } = setup()
+
+      await act(async () => {
+        await result.current.handleCounteroffer(counterofferRequest)
+      })
+
+      expect(mockCreateCounteroffer).toHaveBeenCalledWith(counterofferRequest)
+    })
+
+    it('sets actionLoading to parent_exchange_id during flight', async () => {
+      let resolveCounter!: (v: unknown) => void
+      mockCreateCounteroffer.mockReturnValue(
+        new Promise((resolve) => {
+          resolveCounter = resolve
+        })
+      )
+      const { result } = setup()
+
+      act(() => {
+        result.current.handleCounteroffer(counterofferRequest)
+      })
+
+      await waitFor(() => {
+        expect(result.current.actionLoading).toBe('ex-10')
+      })
+
+      await act(async () => {
+        resolveCounter({ success: true })
+      })
+
+      await waitFor(() => {
+        expect(result.current.actionLoading).toBeNull()
+      })
+    })
+
+    it('calls onSuccess and shows success toast on success', async () => {
+      mockCreateCounteroffer.mockResolvedValue({ success: true, data: { exchange_id: 'ex-11' } })
+      const onSuccess = vi.fn().mockResolvedValue(undefined)
+      const { result } = setup(onSuccess)
+
+      await act(async () => {
+        await result.current.handleCounteroffer(counterofferRequest)
+      })
+
+      expect(onSuccess).toHaveBeenCalledTimes(1)
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: expect.stringContaining('Counteroffer sent') })
+      )
+    })
+
+    it('shows destructive toast and does not call onSuccess on failure', async () => {
+      mockCreateCounteroffer.mockResolvedValue({
+        success: false,
+        error: 'Invalid offered items',
+      })
+      const onSuccess = vi.fn()
+      const { result } = setup(onSuccess)
+
+      await act(async () => {
+        await result.current.handleCounteroffer(counterofferRequest)
+      })
+
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ variant: 'destructive' })
+      )
+      expect(onSuccess).not.toHaveBeenCalled()
+    })
+
+    it('shows connection error toast when network throws', async () => {
+      mockCreateCounteroffer.mockRejectedValue(new Error('network error'))
+      const { result } = setup()
+
+      await act(async () => {
+        await result.current.handleCounteroffer(counterofferRequest)
+      })
+
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Connection error' })
+      )
+    })
+
+    it('clears actionLoading even when action fails', async () => {
+      mockCreateCounteroffer.mockResolvedValue({ success: false, error: 'forbidden' })
+      const { result } = setup()
+
+      await act(async () => {
+        await result.current.handleCounteroffer(counterofferRequest)
+      })
+
+      expect(result.current.actionLoading).toBeNull()
     })
   })
 })

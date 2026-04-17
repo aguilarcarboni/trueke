@@ -9,6 +9,7 @@ import {
   UserListMembers,
   UserListMembersSkeleton,
 } from "@/components/sections/favorites/user-list-members"
+import { UserProfileDialog } from "@/components/sections/exchanges/user-profile-dialog"
 import type { UserList, UserListMember } from "@/lib/entities/user-list"
 import { cn } from "@/lib/utils"
 
@@ -22,6 +23,7 @@ function UserListPanel({ list }: UserListPanelProps) {
   const [members, setMembers] = useState<UserListMember[]>([])
   const [loading, setLoading] = useState(true)
   const [removingUserId, setRemovingUserId] = useState<string | null>(null)
+  const [profileUserId, setProfileUserId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -44,12 +46,29 @@ function UserListPanel({ list }: UserListPanelProps) {
   if (loading) return <UserListMembersSkeleton />
 
   return (
-    <UserListMembers
-      members={members}
-      listName={list.name}
-      onRemove={handleRemove}
-      removingUserId={removingUserId}
-    />
+    <>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{members.length}</span>{" "}
+          {members.length === 1 ? "member" : "members"} in this list
+        </p>
+      </div>
+      <UserListMembers
+        members={members}
+        listName={list.name}
+        onRemove={handleRemove}
+        removingUserId={removingUserId}
+        onMemberClick={(userId) => setProfileUserId(userId)}
+      />
+      <UserProfileDialog
+        userId={profileUserId}
+        open={profileUserId !== null}
+        onOpenChange={(open) => {
+          if (!open) setProfileUserId(null)
+        }}
+        showActiveListings
+      />
+    </>
   )
 }
 
@@ -131,17 +150,15 @@ export function Favorites() {
               >
                 {getListIcon(list.name)}
                 {list.name}
-                {list.memberCount > 0 && (
-                  <Badge
-                    variant={selectedListId === list.listId && !showCustomLists ? "outline" : "secondary"}
-                    className={cn(
-                      "ml-0.5 text-xs px-1.5 py-0",
-                      selectedListId === list.listId && !showCustomLists && "border-primary-foreground/30 text-primary-foreground"
-                    )}
-                  >
-                    {list.memberCount}
-                  </Badge>
-                )}
+                <Badge
+                  variant={selectedListId === list.listId && !showCustomLists ? "outline" : "secondary"}
+                  className={cn(
+                    "ml-0.5 text-xs px-1.5 py-0",
+                    selectedListId === list.listId && !showCustomLists && "border-primary-foreground/30 text-primary-foreground"
+                  )}
+                >
+                  {list.memberCount}
+                </Badge>
               </button>
             ))}
 

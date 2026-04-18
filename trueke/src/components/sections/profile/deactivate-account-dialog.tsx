@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { signOut } from "next-auth/react"
 import { TriangleAlert } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -49,7 +50,7 @@ export function DeactivateAccountDialog({ open, onOpenChange }: DeactivateAccoun
         setError(data.error ?? "Something went wrong. Please try again.")
         return
       }
-      handleOpenChange(false)
+      await signOut({ callbackUrl: "/login" })
     })
   }
 

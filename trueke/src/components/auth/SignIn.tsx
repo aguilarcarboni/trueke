@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Card, CardContent, CardTitle, CardHeader } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import LoaderButton from '../misc/LoaderButton';
@@ -18,6 +19,7 @@ function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeactivated, setIsDeactivated] = useState(false);
   
   const router = useRouter();
 
@@ -42,11 +44,16 @@ function SignIn() {
     });
 
     if (result?.error) {
-      toast({
-        title: 'Error',
-        description: result.error,
-        variant: 'destructive'
-      })
+      if (result.error === 'AccountDeactivated') {
+        setIsDeactivated(true)
+      } else {
+        setIsDeactivated(false)
+        toast({
+          title: 'Error',
+          description: 'Invalid email or password.',
+          variant: 'destructive'
+        })
+      }
     }
 
     setIsLoading(false);
@@ -58,6 +65,13 @@ function SignIn() {
         <CardTitle className='text-center font-bold text-3xl'>Sign in</CardTitle>
       </CardHeader>
       <CardContent className='w-full flex flex-col gap-5'>
+        {isDeactivated && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              This account has been deactivated. Please contact support if you believe this is a mistake.
+            </AlertDescription>
+          </Alert>
+        )}
         <form onSubmit={handleSubmit} className='flex flex-col gap-4 w-full'>
           <Input
             type="text"

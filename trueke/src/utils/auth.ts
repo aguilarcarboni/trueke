@@ -37,6 +37,9 @@ export const authOptions: NextAuthOptions = {
               }
 
             } catch (error) {
+              if (error instanceof Error && error.message === 'AccountDeactivated') {
+                throw new Error('AccountDeactivated')
+              }
               throw new Error('Invalid credentials')
             }
           }

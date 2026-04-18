@@ -35,5 +35,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Incorrect password.' }, { status: 400 })
   }
 
+  const { error: updateError } = await supabase
+    .from('user')
+    .update({ status: 'inactive' })
+    .eq('user_id', userId)
+
+  if (updateError) {
+    return NextResponse.json({ error: 'Could not deactivate account.' }, { status: 500 })
+  }
+
   return NextResponse.json({ ok: true })
 }

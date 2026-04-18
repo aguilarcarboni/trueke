@@ -25,5 +25,9 @@ export async function loginUserWithCredentials(email: string, password: string) 
         throw new Error('Invalid credentials')
     }
 
+    if (data.status === 'inactive') {
+        throw new Error('AccountDeactivated')
+    }
+
     return data
 }

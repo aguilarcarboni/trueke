@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUserIdFromNextRequest } from '@/utils/auth-server'
 import { createClient } from '@/utils/supabase/server'
 import { passwordsMatch } from '@/lib/server/account/user-password'
+import { handleUserStatusChange } from '@/lib/server/handle-user-status-change'
 
 export async function POST(req: NextRequest) {
   const userId = await getAuthenticatedUserIdFromNextRequest(req)
@@ -35,12 +36,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Incorrect password.' }, { status: 400 })
   }
 
-  const { error: updateError } = await supabase
-    .from('user')
-    .update({ status: 'inactive' })
-    .eq('user_id', userId)
-
-  if (updateError) {
+  const { error: deactivateError } = await handleUserStatusChange(userId, 'inactive')
+  if (deactivateError) {
     return NextResponse.json({ error: 'Could not deactivate account.' }, { status: 500 })
   }
 

@@ -26,7 +26,21 @@ export interface UserListMember {
 
 /** User List Zod Schema for Create List Form Validation */
 export const UserListFormSchema = z.object({
-  name: z.string().min(1, "List name is required").max(50, "List name must be at most 50 characters"),
-  description: z.string().max(200, "Description must be at most 200 characters").optional(),
+  name: z
+    .string()
+    .min(1, "List name is required")
+    .max(50, "List name must be at most 50 characters")
+    .regex(
+      /^[a-zA-Z0-9\s'\-]+$/,
+      "List name can only contain letters, numbers, spaces, hyphens, and apostrophes"
+    ),
+  description: z
+    .string()
+    .max(200, "Description must be at most 200 characters")
+    .regex(
+      /^[a-zA-Z0-9\s'\-.,!?()]+$/,
+      "Description can only contain letters, numbers, spaces, and basic punctuation"
+    )
+    .optional(),
 })
 

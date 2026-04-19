@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { Loader2 } from "lucide-react"
 import {
   Dialog,
@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { createCustomListAction } from "@/app/actions/user-list"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
+import { UserListFormSchema } from "@/lib/entities/user-list"
 
 interface CreateCustomListDialogProps {
   open: boolean
@@ -30,28 +32,68 @@ export function CreateCustomListDialog({
 }: CreateCustomListDialogProps) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [error, setError] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [descError, setDescError] = useState<string | null>(null)
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [shakeField, setShakeField] = useState<"name" | "description" | "both" | null>(null)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+
+  function triggerShake(field: "name" | "description" | "both") {
+    setShakeField(field)
+    setTimeout(() => setShakeField(null), 400)
+  }
 
   function handleOpenChange(value: boolean) {
     if (!value) {
       setName("")
       setDescription("")
-      setError(null)
+      setNameError(null)
+      setDescError(null)
+      setServerError(null)
+      setShakeField(null)
     }
     onOpenChange(value)
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!name.trim()) {
-      setError("List name is required.")
-      return
+  const validateFields = useCallback(() => {
+    const parsed = UserListFormSchema.safeParse({
+      name: name.trim(),
+      description: description.trim() || undefined,
+    })
+
+    if (parsed.success) {
+      setNameError(null)
+      setDescError(null)
+      return true
     }
 
+    let hasNameErr = false
+    let hasDescErr = false
+    for (const err of parsed.error.errors) {
+      if (err.path[0] === "name" && !hasNameErr) {
+        setNameError(err.message)
+        hasNameErr = true
+      } else if (err.path[0] === "description" && !hasDescErr) {
+        setDescError(err.message)
+        hasDescErr = true
+      }
+      if (hasNameErr && hasDescErr) break
+    }
+
+    if (hasNameErr && hasDescErr) triggerShake("both")
+    else if (hasNameErr) triggerShake("name")
+    else if (hasDescErr) triggerShake("description")
+
+    return false
+  }, [name, description])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!validateFields()) return
+
     setLoading(true)
-    setError(null)
+    setServerError(null)
 
     const result = await createCustomListAction(
       name.trim(),
@@ -61,7 +103,7 @@ export function CreateCustomListDialog({
     setLoading(false)
 
     if (!result.success || !result.data) {
-      setError(result.error ?? "Something went wrong.")
+      setServerError(result.error ?? "Something went wrong.")
       return
     }
 
@@ -89,11 +131,18 @@ export function CreateCustomListDialog({
               id="list-name"
               placeholder="e.g. Close Friends"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setNameError(null) }}
               disabled={loading}
               autoFocus
               maxLength={50}
+              className={cn(
+                nameError && "border-destructive focus-visible:ring-destructive",
+                (shakeField === "name" || shakeField === "both") && "animate-shake"
+              )}
             />
+            {nameError && (
+              <p className="text-xs text-destructive">{nameError}</p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -102,15 +151,22 @@ export function CreateCustomListDialog({
               id="list-description"
               placeholder="What is this list for?"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => { setDescription(e.target.value); setDescError(null) }}
               disabled={loading}
               rows={3}
               maxLength={200}
+              className={cn(
+                descError && "border-destructive focus-visible:ring-destructive",
+                (shakeField === "description" || shakeField === "both") && "animate-shake"
+              )}
             />
+            {descError && (
+              <p className="text-xs text-destructive">{descError}</p>
+            )}
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
+          {serverError && (
+            <p className="text-sm text-destructive">{serverError}</p>
           )}
 
           <div className="flex justify-end gap-2 pt-1">

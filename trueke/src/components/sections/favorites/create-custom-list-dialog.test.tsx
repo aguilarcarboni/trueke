@@ -72,7 +72,7 @@ describe('CreateCustomListDialog', () => {
       fireEvent.click(screen.getByRole('button', { name: /create list/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('List name is required.')).toBeInTheDocument()
+        expect(screen.getByText('List name is required')).toBeInTheDocument()
       })
       expect(mockCreateCustomListAction).not.toHaveBeenCalled()
     })
@@ -83,9 +83,54 @@ describe('CreateCustomListDialog', () => {
       fireEvent.click(screen.getByRole('button', { name: /create list/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('List name is required.')).toBeInTheDocument()
+        expect(screen.getByText('List name is required')).toBeInTheDocument()
       })
       expect(mockCreateCustomListAction).not.toHaveBeenCalled()
+    })
+
+    it('shows an error when name contains disallowed characters', async () => {
+      setup()
+      fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'My@List' } })
+      fireEvent.click(screen.getByRole('button', { name: /create list/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/letters, numbers, spaces/i)).toBeInTheDocument()
+      })
+      expect(mockCreateCustomListAction).not.toHaveBeenCalled()
+    })
+
+    it('shows an error when description contains disallowed characters', async () => {
+      setup()
+      fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'My List' } })
+      fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Bad desc @@@' } })
+      fireEvent.click(screen.getByRole('button', { name: /create list/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/basic punctuation/i)).toBeInTheDocument()
+      })
+      expect(mockCreateCustomListAction).not.toHaveBeenCalled()
+    })
+
+    it('applies shake class to the name input on name error', async () => {
+      setup()
+      fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Bad@Name' } })
+      fireEvent.click(screen.getByRole('button', { name: /create list/i }))
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/name/i)).toHaveClass('animate-shake')
+      })
+    })
+
+    it('clears the name error when the user starts typing again', async () => {
+      setup()
+      fireEvent.click(screen.getByRole('button', { name: /create list/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText('List name is required')).toBeInTheDocument()
+      })
+
+      fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'A' } })
+      expect(screen.queryByText('List name is required')).not.toBeInTheDocument()
     })
   })
 
@@ -271,5 +316,74 @@ describe('UserListFormSchema', () => {
   it('accepts a description exactly 200 characters long', () => {
     const result = UserListFormSchema.safeParse({ name: 'My List', description: 'A'.repeat(200) })
     expect(result.success).toBe(true)
+  })
+
+  // ── Alphanumeric checks ──────────────────────────────────────────────────────
+
+  it('accepts a name with letters and numbers', () => {
+    const result = UserListFormSchema.safeParse({ name: 'Top 10' })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts a name with hyphens', () => {
+    const result = UserListFormSchema.safeParse({ name: 'Work-Clients' })
+    expect(result.success).toBe(true)
+  })
+
+  it("accepts a name with apostrophes", () => {
+    const result = UserListFormSchema.safeParse({ name: "Daniel's List" })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects a name with special characters like @', () => {
+    const result = UserListFormSchema.safeParse({ name: 'My@List' })
+    expect(result.success).toBe(false)
+    expect(result.error?.errors[0].message).toMatch(/letters, numbers, spaces/)
+  })
+
+  it('rejects a name with exclamation marks', () => {
+    const result = UserListFormSchema.safeParse({ name: 'Favorites!' })
+    expect(result.success).toBe(false)
+    expect(result.error?.errors[0].message).toMatch(/letters, numbers, spaces/)
+  })
+
+  it('rejects a name with hashtags', () => {
+    const result = UserListFormSchema.safeParse({ name: '#VIPs' })
+    expect(result.success).toBe(false)
+    expect(result.error?.errors[0].message).toMatch(/letters, numbers, spaces/)
+  })
+
+  it('rejects a name that is only special characters', () => {
+    const result = UserListFormSchema.safeParse({ name: '!@#$%' })
+    expect(result.success).toBe(false)
+  })
+
+  // ── Description regex checks ───────────────────────────────────────────────
+
+  it('accepts a description with letters, numbers, and basic punctuation', () => {
+    const result = UserListFormSchema.safeParse({ name: 'My List', description: 'Trusted buyers (top 10), reliable!' })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts a description with commas, periods, and question marks', () => {
+    const result = UserListFormSchema.safeParse({ name: 'My List', description: 'Who are these? Close friends, mostly.' })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects a description with @ symbol', () => {
+    const result = UserListFormSchema.safeParse({ name: 'My List', description: 'Contact @user' })
+    expect(result.success).toBe(false)
+    expect(result.error?.errors[0].message).toMatch(/basic punctuation/)
+  })
+
+  it('rejects a description with hashtags', () => {
+    const result = UserListFormSchema.safeParse({ name: 'My List', description: '#vip users' })
+    expect(result.success).toBe(false)
+    expect(result.error?.errors[0].message).toMatch(/basic punctuation/)
+  })
+
+  it('rejects a description with emojis', () => {
+    const result = UserListFormSchema.safeParse({ name: 'My List', description: 'Best friends 😊' })
+    expect(result.success).toBe(false)
   })
 })

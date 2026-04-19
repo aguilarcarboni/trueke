@@ -18,6 +18,21 @@ export async function sendEmailChangeVerificationEmail(
   })
 }
 
+export async function sendAccountDeactivationEmail(
+  to: string,
+  username: string,
+): Promise<{ ok: boolean; error?: string }> {
+  return sendEmail({
+    to,
+    subject: 'Trueke - Account deactivated',
+    html: `
+      <p>Hi <strong>${username}</strong>,</p>
+      <p>Your Trueke account has been deactivated.</p>
+      <p>All your active listings have been removed and any ongoing trades have been cancelled.</p>
+    `,
+  })
+}
+
 export async function sendPasswordRecoveryEmail(
   to: string,
   code: string,

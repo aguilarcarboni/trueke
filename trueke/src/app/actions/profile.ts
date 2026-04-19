@@ -1,6 +1,6 @@
 "use server"
 
-import type { UpdateProfileData, UserProfile, PublicUserProfile } from "@/lib/entities/profile"
+import type { UpdateProfileData, UserProfile, PublicUserProfile, PublicProfileResult } from "@/lib/entities/profile"
 import { getUserProfile, updateUserProfile, getPublicUserProfile } from "@/utils/entities/profile"
 
 export async function getProfileAction(userId: string): Promise<UserProfile | null> {
@@ -12,7 +12,7 @@ export async function getProfileAction(userId: string): Promise<UserProfile | nu
  * Returns a privacy-safe public profile for any user.
  * Safe to call from client code — no sensitive data is exposed.
  */
-export async function getPublicProfileAction(userId: string): Promise<PublicUserProfile | null> {
+export async function getPublicProfileAction(userId: string): Promise<PublicProfileResult | null> {
   if (!userId?.trim()) return null
   return getPublicUserProfile(userId)
 }

@@ -7,9 +7,11 @@ import {
   getUserListMembers,
   addUserToList,
   removeUserFromList,
+  createCustomList,
 } from "@/utils/entities/user-list"
 import type { ApiResponse } from "@/lib/types"
 import type { UserList, UserListMember } from "@/lib/entities/user-list"
+import { UserListFormSchema } from "@/lib/entities/user-list"
 
 /** Returns all user lists owned by the authenticated user. */
 export async function getUserListsAction(): Promise<ApiResponse<UserList[]>> {
@@ -64,4 +66,26 @@ export async function removeUserFromListAction(
 
   revalidatePath("/favorites")
   return { success: true, data: null }
+}
+
+/** Creates a new custom list for the authenticated user. */
+export async function createCustomListAction(
+  name: string,
+  description?: string
+): Promise<ApiResponse<{ listId: string }>> {
+  const userId = await getAuthenticatedUserId()
+  if (!userId) return { success: false, error: "Not authenticated." }
+
+  const parsed = UserListFormSchema.safeParse({ name, description })
+  if (!parsed.success) {
+    const firstError = parsed.error.errors[0]
+    return { success: false, error: firstError?.message ?? "Invalid input." }
+  }
+
+  const { error, listId } = await createCustomList(userId, parsed.data.name, parsed.data.description)
+  if (error) return { success: false, error }
+  if (!listId) return { success: false, error: "Failed to create list." }
+
+  revalidatePath("/favorites")
+  return { success: true, data: { listId } }
 }

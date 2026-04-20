@@ -11,6 +11,7 @@ import {
 } from "@/components/sections/favorites/user-list-members"
 import type { UserList, UserListMember } from "@/lib/entities/user-list"
 import { cn } from "@/lib/utils"
+import { CreateCustomListDialog } from "@/components/sections/favorites/create-custom-list-dialog"
 
 // ─── Per-list panel ───────────────────────────────────────────────────────────
 
@@ -180,6 +181,12 @@ export function Favorites() {
             <CustomListsView
               customLists={customLists}
               onSelect={selectCustomList}
+              onListCreated={(listId, name) => {
+                setLists((prev) => [
+                  ...prev,
+                  { listId, name, isPredefined: false, memberCount: 0 } as UserList,
+                ])
+              }}
             />
           ) : selectedList ? (
             <UserListPanel key={selectedList.listId} list={selectedList} />
@@ -199,11 +206,20 @@ export function Favorites() {
 interface CustomListsViewProps {
   customLists: UserList[]
   onSelect: (listId: string) => void
+  onListCreated: (listId: string, name: string) => void
 }
 
-function CustomListsView({ customLists, onSelect }: CustomListsViewProps) {
+function CustomListsView({ customLists, onSelect, onListCreated }: CustomListsViewProps) {
+  const [dialogOpen, setDialogOpen] = useState(false)
+
   return (
     <div className="space-y-4">
+      <CreateCustomListDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onCreated={onListCreated}
+      />
+
       {/* Create list button */}
       <div>
         <Button
@@ -211,6 +227,7 @@ function CustomListsView({ customLists, onSelect }: CustomListsViewProps) {
           size="sm"
           className="gap-1.5"
           aria-label="Create new list"
+          onClick={() => setDialogOpen(true)}
         >
           <Plus className="h-3.5 w-3.5" />
           Create List

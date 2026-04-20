@@ -90,6 +90,30 @@ export async function getUserListMembers(listId: string): Promise<UserListMember
   })
 }
 
+export async function createCustomList(
+  userId: string, 
+  name: string, 
+  description?: string
+): Promise<{ error: string | null; listId?: string }> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from("user_list")
+    .insert({
+      owner_id: userId,
+      name: name, 
+      description: description ?? null,
+      is_predefined: false, 
+    })
+    .select("list_id")
+  
+  if (error || !data || data.length === 0) {
+    return { error: error?.message ?? "Failed to create list." }
+  }
+
+  return { error: null, listId: data[0].list_id }
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 /** Adds `memberUserId` to the given list. Returns an error string or null. */

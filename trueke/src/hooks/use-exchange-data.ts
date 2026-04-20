@@ -19,6 +19,7 @@ export function useExchangeData(currentUserId: string) {
   const [isLoading, setIsLoading] = useState(true)
 
   const loadData = useCallback(async () => {
+    if (!currentUserId) return
     setIsLoading(true)
     try {
       const [exchangesResult, itemsResult] = await Promise.all([
@@ -62,6 +63,7 @@ export function useExchangeData(currentUserId: string) {
 
   /** Reload only exchanges (after an action). */
   const reloadExchanges = useCallback(async () => {
+    if (!currentUserId) return
     const result = await getUserExchangesEnriched(currentUserId)
     if (result.success && result.data) {
       setExchanges(result.data)

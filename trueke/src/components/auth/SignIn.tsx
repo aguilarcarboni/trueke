@@ -20,6 +20,8 @@ function SignIn() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDeactivated, setIsDeactivated] = useState(false);
+  const [isRecoverable, setIsRecoverable] = useState(false);
+  const [isReactivating, setIsReactivating] = useState(false);
   
   const router = useRouter();
 
@@ -44,10 +46,15 @@ function SignIn() {
     });
 
     if (result?.error) {
-      if (result.error === 'AccountDeactivated') {
+      if (result.error === 'AccountDeactivatedRecoverable') {
         setIsDeactivated(true)
+        setIsRecoverable(true)
+      } else if (result.error === 'AccountDeactivated') {
+        setIsDeactivated(true)
+        setIsRecoverable(false)
       } else {
         setIsDeactivated(false)
+        setIsRecoverable(false)
         toast({
           title: 'Error',
           description: 'Invalid email or password.',
@@ -68,9 +75,42 @@ function SignIn() {
         {isDeactivated && (
           <Alert variant="destructive">
             <AlertDescription>
-              This account has been deactivated. Please contact support if you believe this is a mistake.
+              {isRecoverable
+                ? 'Your account has been deactivated. You can reactivate it within 30 days.'
+                : 'This account has been permanently deactivated. Please contact support if you believe this is a mistake.'}
             </AlertDescription>
           </Alert>
+        )}
+        {isRecoverable && (
+          <LoaderButton
+            isLoading={isReactivating}
+            text="Reactivate account"
+            type="button"
+            className="w-full"
+            onClick={() => {
+              setIsReactivating(true)
+              fetch('/api/account/reactivate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+              })
+                .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+                .then(({ ok, data }) => {
+                  setIsReactivating(false)
+                  if (!ok) {
+                    toast({ title: 'Error', description: data.error ?? 'Could not reactivate account.', variant: 'destructive' })
+                  } else {
+                    setIsDeactivated(false)
+                    setIsRecoverable(false)
+                    toast({ title: 'Account reactivated!', description: 'You can now sign in.' })
+                  }
+                })
+                .catch(() => {
+                  setIsReactivating(false)
+                  toast({ title: 'Error', description: 'Could not reach the server.', variant: 'destructive' })
+                })
+            }}
+          />
         )}
         <form onSubmit={handleSubmit} className='flex flex-col gap-4 w-full'>
           <Input

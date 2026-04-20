@@ -1,9 +1,9 @@
 import { createClient } from '@/utils/supabase/server'
 import { sendAccountDeactivationEmail } from '@/lib/server/mail/account-emails'
 
-export type UserStatusChange = 'inactive' | 'banned'
+export type UserStatusChange = 'inactive' | 'active' | 'banned'
 
-// Requires the `handle_user_status_change` SQL function to be deployed to the DB.
+
 export async function handleUserStatusChange(
   userId: string,
   newStatus: UserStatusChange,
@@ -27,6 +27,17 @@ export async function handleUserStatusChange(
       if (error) return { error: error.message }
 
       await sendAccountDeactivationEmail(user.email, user.username)
+      return {}
+    }
+    case 'active': {
+      const { error } = await supabase.rpc('handle_user_status_change', {
+        p_user_id: userId,
+        p_new_status: newStatus,
+      })
+      if (error) {
+        console.error('[reactivate] RPC error:', error)
+        return { error: error.message }
+      }
       return {}
     }
   }

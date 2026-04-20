@@ -23,4 +23,9 @@ describe('handleUserStatusChange', () => {
     const result = await handleUserStatusChange('user-1', 'inactive')
     expect(result).toEqual({})
   })
+
+  it('returns empty object when reactivating', async () => {
+    const result = await handleUserStatusChange('user-1', 'active')
+    expect(result).toEqual({})
+  })
 })

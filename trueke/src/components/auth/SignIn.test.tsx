@@ -22,7 +22,20 @@ describe('SignIn – deactivated account alert', () => {
     fireEvent.change(screen.getByPlaceholderText(/^password$/i), { target: { value: 'pass' } })
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
     await waitFor(() =>
-      expect(screen.getByText(/this account has been deactivated/i)).toBeInTheDocument()
+      expect(screen.getByText(/permanently deactivated/i)).toBeInTheDocument()
+    )
+  })
+})
+
+describe('SignIn – recoverable deactivated account', () => {
+  it('shows the reactivate button when account is recoverable', async () => {
+    vi.mocked(await import('next-auth/react')).signIn = vi.fn().mockResolvedValue({ error: 'AccountDeactivatedRecoverable', ok: false })
+    render(<SignIn />)
+    fireEvent.change(screen.getByPlaceholderText(/email/i), { target: { value: 'a@b.com' } })
+    fireEvent.change(screen.getByPlaceholderText(/^password$/i), { target: { value: 'pass' } })
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /reactivate account/i })).toBeInTheDocument()
     )
   })
 })

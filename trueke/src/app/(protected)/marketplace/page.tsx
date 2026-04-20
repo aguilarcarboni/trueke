@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 
 const page = () => {
   const { data: session } = useSession()
-  if (!session) return null
+  if (!session?.user?.id) return null
 
   return (
     <Marketplace currentUserId={session.user.id} />

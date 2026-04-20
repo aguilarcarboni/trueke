@@ -6,12 +6,12 @@ const page = () => {
 
   const { data: session } = useSession()
 
-  if (!session) {
+  if (!session || !session.user.id) {
     return null
   }
   
   return (
-    <Exchanges currentUserId={session?.user.id} />
+    <Exchanges currentUserId={session.user.id} />
   )
 }
 

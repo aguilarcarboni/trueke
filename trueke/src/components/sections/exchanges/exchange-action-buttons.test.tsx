@@ -14,7 +14,7 @@ const BASE_PROPS = {
 }
 
 describe('ExchangeActionButtons — terminal statuses render nothing', () => {
-  it.each(['completed', 'rejected', 'expired', 'cancelled'] as const)(
+  it.each(['completed', 'rejected', 'expired', 'cancelled', 'countered'] as const)(
     'returns null for status "%s"',
     (status) => {
       const { container } = render(
@@ -107,5 +107,67 @@ describe('ExchangeActionButtons — accepted exchange', () => {
   it('buttons are disabled while isLoading', () => {
     render(<ExchangeActionButtons {...acceptedProps} isLoading />)
     screen.getAllByRole('button').forEach((btn) => expect(btn).toBeDisabled())
+  })
+})
+
+describe('ExchangeActionButtons — counteroffer button', () => {
+  const onCounteroffer = vi.fn()
+
+  it('shows Counteroffer button for target user on pending exchange', () => {
+    render(
+      <ExchangeActionButtons
+        {...BASE_PROPS}
+        status="pending"
+        onCounteroffer={onCounteroffer}
+      />
+    )
+    expect(screen.getByRole('button', { name: /counteroffer/i })).toBeInTheDocument()
+  })
+
+  it('does not show Counteroffer button for the initiator', () => {
+    render(
+      <ExchangeActionButtons
+        {...BASE_PROPS}
+        currentUserId="user-initiator"
+        status="pending"
+        onCounteroffer={onCounteroffer}
+      />
+    )
+    expect(screen.queryByRole('button', { name: /counteroffer/i })).not.toBeInTheDocument()
+  })
+
+  it('calls onCounteroffer directly when clicked (no confirmation dialog)', () => {
+    render(
+      <ExchangeActionButtons
+        {...BASE_PROPS}
+        status="pending"
+        onCounteroffer={onCounteroffer}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: /counteroffer/i }))
+    expect(onCounteroffer).toHaveBeenCalledTimes(1)
+  })
+
+  it('Counteroffer button is disabled while isLoading', () => {
+    render(
+      <ExchangeActionButtons
+        {...BASE_PROPS}
+        status="pending"
+        isLoading
+        onCounteroffer={onCounteroffer}
+      />
+    )
+    expect(screen.getByRole('button', { name: /counteroffer/i })).toBeDisabled()
+  })
+
+  it('does not render Counteroffer button for accepted exchanges', () => {
+    render(
+      <ExchangeActionButtons
+        {...BASE_PROPS}
+        status="accepted"
+        onCounteroffer={onCounteroffer}
+      />
+    )
+    expect(screen.queryByRole('button', { name: /counteroffer/i })).not.toBeInTheDocument()
   })
 })

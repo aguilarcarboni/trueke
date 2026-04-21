@@ -6,6 +6,7 @@ import {
   passwordsMatch,
   updateUserPasswordHash,
 } from '@/lib/server/account/user-password'
+import { sendPasswordChangeNotificationEmail } from '@/lib/server/mail/account-emails'
 
 /**
  * Orchestrates password change: validates input, verifies current password, persists new hash.
@@ -21,7 +22,7 @@ export async function runChangePassword(
   const supabase = await createClient()
   const { data: user, error: fetchError } = await supabase
     .from('user')
-    .select('password_hash')
+    .select('password_hash, email')
     .eq('user_id', userId)
     .single()
 
@@ -38,6 +39,12 @@ export async function runChangePassword(
   const passwordHash = await hashPassword(newPassword)
   const persist = await updateUserPasswordHash(supabase, userId, passwordHash)
   if (persist.error) return { error: persist.error }
+
+  if (user.email) {
+    sendPasswordChangeNotificationEmail(user.email, new Date()).catch((err) =>
+      console.error('Failed to send password change notification:', err)
+    )
+  }
 
   revalidatePath('/', 'layout')
   return {}

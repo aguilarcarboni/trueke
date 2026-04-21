@@ -16,11 +16,7 @@ const ALLOWED_PROFILE_IMAGE_TYPES = new Set([
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    const userId = session?.user?.id
-
-    if (!userId) {
-      return NextResponse.json({ error: "User not authenticated." }, { status: 401 })
-    }
+    const userId = session?.user?.id ?? null
 
     const formData = await request.formData()
     const file = formData.get("file")
@@ -46,7 +42,8 @@ export async function POST(request: Request) {
       : "jpg"
     const safeFileExt = fileExt.replace(/[^a-z0-9]/g, "") || "jpg"
     const uniquePart = `${Date.now()}-${crypto.randomUUID()}`
-    const path = `${userId}/${uniquePart}.${safeFileExt}`
+    const pathPrefix = userId ? `${userId}` : "anonymous"
+    const path = `${pathPrefix}/${uniquePart}.${safeFileExt}`
 
     const supabase = await createClient()
     const { error: uploadError } = await supabase.storage

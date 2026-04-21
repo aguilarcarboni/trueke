@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { EMAIL_PATTERN } from '@/lib/validation/email'
 import { validateNewPasswordField } from '@/lib/validation/password'
 import { generateSixDigitCode } from '@/lib/server/verification-code'
-import { sendPasswordRecoveryEmail } from '@/lib/server/mail/account-emails'
+import { sendPasswordRecoveryEmail, sendPasswordChangeNotificationEmail } from '@/lib/server/mail/account-emails'
 import {
   hashPassword,
   passwordsMatch,
@@ -99,6 +99,10 @@ export async function runPasswordReset(
   if (persist.error) {
     return { error: persist.error }
   }
+
+  sendPasswordChangeNotificationEmail(recoveryEmail, new Date()).catch((err) =>
+    console.error('Failed to send password change notification:', err)
+  )
 
   revalidatePath('/', 'layout')
   return { success: 'Password updated successfully.' }

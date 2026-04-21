@@ -11,11 +11,13 @@ import type {
     ExchangeListItem,
     ExchangeListItemEnriched,
     ExchangeItem,
+    ExchangeHistoryEntry,
     CreateExchangeRequest,
     AcceptExchangeRequest,
     RejectExchangeRequest,
     CancelExchangeRequest,
     CompleteExchangeRequest,
+    CounterOfferRequest,
 } from '@/lib/entities/exchange'
 import type { Item } from '@/lib/entities/item'
 
@@ -373,17 +375,18 @@ export async function getUserExchanges(
         }
 
         const exchanges: ExchangeListItem[] = (data || []).map((item: any) => ({
-            exchange_id: item.exchange_id,
-            initiator_id: item.initiator_id,
-            initiator_name: item.initiator_name,
+            exchange_id: item.out_exchange_id,
+            initiator_id: item.out_initiator_id,
+            initiator_name: item.out_initiator_name,
             target_user_id: '',  // populated by getUserExchangesEnriched
             target_name: '',     // populated by getUserExchangesEnriched
-            status: item.status,
-            message: item.message,
-            created_at: item.created_at,
-            expires_at: item.expires_at,
-            offered_count: item.offered_count || 0,
-            requested_count: item.requested_count || 0,
+            status: item.out_status,
+            message: item.out_message,
+            created_at: item.out_created_at,
+            expires_at: item.out_expires_at,
+            offered_count: item.out_offered_count || 0,
+            requested_count: item.out_requested_count || 0,
+            parent_exchange_id: item.out_parent_exchange_id || null,
         }))
 
         return {
@@ -780,6 +783,125 @@ export async function completeExchange(
 
 import { createNotification } from '@/utils/entities/notification'
 import type { NotificationType } from '@/lib/entities/notification'
+
+/**
+ * Create a counteroffer to an existing exchange proposal (AC1–AC7).
+ * Calls the DB function create_counteroffer which:
+ *   - Validates the actor is the target of the parent exchange
+ *   - Marks the parent exchange as 'countered'
+ *   - Creates a new exchange with parent_exchange_id set
+ *   - Notifies the original proposer
+ */
+export async function createCounteroffer(
+    request: CounterOfferRequest
+): Promise<ApiResponse<{ exchange_id: string }>> {
+    try {
+        const supabase = await createClient()
+
+        const { data, error } = await supabase.rpc('create_counteroffer', {
+            p_parent_exchange_id: request.parent_exchange_id,
+            p_actor_user_id: request.actor_user_id,
+            p_offered_item_ids: request.offered_item_ids,
+            p_requested_item_ids: request.requested_item_ids,
+            p_message: request.message || null,
+            p_expiration_days: request.expiration_days || 7,
+        })
+
+        if (error) {
+            return { success: false, error: error.message }
+        }
+
+        if (data && data.length > 0) {
+            const result = data[0]
+            if (result.result_status === 'success') {
+                return {
+                    success: true,
+                    data: { exchange_id: result.out_exchange_id },
+                    message: result.result_message,
+                }
+            } else {
+                return { success: false, error: result.result_message }
+            }
+        }
+
+        return { success: false, error: 'Unknown error creating counteroffer' }
+    } catch (err) {
+        console.error('Error creating counteroffer:', err)
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : 'An error occurred',
+        }
+    }
+}
+
+/**
+ * Get the full history chain for an exchange (AC8).
+ * Returns all offers and counteroffers in chronological order.
+ */
+export async function getExchangeHistory(
+    exchangeId: string
+): Promise<ApiResponse<ExchangeHistoryEntry[]>> {
+    try {
+        const supabase = await createClient()
+
+        const { data, error } = await supabase.rpc('get_exchange_history', {
+            p_exchange_id: exchangeId,
+        })
+
+        if (error) {
+            return { success: false, error: error.message }
+        }
+
+        const history: ExchangeHistoryEntry[] = (data || []).map((row: any) => ({
+            exchange_id: row.out_exchange_id,
+            parent_exchange_id: row.out_parent_exchange_id || null,
+            initiator_id: row.out_initiator_id,
+            initiator_name: row.out_initiator_name || 'Unknown',
+            status: row.out_status,
+            message: row.out_message,
+            created_at: row.out_created_at,
+            expires_at: row.out_expires_at,
+            offered_items: row.out_offered_items || [],
+            requested_items: row.out_requested_items || [],
+        }))
+
+        return { success: true, data: history }
+    } catch (err) {
+        console.error('Error fetching exchange history:', err)
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : 'An error occurred',
+        }
+    }
+}
+
+/**
+ * Get active items for a specific user (for counteroffer item selection).
+ */
+export async function getActiveItemsByUser(userId: string): Promise<ApiResponse<Item[]>> {
+    try {
+        const supabase = await createClient()
+
+        const { data: items, error: itemsError } = await supabase
+            .from('item')
+            .select('item_id,title,description,condition,category,item_type,status,owner_user_id,last_date_uploaded,date_bought')
+            .eq('owner_user_id', userId)
+            .eq('status', 'active')
+            .order('last_date_uploaded', { ascending: false })
+
+        if (itemsError) {
+            return { success: false, error: itemsError.message }
+        }
+
+        return await mapItemsWithOwnerAndMedia(supabase, (items || []) as BaseItemRow[])
+    } catch (err) {
+        console.error('Error fetching user items:', err)
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : 'An error occurred',
+        }
+    }
+}
 
 /**
  * Create an in-app notification for the other party in an exchange.

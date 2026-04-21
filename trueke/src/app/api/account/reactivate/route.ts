@@ -3,8 +3,6 @@ import { createClient } from '@/utils/supabase/server'
 import { passwordsMatch } from '@/lib/server/account/user-password'
 import { handleUserStatusChange } from '@/lib/server/handle-user-status-change'
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
-
 export async function POST(req: NextRequest) {
   let body: { email?: string; password?: string }
   try {
@@ -32,8 +30,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'This account is not deactivated.' }, { status: 400 })
   }
 
-  const deactivatedAt = user.deactivated_at ? new Date(user.deactivated_at).getTime() : null
-  if (deactivatedAt === null || Date.now() - deactivatedAt > THIRTY_DAYS_MS) {
+  const deactivatedAt = user.deactivated_at ? new Date(user.deactivated_at) : null
+  const expiryDate = deactivatedAt ? new Date(deactivatedAt) : null
+  if (expiryDate) expiryDate.setDate(expiryDate.getDate() + 30)
+  if (!expiryDate || new Date() > expiryDate) {
     return NextResponse.json({ error: 'The reactivation window has expired.' }, { status: 400 })
   }
 

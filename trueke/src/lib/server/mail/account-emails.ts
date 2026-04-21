@@ -119,3 +119,20 @@ export async function sendPasswordRecoveryEmail(
     `,
   })
 }
+
+export async function sendReactivationCodeEmail(
+  to: string,
+  code: string,
+): Promise<{ ok: boolean; error?: string }> {
+  return sendEmail({
+    to,
+    subject: 'Trueke - Account reactivation code',
+    html: `
+      <p>Your Trueke account reactivation code is:</p>
+      <p><strong>${code}</strong></p>
+      <p>Enter this code to reactivate your account.</p>
+      <p>This code expires in 5 minutes.</p>
+      <p>If you did not request this, please ignore this email.</p>
+    `,
+  })
+}

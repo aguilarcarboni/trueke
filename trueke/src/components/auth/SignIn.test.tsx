@@ -16,26 +16,26 @@ vi.mock('next/link', () => ({
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
 
 describe('SignIn – deactivated account alert', () => {
-  it('shows the deactivated message when account is inactive', async () => {
+  it('does not show the reactivate link when account is permanently deactivated', async () => {
     render(<SignIn />)
     fireEvent.change(screen.getByPlaceholderText(/email/i), { target: { value: 'a@b.com' } })
     fireEvent.change(screen.getByPlaceholderText(/^password$/i), { target: { value: 'pass' } })
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
     await waitFor(() =>
-      expect(screen.getByText(/permanently deactivated/i)).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /reactivate account/i })).not.toBeInTheDocument()
     )
   })
 })
 
 describe('SignIn – recoverable deactivated account', () => {
-  it('shows the reactivate button when account is recoverable', async () => {
+  it('shows the reactivate link when account is recoverable', async () => {
     vi.mocked(await import('next-auth/react')).signIn = vi.fn().mockResolvedValue({ error: 'AccountDeactivatedRecoverable', ok: false })
     render(<SignIn />)
     fireEvent.change(screen.getByPlaceholderText(/email/i), { target: { value: 'a@b.com' } })
     fireEvent.change(screen.getByPlaceholderText(/^password$/i), { target: { value: 'pass' } })
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /reactivate account/i })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /reactivate account/i })).toBeInTheDocument()
     )
   })
 })

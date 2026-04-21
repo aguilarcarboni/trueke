@@ -26,9 +26,10 @@ export async function loginUserWithCredentials(email: string, password: string) 
     }
 
     if (data.status === 'inactive') {
-        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
-        const deactivatedAt = data.deactivated_at ? new Date(data.deactivated_at).getTime() : null
-        const withinWindow = deactivatedAt !== null && (Date.now() - deactivatedAt) < THIRTY_DAYS_MS
+        const deactivatedAt = data.deactivated_at ? new Date(data.deactivated_at) : null
+        const expiryDate = deactivatedAt ? new Date(deactivatedAt) : null
+        if (expiryDate) expiryDate.setDate(expiryDate.getDate() + 30)
+        const withinWindow = expiryDate !== null && new Date() < expiryDate
         throw new Error(withinWindow ? 'AccountDeactivatedRecoverable' : 'AccountDeactivated')
     }
 

@@ -199,7 +199,7 @@ export function AddUserToListDialog({
               No users found matching or all users matching search already in list &ldquo;{query}&rdquo;
             </p>
           ) : results.length > 0 ? (
-            <ScrollArea className="max-h-72">
+            <ScrollArea className="h-72">
               <div className="space-y-0.5 pr-1">
                 {results.map((user) => (
                   <ResultRow

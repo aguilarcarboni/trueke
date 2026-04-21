@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { getAdminUsers } from "@/app/actions/admin"
+import { BanUserDialog } from "./ban-user-dialog"
 
 type AdminUser = { user_id: string; username: string; status: string }
 
@@ -26,6 +27,7 @@ export function AdminUsersList() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [banTarget, setBanTarget] = useState<AdminUser | null>(null)
 
   async function loadUsers() {
     setLoading(true)
@@ -79,7 +81,7 @@ export function AdminUsersList() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem>View</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive focus:text-destructive">Ban</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setBanTarget(user)}>Ban</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -88,6 +90,18 @@ export function AdminUsersList() {
           </div>
         )}
       </CardContent>
+
+      {banTarget && (
+        <BanUserDialog
+          username={banTarget.username}
+          open={!!banTarget}
+          onOpenChange={(open) => { if (!open) setBanTarget(null) }}
+          onConfirm={(_duration, _expiresAt, _reason) => {
+            // TODO: wire to backend
+            setBanTarget(null)
+          }}
+        />
+      )}
     </Card>
   )
 }

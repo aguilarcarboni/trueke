@@ -1,11 +1,17 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw, MoreHorizontal } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { getAdminUsers } from "@/app/actions/admin"
 
 type AdminUser = { user_id: string; username: string; status: string }
@@ -61,9 +67,22 @@ export function AdminUsersList() {
             {users.map((user) => (
               <div key={user.user_id} className="flex items-center justify-between py-2">
                 <span className="text-sm font-medium">{user.username}</span>
-                <Badge className={STATUS_STYLES[user.status] ?? ""}>
-                  {user.status}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge className={STATUS_STYLES[user.status] ?? ""}>
+                    {user.status}
+                  </Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>View</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive">Ban</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             ))}
           </div>

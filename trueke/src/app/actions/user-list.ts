@@ -8,9 +8,11 @@ import {
   addUserToList,
   removeUserFromList,
   createCustomList,
+  searchUsersForList,
+  getUserListFiltered,
 } from "@/utils/entities/user-list"
 import type { ApiResponse } from "@/lib/types"
-import type { UserList, UserListMember } from "@/lib/entities/user-list"
+import type { UserList, UserListMember, UserSearchResult } from "@/lib/entities/user-list"
 import { UserListFormSchema } from "@/lib/entities/user-list"
 
 /** Returns all user lists owned by the authenticated user. */
@@ -88,4 +90,33 @@ export async function createCustomListAction(
 
   revalidatePath("/favorites")
   return { success: true, data: { listId } }
+}
+
+/**
+ * Searches for users by username / first name / last name.
+ * Excludes users already in the list (`existingMemberIds`) and the caller.
+ */
+/** Returns lists owned by the authenticated user that don't yet contain `toAddUserId`. */
+export async function getUserListFilteredAction(
+  toAddUserId: string
+): Promise<ApiResponse<UserList[]>> {
+  const userId = await getAuthenticatedUserId()
+  if (!userId) return { success: false, error: "Not authenticated." }
+  if (!toAddUserId?.trim()) return { success: false, error: "User ID is required." }
+
+  const lists = await getUserListFiltered(userId, toAddUserId)
+  return { success: true, data: lists }
+}
+
+export async function searchUsersForListAction(
+  query: string,
+  existingMemberIds: string[]
+): Promise<ApiResponse<UserSearchResult[]>> {
+  const userId = await getAuthenticatedUserId()
+  if (!userId) return { success: false, error: "Not authenticated." }
+  if (!query?.trim()) return { success: true, data: [] }
+
+  const excludeIds = Array.from(new Set([userId, ...existingMemberIds]))
+  const results = await searchUsersForList(query.trim(), excludeIds)
+  return { success: true, data: results }
 }

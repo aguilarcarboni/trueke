@@ -15,6 +15,7 @@ import { CounterOfferDialog } from "@/components/sections/exchanges/counteroffer
 import { ExchangeHistory } from "@/components/sections/exchanges/exchange-history"
 import { hasUserReviewedExchange } from "@/app/actions/review"
 import type { ExchangeListItemEnriched } from "@/lib/entities/exchange"
+import { AddUserToListButton } from "@/components/misc/add-user-to-list-button"
 
 interface ExchangeCardProps {
   exchange: ExchangeListItemEnriched
@@ -187,7 +188,7 @@ export function ExchangeCard({
           </div>
 
           {/* Right: Action buttons */}
-          <div className="shrink-0 space-y-2">
+          <div className="shrink-0 space-y-2 self-start">
             <Button asChild variant="outline" size="sm" className="w-full gap-2">
               <Link href={`/messages?exchangeId=${exchange_id}`}>
                 <MessageSquare className="h-4 w-4" />
@@ -221,6 +222,11 @@ export function ExchangeCard({
               onCancel={onCancel}
               onComplete={onComplete}
               onCounteroffer={() => setCounterofferOpen(true)}
+            />
+            <AddUserToListButton 
+              targetUserId={otherUserId} 
+              targetUsername={otherUserName} 
+              className="w-full" 
             />
           </div>
         </div>

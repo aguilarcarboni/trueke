@@ -178,3 +178,23 @@ export async function updateReportStatus(
     return { error: 'An unexpected error occurred.' }
   }
 }
+
+export async function getAdminUsers(): Promise<{ data?: { user_id: string; username: string; status: string }[]; error?: string }> {
+  try {
+    const authError = await requireAdmin()
+    if (authError) return { error: authError.error }
+
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+      .from('user')
+      .select('user_id,username,status')
+      .order('username', { ascending: true })
+
+    if (error) return { error: 'Failed to load users.' }
+
+    return { data: data ?? [] }
+  } catch {
+    return { error: 'An unexpected error occurred.' }
+  }
+}

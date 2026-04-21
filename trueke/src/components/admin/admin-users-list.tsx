@@ -1,0 +1,74 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { RefreshCw } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { getAdminUsers } from "@/app/actions/admin"
+
+type AdminUser = { user_id: string; username: string; status: string }
+
+const STATUS_STYLES: Record<string, string> = {
+  active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  inactive: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+  banned: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+}
+
+export function AdminUsersList() {
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  async function loadUsers() {
+    setLoading(true)
+    setError(null)
+    const result = await getAdminUsers()
+    if (result.error) {
+      setError(result.error)
+    } else {
+      setUsers(result.data ?? [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadUsers()
+  }, [])
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>All Users</CardTitle>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadUsers} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : error ? (
+          <p className="text-destructive text-sm">{error}</p>
+        ) : users.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No users found.</p>
+        ) : (
+          <div className="divide-y">
+            {users.map((user) => (
+              <div key={user.user_id} className="flex items-center justify-between py-2">
+                <span className="text-sm font-medium">{user.username}</span>
+                <Badge className={STATUS_STYLES[user.status] ?? ""}>
+                  {user.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}

@@ -24,6 +24,17 @@ export interface UserListMember {
   addedAt: string
 }
 
+/** A user returned from a search, used when adding to a list. */
+export interface UserSearchResult {
+  userId: string
+  username: string
+  firstName: string
+  lastName: string
+  profilePictureUrl: string
+  averageRating: number
+  totalReviews: number
+}
+
 /** User List Zod Schema for Create List Form Validation */
 export const UserListFormSchema = z.object({
   name: z

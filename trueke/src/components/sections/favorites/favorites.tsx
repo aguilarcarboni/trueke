@@ -12,6 +12,7 @@ import {
 import type { UserList, UserListMember } from "@/lib/entities/user-list"
 import { cn } from "@/lib/utils"
 import { CreateCustomListDialog } from "@/components/sections/favorites/create-custom-list-dialog"
+import { AddUserToListDialog } from "@/components/sections/favorites/add-user-to-list-dialog"
 
 // ─── Per-list panel ───────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ function UserListPanel({ list }: UserListPanelProps) {
   const [members, setMembers] = useState<UserListMember[]>([])
   const [loading, setLoading] = useState(true)
   const [removingUserId, setRemovingUserId] = useState<string | null>(null)
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -45,12 +47,35 @@ function UserListPanel({ list }: UserListPanelProps) {
   if (loading) return <UserListMembersSkeleton />
 
   return (
-    <UserListMembers
-      members={members}
-      listName={list.name}
-      onRemove={handleRemove}
-      removingUserId={removingUserId}
-    />
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button
+          variant="default"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setAddDialogOpen(true)}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add User
+        </Button>
+      </div>
+
+      <UserListMembers
+        members={members}
+        listName={list.name}
+        onRemove={handleRemove}
+        removingUserId={removingUserId}
+      />
+
+      <AddUserToListDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        listId={list.listId}
+        listName={list.name}
+        existingMemberIds={members.map((m) => m.userId)}
+        onUserAdded={() => load()}
+      />
+    </div>
   )
 }
 

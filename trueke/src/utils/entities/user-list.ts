@@ -59,6 +59,45 @@ export async function getUserListMembers(listId: string): Promise<UserListMember
 
   const userIds = memberRows.map((r: any) => r.member_user_id)
 
+  const { data: locRows } = await supabase
+    .from("user_address")
+    .select(
+      `
+      user_id,
+      address:address_id (
+        canton_city,
+        province_state
+      )
+    `
+    )
+    .in("user_id", userIds)
+    .eq("is_current", true)
+
+  const locationByUser = new Map<string, string>()
+  for (const row of locRows ?? []) {
+    const addr = row.address as { canton_city?: string; province_state?: string } | null
+    const city = addr?.canton_city?.trim() ?? ""
+    const prov = addr?.province_state?.trim() ?? ""
+    const parts = [city, prov].filter(Boolean)
+    locationByUser.set(row.user_id as string, parts.join(", "))
+  }
+
+  const { data: epRows } = await supabase
+    .from("exchange_participant")
+    .select("user_id, exchange_id, exchange ( status )")
+    .in("user_id", userIds)
+
+  const tradeSets = new Map<string, Set<string>>()
+  for (const row of epRows ?? []) {
+    const raw = row.exchange as { status: string } | { status: string }[] | null
+    const st = Array.isArray(raw) ? raw[0]?.status : raw?.status
+    if (st !== "completed") continue
+    const uid = row.user_id as string
+    const eid = row.exchange_id as string
+    if (!tradeSets.has(uid)) tradeSets.set(uid, new Set())
+    tradeSets.get(uid)!.add(eid)
+  }
+
   // Step 2: fetch ratings for all members in one query
   const { data: ratingRows } = await supabase
     .from("user_rating_summary")
@@ -76,15 +115,18 @@ export async function getUserListMembers(listId: string): Promise<UserListMember
   return memberRows.map((row: any) => {
     const user = row.user
     const rating = ratingMap.get(row.member_user_id)
+    const uid = row.member_user_id as string
     return {
       listId: row.list_id,
-      userId: row.member_user_id,
+      userId: uid,
       username: user?.username ?? "",
       firstName: user?.first_name ?? "",
       lastName: user?.last_name ?? "",
       profilePictureUrl: user?.profile_picture_url ?? "",
+      locationLabel: locationByUser.get(uid) ?? "",
       averageRating: rating?.averageRating ?? 0,
       totalReviews: rating?.totalReviews ?? 0,
+      tradeCount: tradeSets.get(uid)?.size ?? 0,
       addedAt: row.added_date_time,
     }
   })

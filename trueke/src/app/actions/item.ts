@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { Item, ItemWithAddress } from '@/lib/entities/item';
 import { Address } from '@/lib/entities/address';
 import { getAuthenticatedUserId } from '@/utils/auth-server';
+import type { ApiResponse } from '@/lib/types';
 
 export interface ItemDetailsResponse {
   item: {
@@ -125,6 +126,60 @@ export async function getItemDetails(
   } catch (error) {
     console.error('Get item details error:', error)
     return { status: 500, error: 'Unable to load item details right now.' }
+  }
+}
+
+/** Public marketplace previews: active items owned by a user (e.g. list member profile). */
+export type PublicActiveListing = {
+  item_id: string
+  title: string
+  condition: string
+  imageUrl: string | null
+}
+
+export async function getPublicActiveListingsForUser(
+  ownerUserId: string
+): Promise<ApiResponse<PublicActiveListing[]>> {
+  try {
+    const supabase = await createClient()
+    const normalized = ownerUserId.trim()
+    if (!normalized) return { success: false, error: 'User ID is required' }
+
+    const { data: items, error } = await supabase
+      .from('item')
+      .select('item_id,title,condition')
+      .eq('owner_user_id', normalized)
+      .eq('status', 'active')
+      .order('last_date_uploaded', { ascending: false })
+      .limit(24)
+
+    if (error) return { success: false, error: error.message }
+    if (!items?.length) return { success: true, data: [] }
+
+    const ids = items.map((i) => i.item_id)
+    const { data: mediaRows } = await supabase
+      .from('item_media')
+      .select('item_id,url,display_order')
+      .in('item_id', ids)
+      .order('display_order', { ascending: true })
+
+    const firstImageByItem = new Map<string, string>()
+    for (const m of mediaRows ?? []) {
+      if (!firstImageByItem.has(m.item_id)) firstImageByItem.set(m.item_id, m.url)
+    }
+
+    return {
+      success: true,
+      data: items.map((row) => ({
+        item_id: row.item_id,
+        title: row.title,
+        condition: row.condition,
+        imageUrl: firstImageByItem.get(row.item_id) ?? null,
+      })),
+    }
+  } catch (e) {
+    console.error('getPublicActiveListingsForUser:', e)
+    return { success: false, error: e instanceof Error ? e.message : 'Failed to load listings' }
   }
 }
  

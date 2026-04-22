@@ -19,9 +19,24 @@ export interface UserListMember {
   firstName: string
   lastName: string
   profilePictureUrl: string
+  /** City & province when available, else empty string */
+  locationLabel: string
   averageRating: number
   totalReviews: number
+  /** Completed exchanges this user participated in */
+  tradeCount: number
   addedAt: string
+}
+
+/** A user returned from a search, used when adding to a list. */
+export interface UserSearchResult {
+  userId: string
+  username: string
+  firstName: string
+  lastName: string
+  profilePictureUrl: string
+  averageRating: number
+  totalReviews: number
 }
 
 /** User List Zod Schema for Create List Form Validation */

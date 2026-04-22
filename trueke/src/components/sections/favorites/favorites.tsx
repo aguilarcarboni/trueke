@@ -9,9 +9,11 @@ import {
   UserListMembers,
   UserListMembersSkeleton,
 } from "@/components/sections/favorites/user-list-members"
+import { UserProfileDialog } from "@/components/sections/exchanges/user-profile-dialog"
 import type { UserList, UserListMember } from "@/lib/entities/user-list"
 import { cn } from "@/lib/utils"
 import { CreateCustomListDialog } from "@/components/sections/favorites/create-custom-list-dialog"
+import { AddUserToListDialog } from "@/components/sections/favorites/add-user-to-list-dialog"
 
 // ─── Per-list panel ───────────────────────────────────────────────────────────
 
@@ -23,6 +25,8 @@ function UserListPanel({ list }: UserListPanelProps) {
   const [members, setMembers] = useState<UserListMember[]>([])
   const [loading, setLoading] = useState(true)
   const [removingUserId, setRemovingUserId] = useState<string | null>(null)
+  const [profileUserId, setProfileUserId] = useState<string | null>(null)
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -45,12 +49,54 @@ function UserListPanel({ list }: UserListPanelProps) {
   if (loading) return <UserListMembersSkeleton />
 
   return (
-    <UserListMembers
-      members={members}
-      listName={list.name}
-      onRemove={handleRemove}
-      removingUserId={removingUserId}
-    />
+    <>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{members.length}</span>{" "}
+          {members.length === 1 ? "member" : "members"} in this list
+        </p>
+      </div>
+      
+
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <Button
+            variant="default"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setAddDialogOpen(true)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add User
+          </Button>
+        </div>
+        <UserListMembers
+          members={members}
+          listName={list.name}
+          onRemove={handleRemove}
+          removingUserId={removingUserId}
+          onMemberClick={(userId) => setProfileUserId(userId)}
+        />
+
+        <AddUserToListDialog
+          open={addDialogOpen}
+          onOpenChange={setAddDialogOpen}
+          listId={list.listId}
+          listName={list.name}
+          existingMemberIds={members.map((m) => m.userId)}
+          onUserAdded={() => load()}
+        />
+      </div>
+
+      <UserProfileDialog
+        userId={profileUserId}
+        open={profileUserId !== null}
+        onOpenChange={(open) => {
+          if (!open) setProfileUserId(null)
+        }}
+        showActiveListings
+      />
+    </>
   )
 }
 
@@ -132,17 +178,15 @@ export function Favorites() {
               >
                 {getListIcon(list.name)}
                 {list.name}
-                {list.memberCount > 0 && (
-                  <Badge
-                    variant={selectedListId === list.listId && !showCustomLists ? "outline" : "secondary"}
-                    className={cn(
-                      "ml-0.5 text-xs px-1.5 py-0",
-                      selectedListId === list.listId && !showCustomLists && "border-primary-foreground/30 text-primary-foreground"
-                    )}
-                  >
-                    {list.memberCount}
-                  </Badge>
-                )}
+                <Badge
+                  variant={selectedListId === list.listId && !showCustomLists ? "outline" : "secondary"}
+                  className={cn(
+                    "ml-0.5 text-xs px-1.5 py-0",
+                    selectedListId === list.listId && !showCustomLists && "border-primary-foreground/30 text-primary-foreground"
+                  )}
+                >
+                  {list.memberCount}
+                </Badge>
               </button>
             ))}
 

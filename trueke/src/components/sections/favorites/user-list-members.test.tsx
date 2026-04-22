@@ -17,8 +17,10 @@ function makeMember(overrides: Partial<UserListMember> = {}): UserListMember {
     firstName: 'Jane',
     lastName: 'Doe',
     profilePictureUrl: 'https://example.com/avatar.jpg',
+    locationLabel: 'Montreal, QC',
     averageRating: 4,
     totalReviews: 10,
+    tradeCount: 5,
     addedAt: '2026-01-01T00:00:00Z',
     ...overrides,
   }
@@ -27,14 +29,9 @@ function makeMember(overrides: Partial<UserListMember> = {}): UserListMember {
 // ── UserListEmpty ──────────────────────────────────────────────────────────────
 
 describe('UserListEmpty', () => {
-  it('displays the list name in the empty message', () => {
+  it('shows the standard empty copy', () => {
     render(<UserListEmpty listName="Favorites" />)
-    expect(screen.getByText(/no users in favorites yet/i)).toBeInTheDocument()
-  })
-
-  it('displays the list name in the empty message for Frequent Users', () => {
-    render(<UserListEmpty listName="Frequent Users" />)
-    expect(screen.getByText(/no users in frequent users yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/no users in this list yet/i)).toBeInTheDocument()
   })
 })
 
@@ -56,7 +53,7 @@ describe('UserListMembers', () => {
 
   it('shows the empty state when the members array is empty', () => {
     render(<UserListMembers members={[]} listName="Favorites" />)
-    expect(screen.getByText(/no users in favorites yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/no users in this list yet/i)).toBeInTheDocument()
   })
 
   // ── AC4: avatar, name, rating ─────────────────────────────────────────────
@@ -88,10 +85,29 @@ describe('UserListMembers', () => {
 
   it('renders 5 star icons per member card', () => {
     const { container } = render(<UserListMembers members={[makeMember()]} listName="Favorites" />)
-    // Each star is an SVG rendered by lucide
     const stars = container.querySelectorAll('svg')
-    // 5 stars + 1 UserX icon in remove button
-    expect(stars.length).toBeGreaterThanOrEqual(5)
+    // 5 rating stars + MapPin + ArrowLeftRight (no remove button without onRemove)
+    expect(stars.length).toBeGreaterThanOrEqual(7)
+  })
+
+  it('renders location label when set', () => {
+    render(<UserListMembers members={[makeMember({ locationLabel: 'Calgary, AB' })]} listName="Favorites" />)
+    expect(screen.getByText('Calgary, AB')).toBeInTheDocument()
+  })
+
+  it('shows placeholder when location is empty', () => {
+    render(<UserListMembers members={[makeMember({ locationLabel: '' })]} listName="Favorites" />)
+    expect(screen.getByText(/location not set/i)).toBeInTheDocument()
+  })
+
+  it('renders singular completed trade count', () => {
+    render(<UserListMembers members={[makeMember({ tradeCount: 1 })]} listName="Favorites" />)
+    expect(screen.getByText(/1 completed trade/i)).toBeInTheDocument()
+  })
+
+  it('renders plural completed trade count', () => {
+    render(<UserListMembers members={[makeMember({ tradeCount: 12 })]} listName="Favorites" />)
+    expect(screen.getByText(/12 completed trades/i)).toBeInTheDocument()
   })
 
   it('renders multiple members', () => {
@@ -122,6 +138,19 @@ describe('UserListMembers', () => {
     render(<UserListMembers members={[makeMember()]} listName="Favorites" onRemove={onRemove} />)
     fireEvent.click(screen.getByRole('button', { name: /remove janedoe from list/i }))
     expect(onRemove).toHaveBeenCalledWith('user-1')
+  })
+
+  it('calls onMemberClick when the profile row is activated', () => {
+    const onMemberClick = vi.fn()
+    render(
+      <UserListMembers
+        members={[makeMember()]}
+        listName="Favorites"
+        onMemberClick={onMemberClick}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: /view profile for @janedoe/i }))
+    expect(onMemberClick).toHaveBeenCalledWith('user-1')
   })
 
   it('disables the remove button while that user is being removed', () => {

@@ -300,6 +300,105 @@ AC5: Banned user's items are hidden from marketplace, and pending exchanges canc
 
 ---
 
+## EPIC: Admin Analytics & Monitoring *(new)*
+
+---
+
+### [ADMIN-1.1] Exchange Transactions Chart with Date and Geography Filters
+
+**Status:** New
+
+**Description**
+
+Filtered Exchange Transactions Visualization.
+As an administrator
+I want to view a chart of completed exchanges filtered by date, country, and region
+So that I can analyze what items were exchanged in specific locations (e.g., all items exchanged in Costa Rica) and time windows
+
+**Acceptance Criteria:** JIRA
+
+AC1: In the admin dashboard, I can open a transactions analytics view that displays completed exchanges in chart form.
+AC2: I can filter the chart by date range (start date and end date).
+AC3: I can filter the chart by country.
+AC4: I can filter the chart by region/province within the selected country.
+AC5: When I filter by `country = Costa Rica (CR)`, the system returns and visualizes all items exchanged in Costa Rica for the selected date range.
+AC6: The chart updates dynamically when any filter changes.
+AC7: I can switch between at least two chart types (e.g., bar and line) without losing applied filters.
+AC8: If no exchanges match the filters, a clear empty-state message is shown (e.g., "No exchanges found for the selected filters").
+
+**Comments:**
+
+- The exchange analytics source should only include relevant finalized records (for example `exchange.status IN ('accepted', 'traded')`, according to product definition of "transaction").
+- Geographic filtering can be derived by joining exchange-related items to their address records (`address.country_code`, `address.province_state`).
+- Date filtering should use a consistent transaction timestamp (e.g., acceptance/completion timestamp). If only `created_at` exists, clarify with PO whether that is acceptable for analytics.
+- A backend query endpoint should support combined filters: date range + country + region.
+- To support chart performance, consider pre-aggregating results (daily/weekly buckets) using a DB view or materialized view.
+
+---
+
+### [ADMIN-1.2] Exchange Traffic Timeline
+
+**Status:** New
+
+**Description**
+
+Exchange Traffic Monitoring.
+As an administrator
+I want to see exchange traffic over time (what was exchanged and when)
+So that I can monitor platform activity patterns and identify peaks, drops, or anomalies
+
+**Acceptance Criteria:** JIRA
+
+AC1: The admin dashboard includes a traffic chart showing exchange volume over time.
+AC2: I can choose the time granularity (daily, weekly, monthly).
+AC3: I can segment traffic by item category to see what types of items are being exchanged over time.
+AC4: Hovering or selecting a point in the chart shows details (period, total exchanges, top categories/items).
+AC5: I can apply the same geographic filters (country and region) used in transaction analytics.
+AC6: The timeline can display a comparison between two periods (e.g., last 30 days vs previous 30 days).
+AC7: The view clearly indicates the total exchanges for the selected period.
+
+**Comments:**
+
+- This story is focused on trend visibility, while [ADMIN-1.1] is focused on filtered transaction exploration.
+- Category segmentation requires grouping by the exchanged item category and aggregation by time bucket.
+- A summary payload for each bucket can include: `period_start`, `period_end`, `exchange_count`, and optional category breakdown.
+- For period comparison (AC6), compute both current and previous range with the same duration and granularity.
+- Consider caching analytics queries to avoid recalculating heavy aggregations on every dashboard load.
+
+---
+
+### [ADMIN-1.3] Admin Statistics for Users and Exchanges
+
+**Status:** New
+
+**Description**
+
+Platform Statistics Dashboard.
+As an administrator
+I want to view consolidated statistics about users and exchanges
+So that I can track platform health, growth, and operational performance
+
+**Acceptance Criteria:** JIRA
+
+AC1: The admin dashboard displays key user statistics: total users, active users, inactive users, and banned users.
+AC2: The admin dashboard displays key exchange statistics: total exchanges, pending, accepted, rejected, cancelled, expired, and traded.
+AC3: Statistics can be filtered by date range.
+AC4: I can see growth trends for users and exchanges (e.g., new users per period, exchanges per period).
+AC5: I can see at least one conversion metric (e.g., accepted exchanges / total proposals).
+AC6: I can export the current statistics view to CSV.
+AC7: The statistics refresh automatically at a defined interval or via manual refresh action.
+
+**Comments:**
+
+- User metrics can be derived from `user.status` and creation timestamps.
+- Exchange metrics can be derived from `exchange.status` distribution and creation/completion timestamps.
+- Define "active users" explicitly with PO (status-based vs activity-based in last N days).
+- Conversion metric formula should be fixed and documented for consistency across reports.
+- Export (AC6) should respect all active filters to avoid mismatches between on-screen data and exported data.
+- A dedicated analytics service layer (server action or API route) is recommended to centralize metric calculations.
+
+---
+
 ## EPIC: Item Management *(existing)*
 
 ---

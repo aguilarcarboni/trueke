@@ -28,31 +28,47 @@ RETURNS TABLE(
 ) AS $$
 DECLARE
     v_exchange_id UUID;
+    v_negotiation_id UUID;
     v_item_id UUID;
+    v_now TIMESTAMP := NOW();
     v_initiator_name VARCHAR;
     v_offered_items_str TEXT;
     v_requested_items_str TEXT;
+    v_message_clean TEXT := NULLIF(BTRIM(p_message), '');
 BEGIN
-    -- Validate expiration_days (AC4)
+    -- Validate expiration
     IF p_expiration_days < 1 THEN
         RETURN QUERY SELECT NULL::UUID, 'error'::TEXT, NULL::TIMESTAMP, 'Expiration days must be at least 1'::TEXT;
         RETURN;
     END IF;
 
-    -- Validate different users
+    -- Validate participants
     IF p_initiator_id = p_target_user_id THEN
         RETURN QUERY SELECT NULL::UUID, 'error'::TEXT, NULL::TIMESTAMP, 'Cannot create exchange with yourself'::TEXT;
         RETURN;
     END IF;
 
+    -- Validate non-empty arrays
+    IF COALESCE(array_length(p_offered_item_ids, 1), 0) = 0 THEN
+        RETURN QUERY SELECT NULL::UUID, 'error'::TEXT, NULL::TIMESTAMP, 'You must offer at least one item'::TEXT;
+        RETURN;
+    END IF;
+
+    IF COALESCE(array_length(p_requested_item_ids, 1), 0) = 0 THEN
+        RETURN QUERY SELECT NULL::UUID, 'error'::TEXT, NULL::TIMESTAMP, 'You must request at least one item'::TEXT;
+        RETURN;
+    END IF;
+
     -- Validate offered items belong to initiator and are active
     IF EXISTS (
-        SELECT 1 FROM UNNEST(p_offered_item_ids) AS uid
+        SELECT 1
+        FROM UNNEST(p_offered_item_ids) AS uid
         WHERE NOT EXISTS (
-            SELECT 1 FROM item i
+            SELECT 1
+            FROM item i
             WHERE i.item_id = uid
-            AND i.owner_user_id = p_initiator_id
-            AND i.status = 'active'
+              AND i.owner_user_id = p_initiator_id
+              AND i.status = 'active'
         )
     ) THEN
         RETURN QUERY SELECT NULL::UUID, 'error'::TEXT, NULL::TIMESTAMP, 'Invalid offered items'::TEXT;
@@ -61,86 +77,152 @@ BEGIN
 
     -- Validate requested items belong to target and are active
     IF EXISTS (
-        SELECT 1 FROM UNNEST(p_requested_item_ids) AS uid
+        SELECT 1
+        FROM UNNEST(p_requested_item_ids) AS uid
         WHERE NOT EXISTS (
-            SELECT 1 FROM item i
+            SELECT 1
+            FROM item i
             WHERE i.item_id = uid
-            AND i.owner_user_id = p_target_user_id
-            AND i.status = 'active'
+              AND i.owner_user_id = p_target_user_id
+              AND i.status = 'active'
         )
     ) THEN
         RETURN QUERY SELECT NULL::UUID, 'error'::TEXT, NULL::TIMESTAMP, 'Invalid requested items'::TEXT;
         RETURN;
     END IF;
 
-    -- Get initiator name
-    SELECT u.username INTO v_initiator_name FROM "user" u WHERE u.user_id = p_initiator_id;
+    -- Initiator display name for notification
+    SELECT u.username
+    INTO v_initiator_name
+    FROM "user" u
+    WHERE u.user_id = p_initiator_id;
 
-    -- Create exchange record (AC1, AC4)
-    INSERT INTO exchange (initiator_user_id, status, optional_message, creation_date, expiration_date)
+    -- Create negotiation (conversation container)
+    INSERT INTO negotiation (
+        created_by_user_id,
+        content_description,
+        is_public,
+        created_at,
+        status
+    )
     VALUES (
         p_initiator_id,
+        'Exchange negotiation',
+        FALSE,
+        v_now,
+        'active'::negotiation_status
+    )
+    RETURNING negotiation_id INTO v_negotiation_id;
+
+    -- Exactly two participants in negotiation (1:1)
+    INSERT INTO negotiation_participant (negotiation_id, user_id, joined_at)
+    VALUES (v_negotiation_id, p_initiator_id, v_now);
+
+    INSERT INTO negotiation_participant (negotiation_id, user_id, joined_at)
+    VALUES (v_negotiation_id, p_target_user_id, v_now);
+
+    -- Create exchange and link it to negotiation
+    INSERT INTO exchange (
+        initiator_user_id,
+        negotiation_id,
+        status,
+        optional_message,
+        creation_date,
+        expiration_date
+    )
+    VALUES (
+        p_initiator_id,
+        v_negotiation_id,
         'pending'::exchange_status,
-        p_message,
-        NOW(),
-        NOW() + (p_expiration_days || ' days')::INTERVAL
+        v_message_clean,
+        v_now,
+        v_now + (p_expiration_days || ' days')::INTERVAL
     )
     RETURNING exchange.exchange_id INTO v_exchange_id;
 
-    -- Add participants (AC2, AC3)
+    -- Exchange participants (existing model)
     INSERT INTO exchange_participant (exchange_id, user_id, role)
     VALUES (v_exchange_id, p_initiator_id, 'initiator'::exchange_role);
 
     INSERT INTO exchange_participant (exchange_id, user_id, role)
     VALUES (v_exchange_id, p_target_user_id, 'member'::exchange_role);
 
-    -- Add offered items
+    -- Exchange items: offered
     FOREACH v_item_id IN ARRAY p_offered_item_ids LOOP
         INSERT INTO exchange_item (exchange_id, item_id, direction)
         VALUES (v_exchange_id, v_item_id, 'offered'::exchange_direction);
     END LOOP;
 
-    -- Add requested items
+    -- Exchange items: requested
     FOREACH v_item_id IN ARRAY p_requested_item_ids LOOP
         INSERT INTO exchange_item (exchange_id, item_id, direction)
         VALUES (v_exchange_id, v_item_id, 'requested'::exchange_direction);
     END LOOP;
 
-    -- Build notification description strings
-    SELECT string_agg(i.title, ', ') INTO v_offered_items_str
+    -- First message in conversation (only if provided)
+    IF v_message_clean IS NOT NULL THEN
+        INSERT INTO message (
+            negotiation_id,
+            sender_user_id,
+            content,
+            created_at
+        )
+        VALUES (
+            v_negotiation_id,
+            p_initiator_id,
+            v_message_clean,
+            v_now
+        );
+    END IF;
+
+    -- Build notification body
+    SELECT string_agg(i.title, ', ')
+    INTO v_offered_items_str
     FROM UNNEST(p_offered_item_ids) AS uid
     JOIN item i ON i.item_id = uid;
 
-    SELECT string_agg(i.title, ', ') INTO v_requested_items_str
+    SELECT string_agg(i.title, ', ')
+    INTO v_requested_items_str
     FROM UNNEST(p_requested_item_ids) AS uid
     JOIN item i ON i.item_id = uid;
 
-    -- Create notification for target user (AC6)
+    -- Notify target user
     INSERT INTO notification (
-        recipient_user_id, sender_user_id, type, reference_type, reference_id,
-        title, body, is_read, delivery_channel, status, priority
-    ) VALUES (
+        recipient_user_id,
+        sender_user_id,
+        type,
+        reference_type,
+        reference_id,
+        title,
+        body,
+        is_read,
+        delivery_channel,
+        status,
+        priority,
+        sent_at
+    )
+    VALUES (
         p_target_user_id,
         p_initiator_id,
         'proposal_created'::notification_type,
         'exchange'::VARCHAR,
         v_exchange_id,
         ('New Trade Proposal from ' || COALESCE(v_initiator_name, 'A User'))::VARCHAR(255),
-        (COALESCE(v_initiator_name, 'A User') || ' wants to trade: ' || COALESCE(v_offered_items_str, 'items') ||
-         ' for your: ' || COALESCE(v_requested_items_str, 'items'))::TEXT,
+        (COALESCE(v_initiator_name, 'A User') || ' wants to trade: ' ||
+         COALESCE(v_offered_items_str, 'items') || ' for your: ' ||
+         COALESCE(v_requested_items_str, 'items'))::TEXT,
         FALSE,
         'in_app'::notification_channel,
         'queued'::notification_status,
-        'normal'::notification_priority
+        'normal'::notification_priority,
+        v_now
     );
 
-    -- Return success
     RETURN QUERY SELECT
         v_exchange_id,
         'success'::TEXT,
-        NOW()::TIMESTAMP,
+        v_now::TIMESTAMP,
         'Exchange proposal created successfully'::TEXT;
-
 END;
 $$ LANGUAGE plpgsql;
 
@@ -252,10 +334,28 @@ BEGIN
         RETURN;
     END IF;
 
+    -- All involved items must still be active (race-safe with app pre-check)
+    IF EXISTS (
+        SELECT 1 FROM exchange_item ei
+        JOIN item i ON i.item_id = ei.item_id
+        WHERE ei.exchange_id = p_exchange_id
+        AND i.status <> 'active'::item_status
+    ) THEN
+        RETURN QUERY SELECT FALSE, 'One or more items are no longer available for trading.'::TEXT;
+        RETURN;
+    END IF;
+
     -- Update exchange status
     UPDATE exchange
     SET status = 'accepted'::exchange_status
     WHERE exchange_id = p_exchange_id;
+
+    -- Lock items: cannot join other exchanges until cancelled or completed
+    UPDATE item
+    SET status = 'contested'::item_status
+    WHERE item_id IN (
+        SELECT item_id FROM exchange_item WHERE exchange_id = p_exchange_id
+    );
 
     RETURN QUERY SELECT TRUE, 'Exchange accepted successfully'::TEXT;
 END;
@@ -349,10 +449,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to cancel an exchange (only initiator can cancel)
+-- Cancel exchange: pending → initiator only; accepted → any participant (items → active)
+DROP FUNCTION IF EXISTS public.cancel_exchange(uuid, uuid);
+
 CREATE OR REPLACE FUNCTION cancel_exchange(
     p_exchange_id UUID,
-    p_initiator_user_id UUID
+    p_actor_user_id UUID
 )
 RETURNS TABLE(
     success BOOLEAN,
@@ -362,27 +464,43 @@ DECLARE
     v_initiator_id UUID;
     v_exchange_status exchange_status;
 BEGIN
-    -- Get exchange info
     SELECT initiator_user_id, status INTO v_initiator_id, v_exchange_status
     FROM exchange
     WHERE exchange_id = p_exchange_id;
 
-    -- Check if exchange exists
     IF NOT FOUND THEN
         RETURN QUERY SELECT FALSE, 'Exchange not found'::TEXT;
         RETURN;
     END IF;
 
-    -- Check if user is the initiator
-    IF v_initiator_id <> p_initiator_user_id THEN
-        RETURN QUERY SELECT FALSE, 'Only the initiator can cancel'::TEXT;
-        RETURN;
-    END IF;
-
-    -- Check if exchange is still pending or accepted
     IF v_exchange_status NOT IN ('pending'::exchange_status, 'accepted'::exchange_status) THEN
         RETURN QUERY SELECT FALSE, 'Exchange cannot be cancelled in its current state'::TEXT;
         RETURN;
+    END IF;
+
+    IF v_exchange_status = 'pending'::exchange_status THEN
+        IF v_initiator_id <> p_actor_user_id THEN
+            RETURN QUERY SELECT FALSE, 'Only the initiator can cancel a pending proposal'::TEXT;
+            RETURN;
+        END IF;
+    ELSE
+        IF NOT EXISTS (
+            SELECT 1 FROM exchange_participant
+            WHERE exchange_id = p_exchange_id AND user_id = p_actor_user_id
+        ) THEN
+            RETURN QUERY SELECT FALSE, 'Only participants in this exchange can cancel'::TEXT;
+            RETURN;
+        END IF;
+    END IF;
+
+    -- Accepted exchanges: release item locks back to active
+    IF v_exchange_status = 'accepted'::exchange_status THEN
+        UPDATE item
+        SET status = 'active'::item_status
+        WHERE item_id IN (
+            SELECT item_id FROM exchange_item WHERE exchange_id = p_exchange_id
+        )
+        AND status = 'contested'::item_status;
     END IF;
 
     -- Update exchange status
@@ -393,3 +511,54 @@ BEGIN
     RETURN QUERY SELECT TRUE, 'Exchange cancelled successfully'::TEXT;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Mark an accepted exchange as completed; items move contested → traded
+CREATE OR REPLACE FUNCTION complete_exchange(
+    p_exchange_id UUID,
+    p_completing_user_id UUID
+)
+RETURNS TABLE(
+    success BOOLEAN,
+    message TEXT
+) AS $$
+DECLARE
+    v_exchange_status exchange_status;
+BEGIN
+    SELECT status INTO v_exchange_status
+    FROM exchange
+    WHERE exchange_id = p_exchange_id;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT FALSE, 'Exchange not found'::TEXT;
+        RETURN;
+    END IF;
+
+    IF v_exchange_status <> 'accepted'::exchange_status THEN
+        RETURN QUERY SELECT FALSE, 'Only an accepted exchange can be marked complete'::TEXT;
+        RETURN;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM exchange_participant
+        WHERE exchange_id = p_exchange_id AND user_id = p_completing_user_id
+    ) THEN
+        RETURN QUERY SELECT FALSE, 'Not a participant in this exchange'::TEXT;
+        RETURN;
+    END IF;
+
+    UPDATE exchange
+    SET status = 'completed'::exchange_status
+    WHERE exchange_id = p_exchange_id;
+
+    UPDATE item
+    SET status = 'traded'::item_status
+    WHERE item_id IN (
+        SELECT item_id FROM exchange_item WHERE exchange_id = p_exchange_id
+    )
+    AND status = 'contested'::item_status;
+
+    RETURN QUERY SELECT TRUE, 'Exchange marked complete'::TEXT;
+END;
+$$ LANGUAGE plpgsql;
+
+GRANT EXECUTE ON FUNCTION public.complete_exchange(uuid, uuid) TO authenticated, service_role;

@@ -1,49 +1,25 @@
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { Toaster as SonnerToaster } from '@/components/ui/sonner'
-import { Toaster } from '@/components/ui/toaster'
-import { ThemeProvider } from '@/components/theme-provider'
-import './globals.css'
+'use client'
+import "./globals.css"
+import { Inter } from 'next/font/google'
+import { cn } from "@/lib/utils"
+import { Toaster } from "@/components/ui/toaster"
+import { NextAuthProvider } from "@/utils/providers/NextAuthProvider"
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: 'Trueke - Barter, Exchange & Auction Marketplace',
-  description: 'A modern marketplace for bartering, exchanging, and auctioning items and services. Trade directly, join group exchanges, or bid in auctions.',
-  generator: 'v0.app',
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
-  },
-}
+const inter = Inter({ subsets: ['latin'] })
 
 export default function RootLayout({
-  children,
+  children
 }: Readonly<{
   children: React.ReactNode
 }>) {
+
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <html lang="en" className={cn(inter.className, "h-screen bg-background scrollbar-hide select-none w-screen")}>
+      <body className='h-full w-full'> 
+        <NextAuthProvider>
           {children}
           <Toaster />
-          <SonnerToaster />
-        </ThemeProvider>
+        </NextAuthProvider>
       </body>
     </html>
   )

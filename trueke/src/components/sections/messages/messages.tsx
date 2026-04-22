@@ -5,9 +5,12 @@ import { useSearchParams } from "next/navigation"
 import { Loader2, MessageSquare, Send } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { ExchangeStatusBadge } from "@/components/sections/exchanges/exchange-status-badge"
+import type { ExchangeStatus } from "@/lib/entities/exchange"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { AddUserToListButton } from "@/components/misc/add-user-to-list-button"
 import { useToast } from "@/hooks/use-toast"
 import { getFriendlyErrorMessage } from "@/lib/error-messages"
 import {
@@ -22,6 +25,7 @@ import {
   getMyConversations,
   sendMessage,
 } from "@/app/actions/message"
+
 
 const POLL_INTERVAL_MS = 30_000
 
@@ -309,10 +313,16 @@ export function Messages({ currentUserId }: MessagesProps) {
             <>
               <CardHeader className="border-b pb-3">
                 <CardTitle className="flex items-center justify-between text-base">
-                  <span>{selectedConversation.other_user.username}</span>
-                  <Badge variant="outline" className="capitalize">
-                    {selectedConversation.exchange_status}
-                  </Badge>
+                  <div className="flex items-center gap-2"> 
+                    <span>{selectedConversation.other_user.username}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ExchangeStatusBadge status={selectedConversation.exchange_status as ExchangeStatus} />
+                    <AddUserToListButton
+                      targetUserId={selectedConversation.other_user.user_id}
+                      targetUsername={selectedConversation.other_user.username}
+                    />
+                  </div>
                 </CardTitle>
               </CardHeader>
 

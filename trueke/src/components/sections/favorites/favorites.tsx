@@ -12,6 +12,8 @@ import {
 import { UserProfileDialog } from "@/components/sections/exchanges/user-profile-dialog"
 import type { UserList, UserListMember } from "@/lib/entities/user-list"
 import { cn } from "@/lib/utils"
+import { CreateCustomListDialog } from "@/components/sections/favorites/create-custom-list-dialog"
+import { AddUserToListDialog } from "@/components/sections/favorites/add-user-to-list-dialog"
 
 // ─── Per-list panel ───────────────────────────────────────────────────────────
 
@@ -24,6 +26,7 @@ function UserListPanel({ list }: UserListPanelProps) {
   const [loading, setLoading] = useState(true)
   const [removingUserId, setRemovingUserId] = useState<string | null>(null)
   const [profileUserId, setProfileUserId] = useState<string | null>(null)
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -53,13 +56,38 @@ function UserListPanel({ list }: UserListPanelProps) {
           {members.length === 1 ? "member" : "members"} in this list
         </p>
       </div>
-      <UserListMembers
-        members={members}
-        listName={list.name}
-        onRemove={handleRemove}
-        removingUserId={removingUserId}
-        onMemberClick={(userId) => setProfileUserId(userId)}
-      />
+      
+
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <Button
+            variant="default"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setAddDialogOpen(true)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add User
+          </Button>
+        </div>
+        <UserListMembers
+          members={members}
+          listName={list.name}
+          onRemove={handleRemove}
+          removingUserId={removingUserId}
+          onMemberClick={(userId) => setProfileUserId(userId)}
+        />
+
+        <AddUserToListDialog
+          open={addDialogOpen}
+          onOpenChange={setAddDialogOpen}
+          listId={list.listId}
+          listName={list.name}
+          existingMemberIds={members.map((m) => m.userId)}
+          onUserAdded={() => load()}
+        />
+      </div>
+
       <UserProfileDialog
         userId={profileUserId}
         open={profileUserId !== null}
@@ -197,6 +225,12 @@ export function Favorites() {
             <CustomListsView
               customLists={customLists}
               onSelect={selectCustomList}
+              onListCreated={(listId, name) => {
+                setLists((prev) => [
+                  ...prev,
+                  { listId, name, isPredefined: false, memberCount: 0 } as UserList,
+                ])
+              }}
             />
           ) : selectedList ? (
             <UserListPanel key={selectedList.listId} list={selectedList} />
@@ -216,11 +250,20 @@ export function Favorites() {
 interface CustomListsViewProps {
   customLists: UserList[]
   onSelect: (listId: string) => void
+  onListCreated: (listId: string, name: string) => void
 }
 
-function CustomListsView({ customLists, onSelect }: CustomListsViewProps) {
+function CustomListsView({ customLists, onSelect, onListCreated }: CustomListsViewProps) {
+  const [dialogOpen, setDialogOpen] = useState(false)
+
   return (
     <div className="space-y-4">
+      <CreateCustomListDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onCreated={onListCreated}
+      />
+
       {/* Create list button */}
       <div>
         <Button
@@ -228,6 +271,7 @@ function CustomListsView({ customLists, onSelect }: CustomListsViewProps) {
           size="sm"
           className="gap-1.5"
           aria-label="Create new list"
+          onClick={() => setDialogOpen(true)}
         >
           <Plus className="h-3.5 w-3.5" />
           Create List

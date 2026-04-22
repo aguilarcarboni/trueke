@@ -7,9 +7,13 @@ import {
   getUserListMembers,
   addUserToList,
   removeUserFromList,
+  createCustomList,
+  searchUsersForList,
+  getUserListFiltered,
 } from "@/utils/entities/user-list"
 import type { ApiResponse } from "@/lib/types"
-import type { UserList, UserListMember } from "@/lib/entities/user-list"
+import type { UserList, UserListMember, UserSearchResult } from "@/lib/entities/user-list"
+import { UserListFormSchema } from "@/lib/entities/user-list"
 
 /** Returns all user lists owned by the authenticated user. */
 export async function getUserListsAction(): Promise<ApiResponse<UserList[]>> {
@@ -64,4 +68,55 @@ export async function removeUserFromListAction(
 
   revalidatePath("/favorites")
   return { success: true, data: null }
+}
+
+/** Creates a new custom list for the authenticated user. */
+export async function createCustomListAction(
+  name: string,
+  description?: string
+): Promise<ApiResponse<{ listId: string }>> {
+  const userId = await getAuthenticatedUserId()
+  if (!userId) return { success: false, error: "Not authenticated." }
+
+  const parsed = UserListFormSchema.safeParse({ name, description })
+  if (!parsed.success) {
+    const firstError = parsed.error.errors[0]
+    return { success: false, error: firstError?.message ?? "Invalid input." }
+  }
+
+  const { error, listId } = await createCustomList(userId, parsed.data.name, parsed.data.description)
+  if (error) return { success: false, error }
+  if (!listId) return { success: false, error: "Failed to create list." }
+
+  revalidatePath("/favorites")
+  return { success: true, data: { listId } }
+}
+
+/**
+ * Searches for users by username / first name / last name.
+ * Excludes users already in the list (`existingMemberIds`) and the caller.
+ */
+/** Returns lists owned by the authenticated user that don't yet contain `toAddUserId`. */
+export async function getUserListFilteredAction(
+  toAddUserId: string
+): Promise<ApiResponse<UserList[]>> {
+  const userId = await getAuthenticatedUserId()
+  if (!userId) return { success: false, error: "Not authenticated." }
+  if (!toAddUserId?.trim()) return { success: false, error: "User ID is required." }
+
+  const lists = await getUserListFiltered(userId, toAddUserId)
+  return { success: true, data: lists }
+}
+
+export async function searchUsersForListAction(
+  query: string,
+  existingMemberIds: string[]
+): Promise<ApiResponse<UserSearchResult[]>> {
+  const userId = await getAuthenticatedUserId()
+  if (!userId) return { success: false, error: "Not authenticated." }
+  if (!query?.trim()) return { success: true, data: [] }
+
+  const excludeIds = Array.from(new Set([userId, ...existingMemberIds]))
+  const results = await searchUsersForList(query.trim(), excludeIds)
+  return { success: true, data: results }
 }

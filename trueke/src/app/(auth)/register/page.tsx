@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
-import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User, ImageIcon, MapPin } from "lucide-react"
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User, MapPin } from "lucide-react"
 import { register as registerUser } from "./actions"
 import { AddressForm } from "@/components/misc/address-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*\d)(?=.*[?!*&]).{8,}$/
@@ -19,7 +20,6 @@ const LETTERS_ONLY = /^[a-zA-ZÀ-ÖØ-öø-ÿ\s'\-]+$/
 const ALPHANUMERIC_ONLY = /^[a-zA-Z0-9]+$/
 const LOCATION_TEXT = /^[a-zA-ZÀ-ÖØ-öø-ÿ\s'\-,\.]+$/
 const ZIPCODE_PATTERN = /^[a-zA-Z0-9\s\-]+$/
-const URL_PATTERN = /^https?:\/\/[^\s/$.?#].[^\s]*$/i
 
 type RegisterFormValues = {
   email: string
@@ -29,6 +29,7 @@ type RegisterFormValues = {
   profilePictureUrl: string
   bio: string
   password: string
+  confirmPassword: string
   countryCode: string
   province: string
   muniDistrict: string
@@ -44,6 +45,8 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [formError, setFormError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
+  const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null)
 
   const {
     register,
@@ -63,6 +66,7 @@ export default function RegisterPage() {
       profilePictureUrl: "",
       bio: "",
       password: "",
+      confirmPassword: "",
       countryCode: "CR",
       province: "",
       muniDistrict: "",
@@ -90,6 +94,25 @@ export default function RegisterPage() {
     muniDistrict: errors.muniDistrict?.message,
     zipCode: errors.zipCode?.message,
   }
+
+  const firstName = watch("firstName")
+  const lastName = watch("lastName")
+  const username = watch("username")
+  const displayName = `${firstName?.trim() || ""} ${lastName?.trim() || ""}`.trim() || username?.trim() || "User"
+  const initials = displayName
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+
+  useEffect(() => {
+    return () => {
+      if (selectedImagePreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(selectedImagePreview)
+      }
+    }
+  }, [selectedImagePreview])
 
   const onSubmit = (values: RegisterFormValues) => {
     setFormError("")
@@ -136,13 +159,42 @@ export default function RegisterPage() {
 
     if (!isValid) return
 
+    if (values.password !== values.confirmPassword) {
+      setError("confirmPassword", { type: "manual", message: "Passwords do not match." })
+      return
+    }
+
     startTransition(async () => {
+      let nextProfilePictureUrl = values.profilePictureUrl.trim()
+
+      if (selectedImageFile) {
+        const uploadFormData = new FormData()
+        uploadFormData.append("file", selectedImageFile)
+
+        const uploadResponse = await fetch("/api/profile/upload-image", {
+          method: "POST",
+          body: uploadFormData,
+        })
+
+        const uploadPayload = (await uploadResponse.json().catch(() => ({}))) as {
+          url?: string
+          error?: string
+        }
+
+        if (!uploadResponse.ok || !uploadPayload.url) {
+          setFormError(uploadPayload.error || "Failed to upload profile image.")
+          return
+        }
+
+        nextProfilePictureUrl = uploadPayload.url
+      }
+
       const formData = new FormData()
       formData.append("email", values.email.trim())
       formData.append("username", values.username.trim())
       formData.append("firstName", values.firstName.trim())
       formData.append("lastName", values.lastName.trim())
-      formData.append("profilePictureUrl", values.profilePictureUrl.trim())
+      formData.append("profilePictureUrl", nextProfilePictureUrl)
       formData.append("bio", values.bio.trim())
       formData.append("password", values.password)
       formData.append("countryCode", values.countryCode)
@@ -281,26 +333,40 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="profilePictureUrl">Profile picture</Label>
-              <div className="relative">
-                <ImageIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="profilePictureUrl"
-                  placeholder="https://..."
-                  className={`pl-9 ${errors.profilePictureUrl ? "border-destructive" : ""}`}
-                  disabled={isPending}
-                  {...register("profilePictureUrl", {
-                    validate: (value) => {
-                      if (!value.trim()) return true
-                      if (!URL_PATTERN.test(value.trim())) {
-                        return "Profile picture URL must start with http:// or https://"
+              <Label htmlFor="avatarFile">Profile picture</Label>
+              <div className="flex items-center gap-3 rounded-md border p-3">
+                <Avatar className="h-14 w-14 shrink-0">
+                  <AvatarImage src={selectedImagePreview || undefined} alt={displayName} />
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 space-y-1">
+                  <Input
+                    id="avatarFile"
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                    disabled={isPending}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null
+                      if (!file) {
+                        setSelectedImageFile(null)
+                        if (selectedImagePreview?.startsWith("blob:")) {
+                          URL.revokeObjectURL(selectedImagePreview)
+                        }
+                        setSelectedImagePreview(null)
+                        return
                       }
-                      return true
-                    },
-                  })}
-                />
+
+                      const preview = URL.createObjectURL(file)
+                      if (selectedImagePreview?.startsWith("blob:")) {
+                        URL.revokeObjectURL(selectedImagePreview)
+                      }
+                      setSelectedImageFile(file)
+                      setSelectedImagePreview(preview)
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">Max 5MB. JPG, PNG, WEBP, or GIF.</p>
+                </div>
               </div>
-              {errors.profilePictureUrl && <p className="text-xs text-destructive">{errors.profilePictureUrl.message}</p>}
             </div>
 
             <div className="space-y-2">
@@ -350,6 +416,38 @@ export default function RegisterPage() {
               </div>
               <p className="text-xs text-muted-foreground">Use at least 8 characters, 1 uppercase, 1 number, and 1 special character (?, !, *, &).</p>
               {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">
+                Confirm password <span className="text-destructive">*</span>
+              </Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Confirm your password"
+                  className={`pl-9 pr-9 ${errors.confirmPassword ? "border-destructive" : ""}`}
+                  disabled={isPending}
+                  {...register("confirmPassword", {
+                    validate: (value) => {
+                      if (!value) return "Please confirm your password."
+                      if (value !== watch("password")) return "Passwords do not match."
+                      return true
+                    },
+                  })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  disabled={isPending}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
             </div>
 
             <div className="space-y-3 rounded-md border p-3">

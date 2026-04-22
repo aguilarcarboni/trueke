@@ -51,3 +51,5 @@ export interface PublicUserProfile {
   province: string | null
   created_at: string
 }
+
+export type PublicProfileResult = PublicUserProfile | { deactivated: true }

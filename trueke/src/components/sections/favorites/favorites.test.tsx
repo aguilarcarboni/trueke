@@ -16,6 +16,21 @@ vi.mock('@/app/actions/user-list', () => ({
   removeUserFromListAction: (...args: unknown[]) => mockRemoveUserFromListAction(...args),
 }))
 
+vi.mock('@/components/sections/exchanges/user-profile-dialog', () => ({
+  UserProfileDialog: ({
+    userId,
+    open,
+  }: {
+    userId: string | null
+    open: boolean
+  }) =>
+    open && userId ? (
+      <div data-testid="user-profile-dialog" data-user-id={userId}>
+        Profile dialog
+      </div>
+    ) : null,
+}))
+
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const FAVORITES_LIST: UserList = {
@@ -55,8 +70,10 @@ const MEMBER: UserListMember = {
   firstName: 'John',
   lastName: 'Doe',
   profilePictureUrl: '',
+  locationLabel: 'Toronto, ON',
   averageRating: 4.2,
   totalReviews: 7,
+  tradeCount: 3,
   addedAt: '2026-01-02T00:00:00Z',
 }
 
@@ -204,6 +221,16 @@ describe('Favorites', () => {
       })
     })
 
+    it('shows member-count badge including zero on predefined chips', async () => {
+      setupEmptyLists()
+      render(<Favorites />)
+
+      await waitFor(() => {
+        const zeros = screen.getAllByText('0')
+        expect(zeros.length).toBeGreaterThanOrEqual(2)
+      })
+    })
+
     it('shows "Custom Lists" chip and clicking it shows custom list cards', async () => {
       const user = userEvent.setup()
       mockGetUserListsAction.mockResolvedValue({
@@ -287,7 +314,7 @@ describe('Favorites', () => {
       render(<Favorites />)
 
       await waitFor(() => {
-        expect(screen.getByText(/no users in favorites yet/i)).toBeInTheDocument()
+        expect(screen.getByText(/no users in this list yet/i)).toBeInTheDocument()
       })
     })
 
@@ -303,6 +330,45 @@ describe('Favorites', () => {
       await waitFor(() => {
         expect(screen.getByText('John Doe')).toBeInTheDocument()
         expect(screen.getByText('@johndoe')).toBeInTheDocument()
+      })
+    })
+
+    it('shows total member count for the active list', async () => {
+      mockGetUserListsAction.mockResolvedValue({
+        success: true,
+        data: [{ ...FAVORITES_LIST, memberCount: 2 }, FREQUENT_LIST],
+      })
+      mockGetUserListMembersAction.mockResolvedValue({
+        success: true,
+        data: [MEMBER, { ...MEMBER, userId: 'member-2', username: 'janedoe' }],
+      })
+
+      render(<Favorites />)
+
+      await waitFor(() => {
+        const line = screen.getByText(/members in this list/i)
+        expect(line.textContent).toMatch(/2\s+members in this list/i)
+      })
+    })
+
+    it('opens the profile dialog when a member row is activated', async () => {
+      const user = userEvent.setup()
+      mockGetUserListsAction.mockResolvedValue({
+        success: true,
+        data: [{ ...FAVORITES_LIST, memberCount: 1 }, FREQUENT_LIST],
+      })
+      mockGetUserListMembersAction.mockResolvedValue({ success: true, data: [MEMBER] })
+
+      render(<Favorites />)
+
+      await waitFor(() => {
+        expect(screen.getByText('John Doe')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: /view profile for @johndoe/i }))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('user-profile-dialog')).toHaveAttribute('data-user-id', MEMBER.userId)
       })
     })
 

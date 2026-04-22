@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server"
-import type { UserList, UserListMember } from "@/lib/entities/user-list"
+import type { UserList, UserListMember, UserSearchResult } from "@/lib/entities/user-list"
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -59,6 +59,45 @@ export async function getUserListMembers(listId: string): Promise<UserListMember
 
   const userIds = memberRows.map((r: any) => r.member_user_id)
 
+  const { data: locRows } = await supabase
+    .from("user_address")
+    .select(
+      `
+      user_id,
+      address:address_id (
+        canton_city,
+        province_state
+      )
+    `
+    )
+    .in("user_id", userIds)
+    .eq("is_current", true)
+
+  const locationByUser = new Map<string, string>()
+  for (const row of locRows ?? []) {
+    const addr = row.address as { canton_city?: string; province_state?: string } | null
+    const city = addr?.canton_city?.trim() ?? ""
+    const prov = addr?.province_state?.trim() ?? ""
+    const parts = [city, prov].filter(Boolean)
+    locationByUser.set(row.user_id as string, parts.join(", "))
+  }
+
+  const { data: epRows } = await supabase
+    .from("exchange_participant")
+    .select("user_id, exchange_id, exchange ( status )")
+    .in("user_id", userIds)
+
+  const tradeSets = new Map<string, Set<string>>()
+  for (const row of epRows ?? []) {
+    const raw = row.exchange as { status: string } | { status: string }[] | null
+    const st = Array.isArray(raw) ? raw[0]?.status : raw?.status
+    if (st !== "completed") continue
+    const uid = row.user_id as string
+    const eid = row.exchange_id as string
+    if (!tradeSets.has(uid)) tradeSets.set(uid, new Set())
+    tradeSets.get(uid)!.add(eid)
+  }
+
   // Step 2: fetch ratings for all members in one query
   const { data: ratingRows } = await supabase
     .from("user_rating_summary")
@@ -76,15 +115,18 @@ export async function getUserListMembers(listId: string): Promise<UserListMember
   return memberRows.map((row: any) => {
     const user = row.user
     const rating = ratingMap.get(row.member_user_id)
+    const uid = row.member_user_id as string
     return {
       listId: row.list_id,
-      userId: row.member_user_id,
+      userId: uid,
       username: user?.username ?? "",
       firstName: user?.first_name ?? "",
       lastName: user?.last_name ?? "",
       profilePictureUrl: user?.profile_picture_url ?? "",
+      locationLabel: locationByUser.get(uid) ?? "",
       averageRating: rating?.averageRating ?? 0,
       totalReviews: rating?.totalReviews ?? 0,
+      tradeCount: tradeSets.get(uid)?.size ?? 0,
       addedAt: row.added_date_time,
     }
   })
@@ -184,4 +226,120 @@ export async function ensurePredefinedLists(userId: string): Promise<void> {
       is_predefined: true,
     }))
   )
+}
+
+/**
+ * Searches for users matching `query` against username, first_name, and last_name.
+ * Excludes any user ids in `excludeUserIds` (caller + existing members).
+ * Returns at most 20 results.
+ */
+export async function searchUsersForList(
+  query: string,
+  excludeUserIds: string[]
+): Promise<UserSearchResult[]> {
+  const supabase = await createClient()
+  const q = query.trim().split(/\s+/).join(" ") // Normalize whitespace
+  if (!q) return []
+
+  const parts = q.split(/\s+/).filter(Boolean)
+  const orParts: string[] = [
+    `username.ilike.%${q}%`,
+    `first_name.ilike.%${q}%`,
+    `last_name.ilike.%${q}%`,
+  ]
+
+  if (parts.length >= 2) {
+    // "John Doe" → match first_name LIKE %John% AND last_name LIKE %Doe%, and reversed
+    const [first, ...rest] = parts
+    const last = rest.join(" ")
+    orParts.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${last}%)`)
+    orParts.push(`and(first_name.ilike.%${last}%,last_name.ilike.%${first}%)`)
+  }
+
+  let req = supabase
+    .from("user")
+    .select("user_id, username, first_name, last_name, profile_picture_url")
+    .or(orParts.join(","))
+    .limit(20)
+
+  if (excludeUserIds.length > 0) {
+    req = req.not("user_id", "in", `(${excludeUserIds.join(",")})`)
+  }
+
+  const { data, error } = await req
+
+  if (error || !data) return []
+
+  const userIds = data.map((u: any) => u.user_id)
+
+  const { data: ratingRows } = await supabase
+    .from("user_rating_summary")
+    .select("user_id, average_rating, total_reviews")
+    .in("user_id", userIds)
+
+  const ratingMap = new Map<string, { averageRating: number; totalReviews: number }>()
+  for (const r of ratingRows ?? []) {
+    ratingMap.set(r.user_id, {
+      averageRating: Number(r.average_rating),
+      totalReviews: r.total_reviews,
+    })
+  }
+
+  return data.map((u: any) => {
+    const rating = ratingMap.get(u.user_id)
+    return {
+      userId: u.user_id,
+      username: u.username ?? "",
+      firstName: u.first_name ?? "",
+      lastName: u.last_name ?? "",
+      profilePictureUrl: u.profile_picture_url ?? "",
+      averageRating: rating?.averageRating ?? 0,
+      totalReviews: rating?.totalReviews ?? 0,
+    }
+  })
+}
+
+/**
+ * Returns all lists owned by `userId` where `toAddUserId` is not yet a member.
+ * Predefined lists are ordered first, then by creation date.
+ */
+export async function getUserListFiltered(
+  userId: string,
+  toAddUserId: string
+): Promise<UserList[]> {
+  const supabase = await createClient()
+
+  // Step 1: find list IDs that already contain toAddUserId
+  const { data: memberRows } = await supabase
+    .from("user_list_member")
+    .select("list_id")
+    .eq("member_user_id", toAddUserId)
+
+  const alreadyMemberListIds = (memberRows ?? []).map((r: any) => r.list_id as string)
+
+  // Step 2: fetch all lists owned by userId, excluding those
+  let query = supabase
+    .from("user_list")
+    .select("list_id, owner_id, name, description, is_predefined, created_at, user_list_member(count)")
+    .eq("owner_id", userId)
+    .order("is_predefined", { ascending: false })
+    .order("created_at", { ascending: true })
+
+  if (alreadyMemberListIds.length > 0) {
+    query = query.not("list_id", "in", `(${alreadyMemberListIds.join(",")})`)
+  }
+
+  const { data, error } = await query
+
+  if (error || !data) return []
+
+  return data.map((d: any) => ({
+    listId: d.list_id,
+    ownerId: d.owner_id,
+    name: d.name,
+    description: d.description,
+    isPredefined: d.is_predefined,
+    createdAt: d.created_at,
+    memberCount: d.user_list_member?.[0]?.count ?? 0,
+  }))
 }

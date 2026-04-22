@@ -87,6 +87,21 @@ export async function sendEmailChangeVerificationEmail(
   })
 }
 
+export async function sendAccountDeactivationEmail(
+  to: string,
+  username: string,
+): Promise<{ ok: boolean; error?: string }> {
+  return sendEmail({
+    to,
+    subject: 'Trueke - Account deactivated',
+    html: `
+      <p>Hi <strong>${username}</strong>,</p>
+      <p>Your Trueke account has been deactivated.</p>
+      <p>All your active listings have been removed and any ongoing trades have been cancelled.</p>
+    `,
+  })
+}
+
 export async function sendPasswordRecoveryEmail(
   to: string,
   code: string,
@@ -101,6 +116,23 @@ export async function sendPasswordRecoveryEmail(
       <p>Use this code to recover your password: ${normalizedEmail}</p>
       <p>This code expires in 5 minutes.</p>
       <p>If you did not request this recovery, please ignore this email.</p>
+    `,
+  })
+}
+
+export async function sendReactivationCodeEmail(
+  to: string,
+  code: string,
+): Promise<{ ok: boolean; error?: string }> {
+  return sendEmail({
+    to,
+    subject: 'Trueke - Account reactivation code',
+    html: `
+      <p>Your Trueke account reactivation code is:</p>
+      <p><strong>${code}</strong></p>
+      <p>Enter this code to reactivate your account.</p>
+      <p>This code expires in 5 minutes.</p>
+      <p>If you did not request this, please ignore this email.</p>
     `,
   })
 }

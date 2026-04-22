@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { MapPin, Calendar, Edit, Shield, Lock, Mail} from "lucide-react"
+import { MapPin, Calendar, Edit, Shield, Lock, Mail, TriangleAlert } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,7 @@ import { ChangePasswordDialog } from "@/components/sections/profile/credentials/
 import { ChangeEmailDialog } from "@/components/sections/profile/credentials/ChangeEmailDialog"
 import { UserRatingStars } from "@/components/sections/profile/user-rating-stars"
 import { UserReviewsList } from "@/components/sections/profile/user-reviews-list"
+import { DeactivateAccountDialog } from "@/components/sections/profile/deactivate-account-dialog"
 
 const PROFILE_IMAGES_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_PROFILE_IMAGES_BUCKET || "images"
 
@@ -34,6 +35,7 @@ export function Profile() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [credentialsDialogOpen, setCredentialsDialogOpen] = useState(false)
   const [credentialsDialogMode, setCredentialsDialogMode] = useState<"password" | "email" | null>(null)
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false)
   const [profileRefreshKey, setProfileRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -242,6 +244,14 @@ export function Profile() {
               <Mail className="h-4 w-4" />
               Change email
             </Button>
+            <Button
+              variant="outline"
+              className="gap-2 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setDeactivateDialogOpen(true)}
+            >
+              <TriangleAlert className="h-4 w-4" />
+              Deactivate account
+            </Button>
           </CardContent>
         </Card>
 
@@ -313,6 +323,11 @@ export function Profile() {
       }}
       currentEmail={profile?.email ?? ""}
       onSuccess={() => setProfileRefreshKey((k) => k + 1)}
+    />
+
+    <DeactivateAccountDialog
+      open={deactivateDialogOpen}
+      onOpenChange={setDeactivateDialogOpen}
     />
     </>
   )

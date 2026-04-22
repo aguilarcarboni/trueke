@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { LETTERS_ONLY, ALPHANUMERIC, AddressSchema } from "@/lib/entities/address"
 import { getLinkedAddress, upsertUserAddress } from "@/utils/entities/address"
-import { UpdateProfileData, UserProfile, PublicUserProfile } from "@/lib/entities/profile"
+import { UpdateProfileData, UserProfile, PublicUserProfile, PublicProfileResult } from "@/lib/entities/profile"
 
 
 // Fetches the user's profile information, including their current address if available
@@ -92,17 +92,19 @@ export async function updateUserProfile(userId: string, data: UpdateProfileData)
  * Omits sensitive data (email, admin status, full address).
  * Single Responsibility: only reads public-facing fields.
  */
-export async function getPublicUserProfile(userId: string): Promise<PublicUserProfile | null> {
+export async function getPublicUserProfile(userId: string): Promise<PublicProfileResult | null> {
   const supabase = await createClient()
 
   const { data: user, error } = await supabase
     .from("user")
-    .select("user_id,username,first_name,last_name,bio,profile_picture_url,created_at")
+    .select("user_id,username,first_name,last_name,bio,profile_picture_url,created_at,status")
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle()
 
   if (error || !user) return null
+
+  if (user.status === "inactive") return { deactivated: true }
 
   const address = await getLinkedAddress(userId)
 

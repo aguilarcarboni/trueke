@@ -25,5 +25,13 @@ export async function loginUserWithCredentials(email: string, password: string) 
         throw new Error('Invalid credentials')
     }
 
+    if (data.status === 'inactive') {
+        const deactivatedAt = data.deactivated_at ? new Date(data.deactivated_at) : null
+        const expiryDate = deactivatedAt ? new Date(deactivatedAt) : null
+        if (expiryDate) expiryDate.setDate(expiryDate.getDate() + 30)
+        const withinWindow = expiryDate !== null && new Date() < expiryDate
+        throw new Error(withinWindow ? 'AccountDeactivatedRecoverable' : 'AccountDeactivated')
+    }
+
     return data
 }

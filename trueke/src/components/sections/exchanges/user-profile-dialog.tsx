@@ -46,6 +46,7 @@ export function UserProfileDialog({
   const [reviews, setReviews] = useState<Review[]>([])
   const [listings, setListings] = useState<PublicActiveListing[] | null>(null)
   const [loading, setLoading] = useState(false)
+  const [isDeactivated, setIsDeactivated] = useState(false)
 
   useEffect(() => {
     if (!open || !userId) return
@@ -64,7 +65,11 @@ export function UserProfileDialog({
         listingPromise,
       ])
       if (!cancelled) {
-        setProfile(profileData)
+        if (profileData && 'deactivated' in profileData) {
+          setIsDeactivated(true)
+        } else {
+          setProfile(profileData)
+        }
         if (ratingResult.success && ratingResult.data) {
           setRatingSummary(ratingResult.data)
         }
@@ -92,6 +97,7 @@ export function UserProfileDialog({
       setProfile(null)
       setRatingSummary(null)
       setReviews([])
+      setIsDeactivated(false)
       setListings(null)
     }
   }, [open])
@@ -117,6 +123,11 @@ export function UserProfileDialog({
 
         {loading ? (
           <ProfileSkeleton />
+        ) : isDeactivated ? (
+          <div className="py-8 flex flex-col items-center gap-2 text-center">
+            <p className="text-sm font-medium text-muted-foreground">This account has been deactivated.</p>
+            <p className="text-xs text-muted-foreground/60">This user is no longer active on the platform.</p>
+          </div>
         ) : profile ? (
           <div className="flex flex-col items-center text-center space-y-4 py-2">
             {/* Avatar */}

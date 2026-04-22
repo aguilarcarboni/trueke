@@ -1,10 +1,15 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { Heart, Users, List, Plus } from "lucide-react"
+import { Heart, Users, List, Plus, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getUserListsAction, getUserListMembersAction, removeUserFromListAction } from "@/app/actions/user-list"
+import {
+  getUserListsAction,
+  getUserListMembersAction,
+  removeUserFromListAction,
+  deleteCustomListAction,
+} from "@/app/actions/user-list"
 import {
   UserListMembers,
   UserListMembersSkeleton,
@@ -14,6 +19,8 @@ import type { UserList, UserListMember } from "@/lib/entities/user-list"
 import { cn } from "@/lib/utils"
 import { CreateCustomListDialog } from "@/components/sections/favorites/create-custom-list-dialog"
 import { AddUserToListDialog } from "@/components/sections/favorites/add-user-to-list-dialog"
+import { ConfirmActionDialog } from "@/components/sections/exchanges/confirm-action-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 // ─── Per-list panel ───────────────────────────────────────────────────────────
 
@@ -231,6 +238,15 @@ export function Favorites() {
                   { listId, name, isPredefined: false, memberCount: 0 } as UserList,
                 ])
               }}
+              onListDeleted={(listId) => {
+                setLists((prev) => prev.filter((l) => l.listId !== listId))
+                // If we were viewing the deleted list, fall back to the first predefined list
+                setSelectedListId((current) =>
+                  current === listId
+                    ? (predefinedLists[0]?.listId ?? null)
+                    : current
+                )
+              }}
             />
           ) : selectedList ? (
             <UserListPanel key={selectedList.listId} list={selectedList} />
@@ -251,10 +267,42 @@ interface CustomListsViewProps {
   customLists: UserList[]
   onSelect: (listId: string) => void
   onListCreated: (listId: string, name: string) => void
+  onListDeleted: (listId: string) => void
 }
 
-function CustomListsView({ customLists, onSelect, onListCreated }: CustomListsViewProps) {
+function CustomListsView({
+  customLists,
+  onSelect,
+  onListCreated,
+  onListDeleted,
+}: CustomListsViewProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [listPendingDelete, setListPendingDelete] = useState<UserList | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const { toast } = useToast()
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!listPendingDelete) return
+    setDeleting(true)
+    const result = await deleteCustomListAction(listPendingDelete.listId)
+    setDeleting(false)
+
+    if (!result.success) {
+      toast({
+        title: "Could not delete list",
+        description: result.error ?? "Something went wrong.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    onListDeleted(listPendingDelete.listId)
+    toast({
+      title: "List deleted",
+      description: `"${listPendingDelete.name}" was removed. Users in the list remain on the platform.`,
+    })
+    setListPendingDelete(null)
+  }, [listPendingDelete, onListDeleted, toast])
 
   return (
     <div className="space-y-4">
@@ -262,6 +310,20 @@ function CustomListsView({ customLists, onSelect, onListCreated }: CustomListsVi
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onCreated={onListCreated}
+      />
+
+      <ConfirmActionDialog
+        open={listPendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setListPendingDelete(null)
+        }}
+        title={`Delete "${listPendingDelete?.name ?? ""}"?`}
+        description="This removes the list and its membership entries. The users themselves remain on the platform and in any other lists they belong to."
+        confirmLabel="Delete list"
+        cancelLabel="Cancel"
+        variant="destructive"
+        isLoading={deleting}
+        onConfirm={handleConfirmDelete}
       />
 
       {/* Create list button */}
@@ -291,23 +353,41 @@ function CustomListsView({ customLists, onSelect, onListCreated }: CustomListsVi
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {customLists.map((list) => (
-        <button
-          key={list.listId}
-          type="button"
-          onClick={() => onSelect(list.listId)}
-          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-muted"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
-            <List className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{list.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {list.memberCount} {list.memberCount === 1 ? "member" : "members"}
-            </p>
-          </div>
-          </button>
-        ))}
+            <div
+              key={list.listId}
+              className="group flex items-center gap-2 rounded-lg border border-border bg-card p-2 pr-3 transition-colors hover:bg-muted"
+            >
+              <button
+                type="button"
+                onClick={() => onSelect(list.listId)}
+                className="flex flex-1 min-w-0 items-center gap-3 rounded-md p-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                  <List className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{list.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {list.memberCount} {list.memberCount === 1 ? "member" : "members"}
+                  </p>
+                </div>
+              </button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+                aria-label={`Delete list ${list.name}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setListPendingDelete(list)
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
         </div>
       )}
     </div>

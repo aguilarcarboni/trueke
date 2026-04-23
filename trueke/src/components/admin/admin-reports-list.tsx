@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Flag, Package, RefreshCw, User } from "lucide-react"
+import { Flag, Package, RefreshCw, User, Download } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,6 +22,43 @@ function formatDate(iso: string) {
     month: "short",
     day: "numeric",
   })
+}
+
+function exportReportsToCSV(reports: ReportRow[]) {
+  const headers = [
+    "Report ID",
+    "Target Type",
+    "Target",
+    "Reason",
+    "Description",
+    "Status",
+    "Reporter",
+    "Date",
+  ]
+  const rows = reports.map((r) => [
+    r.report_id,
+    r.target_type,
+    r.target_label ?? "",
+    formatReportReason(r.reason),
+    r.description ?? "",
+    r.status,
+    `@${r.reporter_username}`,
+    formatDate(r.created_at),
+  ])
+
+  const csv = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n")
+
+  const blob = new Blob([csv], { type: "text/csv" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `reports-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 export function AdminReportsList() {
@@ -70,15 +107,27 @@ export function AdminReportsList() {
             </Badge>
           )}
         </CardTitle>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={fetchReports}
-          disabled={loading}
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            title="Export CSV"
+            onClick={() => exportReportsToCSV(reports)}
+            disabled={loading || reports.length === 0}
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={fetchReports}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (

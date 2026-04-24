@@ -109,15 +109,13 @@ export function MeetingFormDialog({
     setIsSubmitting(true);
 
     try {
-      const scheduledIso = scheduledAt
-        ? new Date(scheduledAt).toISOString()
-        : "";
-      const dueIso = dueDate ? new Date(dueDate).toISOString() : null;
+      const scheduledValue = scheduledAt ? `${scheduledAt}:00` : "";
+      const dueValue = dueDate ? `${dueDate}:00` : null;
 
       const payload = {
         meeting_type: meetingType,
-        scheduled_at: scheduledIso,
-        due_date: dueIso,
+        scheduled_at: scheduledValue,
+        due_date: dueValue,
         address: meetingType === "physical" ? address : null,
         platform: meetingType === "virtual" ? platform : null,
         access_code: meetingType === "virtual" ? accessCode : null,

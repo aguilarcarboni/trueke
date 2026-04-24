@@ -1,14 +1,27 @@
 "use client";
 
-import { CalendarClock, MapPin, Pencil, Video } from "lucide-react";
+import { CalendarClock, MapPin, Pencil, Video, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { MeetingSummary } from "@/lib/entities/meeting";
+import { useToast } from "@/hooks/use-toast";
 
 interface MeetingSummaryCardProps {
   meeting: MeetingSummary;
   currentUserId: string;
   onEdit?: () => void;
+}
+
+function looksLikeUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim());
+}
+
+async function copyToClipboard(value: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch {
+    console.error("Failed to copy meeting link");
+  }
 }
 
 function formatAddress(meeting: MeetingSummary): string {
@@ -32,6 +45,7 @@ export function MeetingSummaryCard({
   const isVirtual = meeting.meeting_type === "virtual";
   const isCreator = meeting.created_by_user_id === currentUserId;
   const canEdit = isCreator && new Date(meeting.scheduled_at) > new Date();
+  const { toast } = useToast();
 
   return (
     <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-2">
@@ -57,11 +71,51 @@ export function MeetingSummaryCard({
           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         )}
 
-        <span className="break-words">
-          {isVirtual
-            ? `${meeting.platform || "Virtual"}${meeting.access_code ? ` · ${meeting.access_code}` : ""}`
-            : formatAddress(meeting)}
-        </span>
+        <div className="break-words text-xs text-muted-foreground">
+          {isVirtual ? (
+            <div className="space-y-1">
+              <div>{meeting.platform || "Virtual meeting"}</div>
+
+              {meeting.access_code && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {looksLikeUrl(meeting.access_code) ? (
+                    <a
+                      href={meeting.access_code}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-2 hover:text-foreground"
+                    >
+                      Join meeting
+                    </a>
+                  ) : (
+                    <span>{meeting.access_code}</span>
+                  )}
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={async () => {
+                      await copyToClipboard(meeting.access_code!);
+
+                      toast({
+                        title: "Copied",
+                        description:
+                          "Meeting access details copied to clipboard.",
+                      });
+                    }}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <span>{formatAddress(meeting)}</span>
+          )}
+        </div>
       </div>
 
       {canEdit && onEdit && (

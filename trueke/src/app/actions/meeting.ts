@@ -213,8 +213,8 @@ export async function createMeetingForExchange(
         meeting_type: request.meeting_type,
         platform,
         access_code: accessCode,
-        scheduled_at: timing.scheduledDate.toISOString(),
-        due_date: timing.dueDateValue ? timing.dueDateValue.toISOString() : null,
+        scheduled_at: request.scheduled_at,
+        due_date: request.due_date || null,
         created_by_user_id: request.creator_user_id,
       })
       .select("meeting_id")
@@ -337,8 +337,8 @@ export async function updateMeeting(
         meeting_type: request.meeting_type,
         platform,
         access_code: accessCode,
-        scheduled_at: timing.scheduledDate.toISOString(),
-        due_date: timing.dueDateValue ? timing.dueDateValue.toISOString() : null,
+        scheduled_at: request.scheduled_at,
+        due_date: request.due_date || null,
       })
       .eq("meeting_id", request.meeting_id)
 

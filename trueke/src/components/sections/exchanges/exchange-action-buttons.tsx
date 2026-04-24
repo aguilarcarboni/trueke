@@ -102,11 +102,11 @@ export function ExchangeActionButtons({
   if (status === "accepted") {
     return (
       <>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+        <div className="flex flex-col gap-2">
           <Button
             size="sm"
             variant="default"
-            className="gap-1"
+            className="w-full gap-1 justify-center"
             disabled={isLoading}
             onClick={() => setConfirmAction("complete")}
           >
@@ -117,10 +117,11 @@ export function ExchangeActionButtons({
             )}
             Mark complete
           </Button>
+
           <Button
             size="sm"
             variant="outline"
-            className="gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
+            className="w-full gap-1 justify-center border-destructive/40 text-destructive hover:bg-destructive/10"
             disabled={isLoading}
             onClick={() => setConfirmAction("cancel_accepted")}
           >
@@ -133,7 +134,7 @@ export function ExchangeActionButtons({
           <ConfirmActionDialog
             open={!!confirmAction}
             onOpenChange={(open) => {
-              if (!open) setConfirmAction(null)
+              if (!open) setConfirmAction(null);
             }}
             title={dialogConfig[confirmAction].title}
             description={dialogConfig[confirmAction].description}
@@ -144,7 +145,7 @@ export function ExchangeActionButtons({
           />
         )}
       </>
-    )
+    );
   }
 
   // pending

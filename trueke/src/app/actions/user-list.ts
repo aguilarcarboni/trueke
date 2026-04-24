@@ -25,13 +25,15 @@ export async function getUserListsAction(): Promise<ApiResponse<UserList[]>> {
   return { success: true, data: lists }
 }
 
-/** Returns all members of a specific list with their profile and rating. */
+/** Returns all members of a list owned by the authenticated user. */
 export async function getUserListMembersAction(
   listId: string
 ): Promise<ApiResponse<UserListMember[]>> {
+  const userId = await getAuthenticatedUserId()
+  if (!userId) return { success: false, error: "Not authenticated." }
   if (!listId?.trim()) return { success: false, error: "List ID is required." }
 
-  const members = await getUserListMembers(listId)
+  const members = await getUserListMembers(userId, listId.trim())
   return { success: true, data: members }
 }
 
@@ -46,7 +48,7 @@ export async function addUserToListAction(
     return { success: false, error: "List ID and user ID are required." }
   }
 
-  const { error } = await addUserToList(listId, memberUserId)
+  const { error } = await addUserToList(userId, listId.trim(), memberUserId.trim())
   if (error) return { success: false, error }
 
   revalidatePath("/favorites")
@@ -64,7 +66,7 @@ export async function removeUserFromListAction(
     return { success: false, error: "List ID and user ID are required." }
   }
 
-  const { error } = await removeUserFromList(listId, memberUserId)
+  const { error } = await removeUserFromList(userId, listId.trim(), memberUserId.trim())
   if (error) return { success: false, error }
 
   revalidatePath("/favorites")
@@ -113,10 +115,6 @@ export async function deleteCustomListAction(
   return { success: true, data: null }
 }
 
-/**
- * Searches for users by username / first name / last name.
- * Excludes users already in the list (`existingMemberIds`) and the caller.
- */
 /** Returns lists owned by the authenticated user that don't yet contain `toAddUserId`. */
 export async function getUserListFilteredAction(
   toAddUserId: string
@@ -125,10 +123,14 @@ export async function getUserListFilteredAction(
   if (!userId) return { success: false, error: "Not authenticated." }
   if (!toAddUserId?.trim()) return { success: false, error: "User ID is required." }
 
-  const lists = await getUserListFiltered(userId, toAddUserId)
+  const lists = await getUserListFiltered(userId, toAddUserId.trim())
   return { success: true, data: lists }
 }
 
+/**
+ * Searches for users by username / first name / last name.
+ * Excludes users already in the list (`existingMemberIds`) and the caller.
+ */
 export async function searchUsersForListAction(
   query: string,
   existingMemberIds: string[]

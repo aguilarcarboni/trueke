@@ -229,6 +229,37 @@ export async function ensurePredefinedLists(userId: string): Promise<void> {
 }
 
 /**
+ * Deletes a custom list owned by `userId`.
+ *
+ * Predefined lists (e.g. "Favorites", "Frequent Users") are protected server-side
+ * by the `is_predefined = FALSE` filter, so AC2 cannot be bypassed from the client.
+ *
+ * List membership rows (`user_list_member`) are removed by the ON DELETE CASCADE
+ * in the schema; the referenced `user` records are never touched (AC4).
+ */
+export async function deleteCustomList(
+  userId: string,
+  listId: string
+): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from("user_list")
+    .delete()
+    .eq("list_id", listId)
+    .eq("owner_id", userId)
+    .eq("is_predefined", false)
+    .select("list_id")
+
+  if (error) return { error: error.message }
+  if (!data || data.length === 0) {
+    return { error: "List not found or cannot be deleted." }
+  }
+
+  return { error: null }
+}
+
+/**
  * Searches for users matching `query` against username, first_name, and last_name.
  * Excludes any user ids in `excludeUserIds` (caller + existing members).
  * Returns at most 20 results.

@@ -8,6 +8,7 @@ import {
   addUserToList,
   removeUserFromList,
   createCustomList,
+  deleteCustomList,
   searchUsersForList,
   getUserListFiltered,
 } from "@/utils/entities/user-list"
@@ -90,6 +91,26 @@ export async function createCustomListAction(
 
   revalidatePath("/favorites")
   return { success: true, data: { listId } }
+}
+
+/**
+ * Deletes a custom list owned by the authenticated user.
+ *
+ * Predefined lists are protected at the data layer; any attempt to delete one
+ * returns an error ("List not found or cannot be deleted").
+ */
+export async function deleteCustomListAction(
+  listId: string
+): Promise<ApiResponse<null>> {
+  const userId = await getAuthenticatedUserId()
+  if (!userId) return { success: false, error: "Not authenticated." }
+  if (!listId?.trim()) return { success: false, error: "List ID is required." }
+
+  const { error } = await deleteCustomList(userId, listId.trim())
+  if (error) return { success: false, error }
+
+  revalidatePath("/favorites")
+  return { success: true, data: null }
 }
 
 /**

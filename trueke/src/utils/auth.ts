@@ -51,6 +51,9 @@ export const authOptions: NextAuthOptions = {
               if (error instanceof Error && error.message === 'AccountDeactivatedRecoverable') {
                 throw new Error('AccountDeactivatedRecoverable')
               }
+              if (error instanceof Error && error.message === 'AccountBanned') {
+                throw new Error('AccountBanned')
+              }
               throw new Error('Invalid credentials')
             }
           }

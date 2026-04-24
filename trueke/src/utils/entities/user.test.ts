@@ -15,6 +15,11 @@ vi.mock('@/utils/supabase/server', () => ({
 describe('loginUserWithCredentials', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it('throws AccountBanned when the user is banned', async () => {
+    mockMaybeSingle.mockResolvedValueOnce({ data: { user_id: '1', email: 'a@b.com', status: 'banned', password_hash: 'hash' } })
+    await expect(loginUserWithCredentials('a@b.com', 'pass')).rejects.toThrow('AccountBanned')
+  })
+
   it('throws AccountDeactivatedRecoverable within the 30-day window', async () => {
     const recent = new Date(Date.now() - 5 * 86400_000).toISOString()
     mockMaybeSingle.mockResolvedValueOnce({ data: { user_id: '1', email: 'a@b.com', status: 'inactive', password_hash: 'hash', deactivated_at: recent } })

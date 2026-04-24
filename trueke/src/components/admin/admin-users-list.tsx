@@ -12,8 +12,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { getAdminUsers } from "@/app/actions/admin"
+import { getAdminUsers, banUser } from "@/app/actions/admin"
 import { BanUserDialog } from "./ban-user-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 type AdminUser = { user_id: string; username: string; status: string }
 
@@ -28,6 +29,7 @@ export function AdminUsersList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [banTarget, setBanTarget] = useState<AdminUser | null>(null)
+  const { toast } = useToast()
 
   async function loadUsers() {
     setLoading(true)
@@ -96,9 +98,16 @@ export function AdminUsersList() {
           username={banTarget.username}
           open={!!banTarget}
           onOpenChange={(open) => { if (!open) setBanTarget(null) }}
-          onConfirm={(_duration, _expiresAt, _reason) => {
-            // TODO: wire to backend
-            setBanTarget(null)
+          onConfirm={async (duration, expiresAt, reason) => {
+            const isPermanent = duration === 'permanent'
+            const result = await banUser(banTarget.user_id, isPermanent ? null : expiresAt, reason)
+            if (result?.error) {
+              toast({ variant: 'destructive', title: 'Error', description: result.error })
+            } else {
+              toast({ title: 'User banned', description: `${banTarget.username} has been banned.` })
+              setBanTarget(null)
+              loadUsers()
+            }
           }}
         />
       )}

@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/utils/auth'
 import type { ReportRow, ReportStatus, ReportTargetDetails, ReportTargetType } from '@/lib/entities/report'
+import { handleUserStatusChange, handleBanUser } from '@/lib/server/handle-user-status-change'
 
 async function requireAdmin(): Promise<{ error: string } | null> {
   const session = await getServerSession(authOptions)
@@ -194,6 +195,33 @@ export async function getAdminUsers(): Promise<{ data?: { user_id: string; usern
     if (error) return { error: 'Failed to load users.' }
 
     return { data: data ?? [] }
+  } catch {
+    return { error: 'An unexpected error occurred.' }
+  }
+}
+
+export async function banUser(
+  userId: string,
+  bannedUntil: Date | null,
+  reason: string,
+): Promise<{ error?: string }> {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.is_admin) return { error: 'Unauthorized' }
+
+    const endBanDateTime = bannedUntil ?? new Date('9999-12-31T23:59:59Z')
+    const result = await handleBanUser(userId, endBanDateTime, reason || undefined)
+    if (result?.error) return result
+
+    const supabase = await createClient()
+    await supabase.from('admin_audit_log').insert({
+      admin_user_id:  session.user.id,
+      target_user_id: userId,
+      action_type:    'ban',
+      details:        reason || null,
+    })
+
+    return {}
   } catch {
     return { error: 'An unexpected error occurred.' }
   }

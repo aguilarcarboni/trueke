@@ -57,7 +57,6 @@ export async function handleBanUser(
     .update({
       status: 'banned',
       end_ban_date_time: endBanDateTime.toISOString(),
-      ban_reason: banReason ?? null,
     })
     .eq('user_id', userId)
 

@@ -65,7 +65,12 @@ describe("MeetingSummaryCard", () => {
 
     expect(screen.getByText(/virtual/i)).toBeInTheDocument();
     expect(screen.getByText(/google meet/i)).toBeInTheDocument();
-    expect(screen.getByText(/meet.google.com/i)).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("link", { name: /join meeting/i }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByRole("button", { name: /copy/i })).toBeInTheDocument();
   });
 
   it("shows edit button for creator before scheduled time", () => {

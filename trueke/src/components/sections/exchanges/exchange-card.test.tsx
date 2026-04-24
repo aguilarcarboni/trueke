@@ -126,7 +126,7 @@ describe("ExchangeCard meeting UI", () => {
               scheduled_at: "2099-01-01T15:00:00.000Z",
               due_date: null,
               platform: "Zoom",
-              access_code: "zoom-link",
+              access_code: "https://zoom.us/test",
               address: null,
               created_by_user_id: "user-1",
               invitees: [],
@@ -137,10 +137,10 @@ describe("ExchangeCard meeting UI", () => {
       />,
     );
 
-    expect(screen.getByText(/zoom/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Meeting$/i)).toBeInTheDocument();
+
     expect(
-      screen.getByRole("button", { name: /edit meeting/i }),
+      screen.getByRole("link", { name: /join meeting/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/zoom/i)).toBeInTheDocument();
   });
 });

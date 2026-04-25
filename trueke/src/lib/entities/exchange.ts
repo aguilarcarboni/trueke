@@ -1,3 +1,5 @@
+import type { MeetingSummary } from "./meeting"
+
 export type ExchangeStatus = 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled' | 'completed' | 'countered'
 export type ExchangeRole = 'initiator' | 'member'
 export type ExchangeDirection = 'offered' | 'requested'
@@ -35,6 +37,7 @@ export interface Exchange {
 /** Lightweight list item (counts only, for tab badges). */
 export interface ExchangeListItem {
     exchange_id: string
+    negotiation_id: string | null
     initiator_id: string
     initiator_name: string
     target_user_id: string
@@ -52,6 +55,7 @@ export interface ExchangeListItem {
 export interface ExchangeListItemEnriched extends ExchangeListItem {
     offered_items: ExchangeItem[]
     requested_items: ExchangeItem[]
+    meetings?: MeetingSummary[]
 }
 
 // ─── Request DTOs ────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { ArrowLeftRight, Search, Loader2 } from "lucide-react"
+import { ArrowLeftRight, Search, Loader2, CalendarClock } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -45,9 +45,29 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
   // ─── Data & actions (delegated to hooks) ─────────────────────
   const { exchanges, availableItems, isLoading, reloadExchanges } =
     useExchangeData(currentUserId)
+    console.log("EXCHANGES WITH MEETINGS", exchanges);
 
   const { actionLoading, handleAccept, handleReject, handleCancel, handleComplete, handleCounteroffer } =
     useExchangeActions(currentUserId, reloadExchanges)
+
+    const getMeetingLocationLabel = (meeting: {
+      meeting_type: string;
+      platform: string | null;
+      address: {
+        city: string;
+        province: string;
+      } | null;
+    }) => {
+      if (meeting.meeting_type === "virtual") {
+        return meeting.platform || "Virtual meeting";
+      }
+
+      if (!meeting.address) return "Physical meeting";
+
+      return [meeting.address.city, meeting.address.province]
+        .filter(Boolean)
+        .join(", ");
+    };
 
   // ─── Derived state ───────────────────────────────────────────
   const filteredExchanges = useMemo(() => {
@@ -67,6 +87,25 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
 
     return result
   }, [exchanges, directionFilter, statusTab, currentUserId])
+
+  const upcomingMeetings = useMemo(
+    () =>
+      exchanges
+        .filter((exchange) => exchange.status === "accepted")
+        .flatMap((exchange) =>
+          (exchange.meetings || []).map((meeting) => ({
+            meeting,
+            exchange,
+          })),
+        )
+        .filter(({ meeting }) => new Date(meeting.scheduled_at) > new Date())
+        .sort(
+          (a, b) =>
+            new Date(a.meeting.scheduled_at).getTime() -
+            new Date(b.meeting.scheduled_at).getTime(),
+        ),
+    [exchanges],
+  );
 
   /** Count exchanges matching the current direction filter with a given status. */
   const countByStatus = useMemo(() => {
@@ -153,8 +192,12 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
                       crossOrigin="anonymous"
                     />
                     <div className="min-w-0 flex-1">
-                      <h4 className="font-medium text-sm truncate">{item.title}</h4>
-                      <p className="text-xs text-muted-foreground">{item.category}</p>
+                      <h4 className="font-medium text-sm truncate">
+                        {item.title}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        {item.category}
+                      </p>
                       <div className="flex gap-1 mt-1">
                         <Badge variant="outline" className="text-xs capitalize">
                           {item.condition}
@@ -165,7 +208,9 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
                 ))
               ) : (
                 <div className="py-8 text-center text-muted-foreground">
-                  {searchQuery ? "No items match your search" : "No items available"}
+                  {searchQuery
+                    ? "No items match your search"
+                    : "No items available"}
                 </div>
               )}
             </div>
@@ -204,14 +249,22 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
 
       {/* Direction filter (pill toggle) */}
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-muted-foreground mr-1">Show:</span>
+        <span className="text-sm font-medium text-muted-foreground mr-1">
+          Show:
+        </span>
         {(["all", "sent", "received"] as const).map((value) => {
-          const labels = { all: "All", sent: "Sent", received: "Received" } as const
+          const labels = {
+            all: "All",
+            sent: "Sent",
+            received: "Received",
+          } as const;
           const counts = {
             all: exchanges.length,
-            sent: exchanges.filter((e) => e.initiator_id === currentUserId).length,
-            received: exchanges.filter((e) => e.initiator_id !== currentUserId).length,
-          }
+            sent: exchanges.filter((e) => e.initiator_id === currentUserId)
+              .length,
+            received: exchanges.filter((e) => e.initiator_id !== currentUserId)
+              .length,
+          };
           return (
             <button
               key={value}
@@ -224,16 +277,54 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
             >
               {labels[value]} ({counts[value]})
             </button>
-          )
+          );
         })}
       </div>
+
+      {upcomingMeetings.length > 0 && (
+        <Card>
+          <CardContent className="pt-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <h2 className="font-semibold">Upcoming Meetings</h2>
+                <p className="text-sm text-muted-foreground">
+                  Meetings scheduled from your accepted exchanges.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              {upcomingMeetings.map(({ meeting, exchange }) => {
+                const otherUserName =
+                  exchange.initiator_id === currentUserId
+                    ? exchange.target_name
+                    : exchange.initiator_name;
+
+                return (
+                  <div
+                    key={meeting.meeting_id}
+                    className="rounded-md border bg-muted/20 p-3 text-sm"
+                  >
+                    <div className="font-medium">
+                      Trade with {otherUserName}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {new Date(meeting.scheduled_at).toLocaleString()} ·{" "}
+                      {getMeetingLocationLabel(meeting)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Status tabs + Cards */}
       <Tabs value={statusTab} onValueChange={setStatusTab}>
         <TabsList>
-          <TabsTrigger value="all">
-            All ({countByStatus.all})
-          </TabsTrigger>
+          <TabsTrigger value="all">All ({countByStatus.all})</TabsTrigger>
           <TabsTrigger value="pending">
             Open ({countByStatus.pending})
           </TabsTrigger>
@@ -260,6 +351,7 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
               onCancel={handleCancel}
               onComplete={handleComplete}
               onCounteroffered={reloadExchanges}
+              onMeetingChanged={reloadExchanges}
             />
           ))}
 
@@ -276,5 +368,5 @@ export function Exchanges({ currentUserId }: ExchangesProps) {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

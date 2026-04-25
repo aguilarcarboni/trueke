@@ -20,6 +20,11 @@ import type {
     CounterOfferRequest,
 } from '@/lib/entities/exchange'
 import type { Item } from '@/lib/entities/item'
+import type {
+    MeetingAddress,
+    MeetingInvitee,
+    MeetingSummary,
+} from '@/lib/entities/meeting'
 
 export type BaseItemRow = {
     item_id: string
@@ -375,19 +380,20 @@ export async function getUserExchanges(
         }
 
         const exchanges: ExchangeListItem[] = (data || []).map((item: any) => ({
-            exchange_id: item.out_exchange_id,
-            initiator_id: item.out_initiator_id,
-            initiator_name: item.out_initiator_name,
-            target_user_id: '',  // populated by getUserExchangesEnriched
-            target_name: '',     // populated by getUserExchangesEnriched
-            status: item.out_status,
-            message: item.out_message,
-            created_at: item.out_created_at,
-            expires_at: item.out_expires_at,
-            offered_count: item.out_offered_count || 0,
-            requested_count: item.out_requested_count || 0,
-            parent_exchange_id: item.out_parent_exchange_id || null,
-        }))
+    exchange_id: item.out_exchange_id,
+    negotiation_id: null,
+    initiator_id: item.out_initiator_id,
+    initiator_name: item.out_initiator_name,
+    target_user_id: '',
+    target_name: '',
+    status: item.out_status,
+    message: item.out_message,
+    created_at: item.out_created_at,
+    expires_at: item.out_expires_at,
+    offered_count: item.out_offered_count || 0,
+    requested_count: item.out_requested_count || 0,
+    parent_exchange_id: item.out_parent_exchange_id || null,
+}))
 
         return {
             success: true,
@@ -402,10 +408,134 @@ export async function getUserExchanges(
     }
 }
 
+async function getMeetingsByNegotiationIds(
+    supabase: Awaited<ReturnType<typeof createClient>>,
+    negotiationIds: string[]
+): Promise<{ data?: Map<string, MeetingSummary[]>; error?: string }> {
+    const meetingsByNegotiation = new Map<string, MeetingSummary[]>()
+
+    if (negotiationIds.length === 0) {
+        return { data: meetingsByNegotiation }
+    }
+
+    const { data: meetingRows, error: meetingError } = await supabase
+        .from('meeting')
+        .select(
+            'meeting_id,negotiation_id,address_id,meeting_type,platform,access_code,scheduled_at,due_date,created_by_user_id'
+        )
+        .in('negotiation_id', negotiationIds)
+        .order('scheduled_at', { ascending: true })
+
+    if (meetingError) {
+        return { error: meetingError.message }
+    }
+
+    const meetings = meetingRows || []
+    if (meetings.length === 0) {
+        return { data: meetingsByNegotiation }
+    }
+
+    const meetingIds = meetings.map((m) => m.meeting_id)
+    const addressIds = Array.from(
+        new Set(meetings.map((m) => m.address_id).filter(Boolean))
+    ) as string[]
+
+    const addressById = new Map<string, MeetingAddress>()
+
+    if (addressIds.length > 0) {
+        const { data: addressRows, error: addressError } = await supabase
+            .from('address')
+            .select(
+                'address_id,country_code,address_line1,address_line2,muni_district,canton_city,province_state,zip_code'
+            )
+            .in('address_id', addressIds)
+
+        if (addressError) {
+            return { error: addressError.message }
+        }
+
+        for (const address of addressRows || []) {
+            addressById.set(address.address_id, {
+                address_id: address.address_id,
+                countryCode: address.country_code,
+                addressLine1: address.address_line1 || '',
+                addressLine2: address.address_line2 || '',
+                muniDistrict: address.muni_district || '',
+                city: address.canton_city || '',
+                province: address.province_state || '',
+                zipCode: address.zip_code || '',
+            })
+        }
+    }
+
+    const { data: inviteeRows, error: inviteeError } = await supabase
+        .from('meeting_invitee')
+        .select('meeting_id,user_id,rsvp_status')
+        .in('meeting_id', meetingIds)
+
+    if (inviteeError) {
+        return { error: inviteeError.message }
+    }
+
+    const inviteeUserIds = Array.from(
+        new Set((inviteeRows || []).map((i) => i.user_id))
+    )
+
+    const usernameById = new Map<string, string>()
+
+    if (inviteeUserIds.length > 0) {
+        const { data: userRows, error: userError } = await supabase
+            .from('user')
+            .select('user_id,username')
+            .in('user_id', inviteeUserIds)
+
+        if (userError) {
+            return { error: userError.message }
+        }
+
+        for (const user of userRows || []) {
+            usernameById.set(user.user_id, user.username)
+        }
+    }
+
+    const inviteesByMeeting = new Map<string, MeetingInvitee[]>()
+
+    for (const invitee of inviteeRows || []) {
+        const existing = inviteesByMeeting.get(invitee.meeting_id) || []
+        existing.push({
+            user_id: invitee.user_id,
+            username: usernameById.get(invitee.user_id) || 'Unknown',
+            rsvp_status: invitee.rsvp_status,
+        })
+        inviteesByMeeting.set(invitee.meeting_id, existing)
+    }
+
+    for (const meeting of meetings) {
+        const summary: MeetingSummary = {
+            meeting_id: meeting.meeting_id,
+            negotiation_id: meeting.negotiation_id,
+            meeting_type: meeting.meeting_type,
+            scheduled_at: meeting.scheduled_at,
+            due_date: meeting.due_date,
+            platform: meeting.platform,
+            access_code: meeting.access_code,
+            address: meeting.address_id ? addressById.get(meeting.address_id) || null : null,
+            created_by_user_id: meeting.created_by_user_id,
+            invitees: inviteesByMeeting.get(meeting.meeting_id) || [],
+        }
+
+        const existing = meetingsByNegotiation.get(meeting.negotiation_id) || []
+        existing.push(summary)
+        meetingsByNegotiation.set(meeting.negotiation_id, existing)
+    }
+
+    return { data: meetingsByNegotiation }
+}
 /**
  * Get user's exchanges enriched with actual item details (AC1).
  * Fetches exchange list + item data in two batch queries (no N+1).
  */
+
 export async function getUserExchangesEnriched(
     userId: string,
     status?: string
@@ -425,6 +555,24 @@ export async function getUserExchangesEnriched(
         }
 
         const exchangeIds = exchanges.map((e) => e.exchange_id)
+
+        const { data: exchangeRows, error: exchangeRowsError } = await supabase
+    .from('exchange')
+    .select('exchange_id,negotiation_id')
+    .in('exchange_id', exchangeIds)
+
+if (exchangeRowsError) {
+    return { success: false, error: exchangeRowsError.message }
+}
+
+const negotiationByExchange = new Map<string, string | null>()
+for (const row of exchangeRows || []) {
+    negotiationByExchange.set(row.exchange_id, row.negotiation_id || null)
+}
+
+for (const ex of exchanges) {
+    ex.negotiation_id = negotiationByExchange.get(ex.exchange_id) || null
+}
 
         // 2. Batch-fetch participants to resolve the target user (the "other" user)
         const { data: participantRows, error: participantError } = await supabase
@@ -526,12 +674,26 @@ export async function getUserExchangesEnriched(
             map.set(ei.exchange_id, list)
         }
 
+        const negotiationIds = Array.from(
+    new Set(exchanges.map((e) => e.negotiation_id).filter(Boolean))
+) as string[]
+
+const meetingsResult = await getMeetingsByNegotiationIds(supabase, negotiationIds)
+if (meetingsResult.error || !meetingsResult.data) {
+    return { success: false, error: meetingsResult.error || 'Failed to load meetings.' }
+}
+
+const meetingsByNegotiation = meetingsResult.data
+
         // 6. Merge into enriched list
         const enriched: ExchangeListItemEnriched[] = exchanges.map((ex) => ({
-            ...ex,
-            offered_items: offeredByExchange.get(ex.exchange_id) || [],
-            requested_items: requestedByExchange.get(ex.exchange_id) || [],
-        }))
+    ...ex,
+    offered_items: offeredByExchange.get(ex.exchange_id) || [],
+    requested_items: requestedByExchange.get(ex.exchange_id) || [],
+    meetings: ex.negotiation_id
+        ? meetingsByNegotiation.get(ex.negotiation_id) || []
+        : [],
+}))
 
         return { success: true, data: enriched }
     } catch (err) {

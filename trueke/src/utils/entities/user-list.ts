@@ -1,6 +1,26 @@
 import { createClient } from "@/utils/supabase/server"
 import type { UserList, UserListMember, UserSearchResult } from "@/lib/entities/user-list"
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>
+
+// ─── Private Helpers ─────────────────────────────────────────────────────────
+
+async function getOwnedListId(
+  supabase: SupabaseClient,
+  userId: string,
+  listId: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("user_list")
+    .select("list_id")
+    .eq("list_id", listId)
+    .eq("owner_id", userId)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return (data as { list_id: string }).list_id
+}
+
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 /**
@@ -31,13 +51,21 @@ export async function getUserLists(userId: string): Promise<UserList[]> {
 }
 
 /**
- * Returns all members of a given list enriched with public profile data and
- * their aggregated rating from the `user_rating_summary` view.
+ * Returns all members of a list owned by `userId`, enriched with public profile
+ * data and rating data.
+ *
+ * If the list does not belong to `userId`, this returns an empty array instead
+ * of exposing whether the list exists or who it contains.
  */
-export async function getUserListMembers(listId: string): Promise<UserListMember[]> {
+export async function getUserListMembers(
+  userId: string,
+  listId: string
+): Promise<UserListMember[]> {
   const supabase = await createClient()
 
-  // Step 1: fetch list members with their basic profile
+  const ownedListId = await getOwnedListId(supabase, userId, listId)
+  if (!ownedListId) return []
+
   const { data: memberRows, error } = await supabase
     .from("user_list_member")
     .select(`
@@ -52,7 +80,7 @@ export async function getUserListMembers(listId: string): Promise<UserListMember
         profile_picture_url
       )
     `)
-    .eq("list_id", listId)
+    .eq("list_id", ownedListId)
     .order("added_date_time", { ascending: true })
 
   if (error || !memberRows || memberRows.length === 0) return []
@@ -92,13 +120,14 @@ export async function getUserListMembers(listId: string): Promise<UserListMember
     const raw = row.exchange as { status: string } | { status: string }[] | null
     const st = Array.isArray(raw) ? raw[0]?.status : raw?.status
     if (st !== "completed") continue
+
     const uid = row.user_id as string
     const eid = row.exchange_id as string
+
     if (!tradeSets.has(uid)) tradeSets.set(uid, new Set())
     tradeSets.get(uid)!.add(eid)
   }
 
-  // Step 2: fetch ratings for all members in one query
   const { data: ratingRows } = await supabase
     .from("user_rating_summary")
     .select("user_id, average_rating, total_reviews")
@@ -116,6 +145,7 @@ export async function getUserListMembers(listId: string): Promise<UserListMember
     const user = row.user
     const rating = ratingMap.get(row.member_user_id)
     const uid = row.member_user_id as string
+
     return {
       listId: row.list_id,
       userId: uid,
@@ -133,8 +163,8 @@ export async function getUserListMembers(listId: string): Promise<UserListMember
 }
 
 export async function createCustomList(
-  userId: string, 
-  name: string, 
+  userId: string,
+  name: string,
   description?: string
 ): Promise<{ error: string | null; listId?: string }> {
   const supabase = await createClient()
@@ -143,12 +173,12 @@ export async function createCustomList(
     .from("user_list")
     .insert({
       owner_id: userId,
-      name: name, 
+      name,
       description: description ?? null,
-      is_predefined: false, 
+      is_predefined: false,
     })
     .select("list_id")
-  
+
   if (error || !data || data.length === 0) {
     return { error: error?.message ?? "Failed to create list." }
   }
@@ -158,16 +188,25 @@ export async function createCustomList(
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-/** Adds `memberUserId` to the given list. Returns an error string or null. */
+/**
+ * Adds `memberUserId` to a list owned by `userId`.
+ *
+ * No notifications are created here. Adding a user to a private list should not
+ * create any public indication for the added user.
+ */
 export async function addUserToList(
+  userId: string,
   listId: string,
   memberUserId: string
 ): Promise<{ error: string | null }> {
   const supabase = await createClient()
 
+  const ownedListId = await getOwnedListId(supabase, userId, listId)
+  if (!ownedListId) return { error: "List not found." }
+
   const { error } = await supabase
     .from("user_list_member")
-    .insert({ list_id: listId, member_user_id: memberUserId })
+    .insert({ list_id: ownedListId, member_user_id: memberUserId })
 
   if (error) {
     if (error.code === "23505") return { error: "User is already in this list." }
@@ -177,17 +216,21 @@ export async function addUserToList(
   return { error: null }
 }
 
-/** Removes `memberUserId` from the given list. Returns an error string or null. */
+/** Removes `memberUserId` from a list owned by `userId`. */
 export async function removeUserFromList(
+  userId: string,
   listId: string,
   memberUserId: string
 ): Promise<{ error: string | null }> {
   const supabase = await createClient()
 
+  const ownedListId = await getOwnedListId(supabase, userId, listId)
+  if (!ownedListId) return { error: "List not found." }
+
   const { error } = await supabase
     .from("user_list_member")
     .delete()
-    .eq("list_id", listId)
+    .eq("list_id", ownedListId)
     .eq("member_user_id", memberUserId)
 
   if (error) return { error: error.message }
@@ -231,11 +274,8 @@ export async function ensurePredefinedLists(userId: string): Promise<void> {
 /**
  * Deletes a custom list owned by `userId`.
  *
- * Predefined lists (e.g. "Favorites", "Frequent Users") are protected server-side
- * by the `is_predefined = FALSE` filter, so AC2 cannot be bypassed from the client.
- *
- * List membership rows (`user_list_member`) are removed by the ON DELETE CASCADE
- * in the schema; the referenced `user` records are never touched (AC4).
+ * Predefined lists are protected server-side by the `is_predefined = false`
+ * filter. Membership rows are removed by ON DELETE CASCADE.
  */
 export async function deleteCustomList(
   userId: string,
@@ -269,7 +309,7 @@ export async function searchUsersForList(
   excludeUserIds: string[]
 ): Promise<UserSearchResult[]> {
   const supabase = await createClient()
-  const q = query.trim().split(/\s+/).join(" ") // Normalize whitespace
+  const q = query.trim().split(/\s+/).join(" ")
   if (!q) return []
 
   const parts = q.split(/\s+/).filter(Boolean)
@@ -280,9 +320,9 @@ export async function searchUsersForList(
   ]
 
   if (parts.length >= 2) {
-    // "John Doe" → match first_name LIKE %John% AND last_name LIKE %Doe%, and reversed
     const [first, ...rest] = parts
     const last = rest.join(" ")
+
     orParts.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${last}%)`)
     orParts.push(`and(first_name.ilike.%${last}%,last_name.ilike.%${first}%)`)
   }
@@ -298,7 +338,6 @@ export async function searchUsersForList(
   }
 
   const { data, error } = await req
-
   if (error || !data) return []
 
   const userIds = data.map((u: any) => u.user_id)
@@ -318,6 +357,7 @@ export async function searchUsersForList(
 
   return data.map((u: any) => {
     const rating = ratingMap.get(u.user_id)
+
     return {
       userId: u.user_id,
       username: u.username ?? "",
@@ -340,37 +380,34 @@ export async function getUserListFiltered(
 ): Promise<UserList[]> {
   const supabase = await createClient()
 
-  // Step 1: find list IDs that already contain toAddUserId
-  const { data: memberRows } = await supabase
-    .from("user_list_member")
-    .select("list_id")
-    .eq("member_user_id", toAddUserId)
-
-  const alreadyMemberListIds = (memberRows ?? []).map((r: any) => r.list_id as string)
-
-  // Step 2: fetch all lists owned by userId, excluding those
-  let query = supabase
+  const { data: listRows, error } = await supabase
     .from("user_list")
     .select("list_id, owner_id, name, description, is_predefined, created_at, user_list_member(count)")
     .eq("owner_id", userId)
     .order("is_predefined", { ascending: false })
     .order("created_at", { ascending: true })
 
-  if (alreadyMemberListIds.length > 0) {
-    query = query.not("list_id", "in", `(${alreadyMemberListIds.join(",")})`)
-  }
+  if (error || !listRows || listRows.length === 0) return []
 
-  const { data, error } = await query
+  const ownedListIds = listRows.map((row: any) => row.list_id as string)
 
-  if (error || !data) return []
+  const { data: memberRows } = await supabase
+    .from("user_list_member")
+    .select("list_id")
+    .eq("member_user_id", toAddUserId)
+    .in("list_id", ownedListIds)
 
-  return data.map((d: any) => ({
-    listId: d.list_id,
-    ownerId: d.owner_id,
-    name: d.name,
-    description: d.description,
-    isPredefined: d.is_predefined,
-    createdAt: d.created_at,
-    memberCount: d.user_list_member?.[0]?.count ?? 0,
-  }))
+  const alreadyMemberListIds = new Set((memberRows ?? []).map((row: any) => row.list_id as string))
+
+  return listRows
+    .filter((row: any) => !alreadyMemberListIds.has(row.list_id))
+    .map((row: any) => ({
+      listId: row.list_id,
+      ownerId: row.owner_id,
+      name: row.name,
+      description: row.description,
+      isPredefined: row.is_predefined,
+      createdAt: row.created_at,
+      memberCount: row.user_list_member?.[0]?.count ?? 0,
+    }))
 }

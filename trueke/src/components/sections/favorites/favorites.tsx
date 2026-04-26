@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { Heart, Users, List, Plus, Trash2 } from "lucide-react"
+import { Heart, Users, List, Plus, Trash2, ArrowLeft } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,14 +26,17 @@ import { useToast } from "@/hooks/use-toast"
 
 interface UserListPanelProps {
   list: UserList
+  onBackToAllCustomLists?: () => void
 }
 
-function UserListPanel({ list }: UserListPanelProps) {
+function UserListPanel({ list, onBackToAllCustomLists }: UserListPanelProps) {
   const [members, setMembers] = useState<UserListMember[]>([])
   const [loading, setLoading] = useState(true)
   const [removingUserId, setRemovingUserId] = useState<string | null>(null)
+  const [memberPendingRemoval, setMemberPendingRemoval] = useState<UserListMember | null>(null)
   const [profileUserId, setProfileUserId] = useState<string | null>(null)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const { toast } = useToast()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -44,26 +47,66 @@ function UserListPanel({ list }: UserListPanelProps) {
 
   useEffect(() => { load() }, [load])
 
-  const handleRemove = useCallback(async (userId: string) => {
+  const requestRemove = useCallback((userId: string) => {
+    const target = members.find((m) => m.userId === userId)
+    if (target) setMemberPendingRemoval(target)
+  }, [members])
+
+  const handleConfirmRemove = useCallback(async () => {
+    if (!memberPendingRemoval) return
+    const userId = memberPendingRemoval.userId
     setRemovingUserId(userId)
     const result = await removeUserFromListAction(list.listId, userId)
-    if (result.success) {
-      setMembers((prev) => prev.filter((m) => m.userId !== userId))
-    }
     setRemovingUserId(null)
-  }, [list.listId])
+
+    if (!result.success) {
+      toast({
+        title: "Could not remove user",
+        description: result.error ?? "Something went wrong.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setMembers((prev) => prev.filter((m) => m.userId !== userId))
+    setMemberPendingRemoval(null)
+    toast({
+      title: "User removed",
+      description: `@${memberPendingRemoval.username} was removed from "${list.name}".`,
+    })
+  }, [memberPendingRemoval, list.listId, list.name, toast])
 
   if (loading) return <UserListMembersSkeleton />
 
+  const pendingName =
+    memberPendingRemoval
+      ? `${memberPendingRemoval.firstName} ${memberPendingRemoval.lastName}`.trim() ||
+        `@${memberPendingRemoval.username}`
+      : ""
+
   return (
     <>
+      {!list.isPredefined && onBackToAllCustomLists && (
+        <div className="mb-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 -ml-2 h-8 px-2 text-muted-foreground hover:text-foreground"
+            onClick={onBackToAllCustomLists}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            All custom lists
+          </Button>
+        </div>
+      )}
+
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{members.length}</span>{" "}
           {members.length === 1 ? "member" : "members"} in this list
         </p>
       </div>
-      
 
       <div className="space-y-4">
         <div className="flex justify-end">
@@ -80,7 +123,7 @@ function UserListPanel({ list }: UserListPanelProps) {
         <UserListMembers
           members={members}
           listName={list.name}
-          onRemove={handleRemove}
+          onRemove={requestRemove}
           removingUserId={removingUserId}
           onMemberClick={(userId) => setProfileUserId(userId)}
         />
@@ -94,6 +137,20 @@ function UserListPanel({ list }: UserListPanelProps) {
           onUserAdded={() => load()}
         />
       </div>
+
+      <ConfirmActionDialog
+        open={memberPendingRemoval !== null}
+        onOpenChange={(open) => {
+          if (!open && removingUserId === null) setMemberPendingRemoval(null)
+        }}
+        title={`Remove ${pendingName} from "${list.name}"?`}
+        description="They'll no longer appear in this list. This does not affect the user's account or any other lists they belong to."
+        confirmLabel="Remove from list"
+        cancelLabel="Cancel"
+        variant="destructive"
+        isLoading={removingUserId !== null && removingUserId === memberPendingRemoval?.userId}
+        onConfirm={handleConfirmRemove}
+      />
 
       <UserProfileDialog
         userId={profileUserId}
@@ -249,7 +306,15 @@ export function Favorites() {
               }}
             />
           ) : selectedList ? (
-            <UserListPanel key={selectedList.listId} list={selectedList} />
+            <UserListPanel
+              key={selectedList.listId}
+              list={selectedList}
+              onBackToAllCustomLists={
+                !selectedList.isPredefined
+                  ? () => setShowCustomLists(true)
+                  : undefined
+              }
+            />
           ) : (
             <p className="text-sm text-muted-foreground text-center py-12">
               No lists available.

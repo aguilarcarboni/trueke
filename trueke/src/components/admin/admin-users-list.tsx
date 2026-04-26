@@ -19,19 +19,36 @@ import { useToast } from "@/hooks/use-toast"
 
 type AdminUser = { user_id: string; username: string; status: string }
 
+interface AdminUsersListProps {
+  initialUsers?: AdminUser[]
+  initialError?: string | null
+}
+
 const STATUS_STYLES: Record<string, string> = {
   active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   inactive: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
   banned: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 }
 
-export function AdminUsersList() {
+export function AdminUsersList({ initialUsers, initialError }: AdminUsersListProps) {
   const router = useRouter()
+  const hasInitialState = initialUsers !== undefined || initialError !== undefined
   const [users, setUsers] = useState<AdminUser[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(!hasInitialState)
+  const [error, setError] = useState<string | null>(initialError ?? null)
   const [banTarget, setBanTarget] = useState<AdminUser | null>(null)
   const { toast } = useToast()
+  const showSkeleton = loading && users.length === 0 && !error
+
+  useEffect(() => {
+    if (initialUsers !== undefined) {
+      setUsers(initialUsers)
+    }
+  }, [initialUsers])
+
+  useEffect(() => {
+    setError(initialError ?? null)
+  }, [initialError])
 
   async function loadUsers() {
     setLoading(true)
@@ -46,8 +63,10 @@ export function AdminUsersList() {
   }
 
   useEffect(() => {
-    loadUsers()
-  }, [])
+    if (!hasInitialState) {
+      void loadUsers()
+    }
+  }, [hasInitialState])
 
   return (
     <Card>
@@ -58,7 +77,7 @@ export function AdminUsersList() {
         </Button>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {showSkeleton ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-10 w-full" />

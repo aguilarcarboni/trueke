@@ -200,6 +200,109 @@ export async function getAdminUsers(): Promise<{ data?: { user_id: string; usern
   }
 }
 
+export interface AdminUserDetails {
+  user_id: string
+  username: string
+  first_name: string
+  last_name: string
+  email: string
+  status: string
+  is_admin: boolean
+  created_at: string
+  bio: string | null
+  profile_picture_url: string | null
+  end_ban_date_time: string | null
+  completed_trades: number
+  active_items: number
+  avg_rating: number | null
+  total_ratings: number
+  reports_received: number
+  reports_filed: number
+}
+
+export async function getAdminUserDetails(
+  userId: string,
+): Promise<{ data?: AdminUserDetails; error?: string }> {
+  try {
+    const authError = await requireAdmin()
+    if (authError) return { error: authError.error }
+
+    const supabase = await createClient()
+
+    const [
+      userResult,
+      tradesResult,
+      activeItemsResult,
+      ratingsResult,
+      reportsReceivedResult,
+      reportsFiledResult,
+    ] = await Promise.all([
+      supabase
+        .from('user')
+        .select('user_id,username,first_name,last_name,email,status,is_admin,created_at,bio,profile_picture_url,end_ban_date_time')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      supabase
+        .from('exchange_participant')
+        .select('exchange_id, exchange!inner(status)', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('exchange.status', 'completed'),
+      supabase
+        .from('item')
+        .select('*', { count: 'exact', head: true })
+        .eq('owner_user_id', userId)
+        .eq('status', 'active'),
+      supabase
+        .from('user_rating')
+        .select('score')
+        .eq('rated_user_id', userId),
+      supabase
+        .from('report')
+        .select('*', { count: 'exact', head: true })
+        .eq('target_id', userId)
+        .eq('target_type', 'user'),
+      supabase
+        .from('report')
+        .select('*', { count: 'exact', head: true })
+        .eq('reporter_user_id', userId),
+    ])
+
+    if (!userResult.data) return { error: 'User not found.' }
+
+    const u = userResult.data
+    const scores = (ratingsResult.data ?? []).map((r) => r.score as number)
+    const avg_rating =
+      scores.length > 0
+        ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
+        : null
+
+    return {
+      data: {
+        user_id: u.user_id,
+        username: u.username,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        email: u.email,
+        status: u.status,
+        is_admin: u.is_admin,
+        created_at: u.created_at,
+        bio: u.bio ?? null,
+        profile_picture_url: u.profile_picture_url ?? null,
+        end_ban_date_time: u.end_ban_date_time ?? null,
+        completed_trades: tradesResult.count ?? 0,
+        active_items: activeItemsResult.count ?? 0,
+        avg_rating,
+        total_ratings: scores.length,
+        reports_received: reportsReceivedResult.count ?? 0,
+        reports_filed: reportsFiledResult.count ?? 0,
+      },
+    }
+  } catch (error) {
+    console.error('getAdminUserDetails error:', error)
+    return { error: 'An unexpected error occurred.' }
+  }
+}
+
 export async function banUser(
   userId: string,
   bannedUntil: Date | null,

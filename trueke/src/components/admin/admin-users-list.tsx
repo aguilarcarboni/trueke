@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { RefreshCw, MoreHorizontal } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,7 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 export function AdminUsersList() {
+  const router = useRouter()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -82,7 +84,7 @@ export function AdminUsersList() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => router.push(`/admin/users/${user.user_id}`)}>View</DropdownMenuItem>
                       <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setBanTarget(user)}>Ban</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

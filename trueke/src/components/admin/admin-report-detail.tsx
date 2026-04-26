@@ -13,8 +13,11 @@ import {
   type ReportRow,
   type ReportStatus,
   type ReportTargetDetails,
+  type ReporterStatus,
   REPORT_STATUS_LABELS,
   REPORT_STATUS_STYLES,
+  REPORTER_STATUS_LABELS,
+  REPORTER_STATUS_STYLES,
   formatReportReason,
 } from "@/lib/entities/report"
 
@@ -226,13 +229,31 @@ export function AdminReportDetail({
                 <h3 className="text-sm font-semibold text-card-foreground mb-3">
                   Reported By
                 </h3>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-                    <User className="h-5 w-5 text-muted-foreground" />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                      <User className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-card-foreground">@{report.reporter_username}</p>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs mt-1 ${REPORTER_STATUS_STYLES[report.reporter_status]}`}
+                      >
+                        {REPORTER_STATUS_LABELS[report.reporter_status]}
+                      </Badge>
+                    </div>
                   </div>
-                  <p className="font-semibold text-card-foreground">
-                    @{report.reporter_username}
-                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatBox
+                      label="Member since"
+                      value={new Date(report.reporter_created_at).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
+                    />
+                    <StatBox
+                      label="Reports filed"
+                      value={String(report.reporter_total_reports)}
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>

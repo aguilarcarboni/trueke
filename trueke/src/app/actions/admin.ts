@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/utils/auth'
-import type { ReportRow, ReportStatus, ReportTargetDetails, ReportTargetType } from '@/lib/entities/report'
+import type { ReportRow, ReportStatus, ReportTargetDetails, ReportTargetType, ReporterStatus } from '@/lib/entities/report'
 
 async function requireAdmin(): Promise<{ error: string } | null> {
   const session = await getServerSession(authOptions)
@@ -43,15 +43,23 @@ export async function getReports(): Promise<{ data?: ReportRow[]; error?: string
 
     const [usersResult, itemsResult] = await Promise.all([
       allUserIds.length > 0
-        ? supabase.from('user').select('user_id,username').in('user_id', allUserIds)
+        ? supabase.from('user').select('user_id,username,status,created_at').in('user_id', allUserIds)
         : Promise.resolve({ data: [], error: null }),
       itemTargetIds.length > 0
         ? supabase.from('item').select('item_id,title').in('item_id', itemTargetIds)
         : Promise.resolve({ data: [], error: null }),
     ])
 
-    const userMap = new Map((usersResult.data ?? []).map((u) => [u.user_id, u.username]))
-    const itemMap = new Map((itemsResult.data ?? []).map((i) => [i.item_id, i.title]))
+    const userMap      = new Map((usersResult.data ?? []).map((u) => [u.user_id, u.username]))
+    const userStatusMap = new Map((usersResult.data ?? []).map((u) => [u.user_id, u.status as ReporterStatus]))
+    const userJoinMap   = new Map((usersResult.data ?? []).map((u) => [u.user_id, u.created_at as string]))
+    const itemMap       = new Map((itemsResult.data ?? []).map((i) => [i.item_id, i.title]))
+
+    // Count how many reports each reporter has filed (within the full fetched set)
+    const reporterCountMap = new Map<string, number>()
+    for (const r of reports) {
+      reporterCountMap.set(r.reporter_user_id, (reporterCountMap.get(r.reporter_user_id) ?? 0) + 1)
+    }
 
     const data: ReportRow[] = reports.map((r) => ({
       report_id: r.report_id,
@@ -63,6 +71,9 @@ export async function getReports(): Promise<{ data?: ReportRow[]; error?: string
       created_at: r.created_at,
       reporter_user_id: r.reporter_user_id,
       reporter_username: userMap.get(r.reporter_user_id) ?? 'Unknown',
+      reporter_status: userStatusMap.get(r.reporter_user_id) ?? 'active',
+      reporter_created_at: userJoinMap.get(r.reporter_user_id) ?? r.created_at,
+      reporter_total_reports: reporterCountMap.get(r.reporter_user_id) ?? 1,
       target_label:
         r.target_type === 'item'
           ? (itemMap.get(r.target_id) ?? 'Unknown Item')

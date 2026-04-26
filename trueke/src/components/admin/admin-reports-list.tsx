@@ -1,17 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Flag, Package, RefreshCw, User } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Flag, Package, RefreshCw, Search, User, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getReports } from "@/app/actions/admin"
 import {
   type ReportRow,
   type ReportStatus,
+  type ReportTargetType,
   REPORT_STATUS_LABELS,
   REPORT_STATUS_STYLES,
+  REPORT_TARGET_TYPE_LABELS,
   formatReportReason,
 } from "@/lib/entities/report"
 import { AdminReportDetail } from "./admin-report-detail"
@@ -29,6 +33,39 @@ export function AdminReportsList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<ReportRow | null>(null)
+
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedStatus, setSelectedStatus] = useState<ReportStatus | "">("")
+  const [selectedTargetType, setSelectedTargetType] = useState<ReportTargetType | "">("")
+
+  const hasActiveFilters = searchQuery !== "" || selectedStatus !== "" || selectedTargetType !== ""
+
+  const filteredReports = useMemo(() => {
+    let result = reports
+    if (selectedStatus) {
+      result = result.filter((r) => r.status === selectedStatus)
+    }
+    if (selectedTargetType) {
+      result = result.filter((r) => r.target_type === selectedTargetType)
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(
+        (r) =>
+          r.target_label.toLowerCase().includes(q) ||
+          r.reporter_username.toLowerCase().includes(q) ||
+          formatReportReason(r.reason).toLowerCase().includes(q) ||
+          (r.description?.toLowerCase().includes(q) ?? false),
+      )
+    }
+    return result
+  }, [reports, searchQuery, selectedStatus, selectedTargetType])
+
+  const clearFilters = () => {
+    setSearchQuery("")
+    setSelectedStatus("")
+    setSelectedTargetType("")
+  }
 
   const fetchReports = async () => {
     setLoading(true)
@@ -66,7 +103,7 @@ export function AdminReportsList() {
           Reports
           {!loading && (
             <Badge variant="secondary" className="ml-1">
-              {reports.length}
+              {hasActiveFilters ? `${filteredReports.length} / ${reports.length}` : reports.length}
             </Badge>
           )}
         </CardTitle>
@@ -81,6 +118,52 @@ export function AdminReportsList() {
         </Button>
       </CardHeader>
       <CardContent>
+        {/* Filter bar */}
+        <div className="flex gap-2 items-center mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by target, reporter, or reason..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select
+            value={selectedStatus || "__all__"}
+            onValueChange={(v) => setSelectedStatus(v === "__all__" ? "" : v as ReportStatus)}
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All statuses</SelectItem>
+              {(Object.entries(REPORT_STATUS_LABELS) as [ReportStatus, string][]).map(([value, label]) => (
+                <SelectItem key={value} value={value}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={selectedTargetType || "__all__"}
+            onValueChange={(v) => setSelectedTargetType(v === "__all__" ? "" : v as ReportTargetType)}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All types</SelectItem>
+              {(Object.entries(REPORT_TARGET_TYPE_LABELS) as [ReportTargetType, string][]).map(([value, label]) => (
+                <SelectItem key={value} value={value}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={clearFilters} title="Clear filters">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
         {loading ? (
           <div className="space-y-3">
             {[...Array(4)].map((_, i) => (
@@ -94,13 +177,13 @@ export function AdminReportsList() {
               Retry
             </Button>
           </div>
-        ) : reports.length === 0 ? (
+        ) : filteredReports.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            No reports found.
+            {hasActiveFilters ? "No reports match the current filters." : "No reports found."}
           </p>
         ) : (
           <div className="space-y-3">
-            {reports.map((report) => (
+            {filteredReports.map((report) => (
               <button
                 key={report.report_id}
                 type="button"

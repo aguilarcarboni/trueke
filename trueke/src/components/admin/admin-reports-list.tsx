@@ -16,6 +16,11 @@ import {
 } from "@/lib/entities/report"
 import { AdminReportDetail } from "./admin-report-detail"
 
+interface AdminReportsListProps {
+  initialReports?: ReportRow[]
+  initialError?: string | null
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
@@ -24,11 +29,23 @@ function formatDate(iso: string) {
   })
 }
 
-export function AdminReportsList() {
-  const [reports, setReports] = useState<ReportRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export function AdminReportsList({ initialReports, initialError }: AdminReportsListProps) {
+  const hasInitialState = initialReports !== undefined || initialError !== undefined
+  const [reports, setReports] = useState<ReportRow[]>(initialReports ?? [])
+  const [loading, setLoading] = useState(!hasInitialState)
+  const [error, setError] = useState<string | null>(initialError ?? null)
   const [selected, setSelected] = useState<ReportRow | null>(null)
+  const showSkeleton = loading && reports.length === 0 && !error
+
+  useEffect(() => {
+    if (initialReports !== undefined) {
+      setReports(initialReports)
+    }
+  }, [initialReports])
+
+  useEffect(() => {
+    setError(initialError ?? null)
+  }, [initialError])
 
   const fetchReports = async () => {
     setLoading(true)
@@ -43,8 +60,10 @@ export function AdminReportsList() {
   }
 
   useEffect(() => {
-    fetchReports()
-  }, [])
+    if (!hasInitialState) {
+      void fetchReports()
+    }
+  }, [hasInitialState])
 
   if (selected) {
     return (
@@ -64,7 +83,7 @@ export function AdminReportsList() {
         <CardTitle className="flex items-center gap-2 text-base text-card-foreground">
           <Flag className="h-4 w-4" />
           Reports
-          {!loading && (
+          {reports.length > 0 && (
             <Badge variant="secondary" className="ml-1">
               {reports.length}
             </Badge>
@@ -81,7 +100,7 @@ export function AdminReportsList() {
         </Button>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {showSkeleton ? (
           <div className="space-y-3">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-16 w-full rounded-lg" />

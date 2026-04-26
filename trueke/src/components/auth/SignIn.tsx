@@ -49,6 +49,7 @@ function SignIn() {
       const messages: Record<string, string> = {
         AccountDeactivatedRecoverable: 'Your account is deactivated. You can reactivate it within 30 days.',
         AccountDeactivated: 'This account has been permanently deactivated. Please contact support.',
+        AccountBanned: 'Your account has been banned. Please contact support.',
       }
       toast({ title: 'Error', description: messages[result.error] ?? 'Invalid email or password.', variant: 'destructive' })
     }

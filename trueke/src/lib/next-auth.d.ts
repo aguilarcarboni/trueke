@@ -29,5 +29,6 @@ declare module "next-auth/jwt" {
     username: string
     profile_picture_url?: string | null
     is_admin?: boolean
+    status?: string
   }
 }

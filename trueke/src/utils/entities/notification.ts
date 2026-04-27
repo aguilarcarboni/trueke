@@ -4,7 +4,12 @@ import type {
   NotificationSummary,
   CreateNotificationParams,
 } from '@/lib/entities/notification'
-import { normalizeTimestamp } from '@/lib/entities/notification'
+import {
+  normalizeTimestamp,
+  getNotificationTypeLabel,
+} from '@/lib/entities/notification'
+import { isEmailNotificationEnabled } from '@/utils/entities/notification-preference'
+import { sendEmail } from '@/lib/email'
 
 // ─── Read Operations ─────────────────────────────────────────────────────────
 
@@ -35,6 +40,7 @@ export async function getUserNotifications(
        priority`
     )
     .eq('recipient_user_id', userId)
+    .eq('delivery_channel', 'in_app')
     .order('sent_at', { ascending: false, nullsFirst: false })
     .limit(limit)
 
@@ -107,6 +113,7 @@ export async function getNotificationSummary(
     .from('notification')
     .select('notification_id', { count: 'exact', head: true })
     .eq('recipient_user_id', userId)
+    .eq('delivery_channel', 'in_app')
     .eq('is_read', false)
 
   if (error) {
@@ -129,6 +136,7 @@ export async function markNotificationRead(notificationId: string): Promise<bool
     .from('notification')
     .update({ is_read: true, read_at: new Date().toISOString() })
     .eq('notification_id', notificationId)
+    .eq('delivery_channel', 'in_app')
 
   if (error) {
     console.error('Error marking notification as read:', error)
@@ -147,6 +155,7 @@ export async function markAllNotificationsRead(userId: string): Promise<boolean>
     .from('notification')
     .update({ is_read: true, read_at: new Date().toISOString() })
     .eq('recipient_user_id', userId)
+    .eq('delivery_channel', 'in_app')
     .eq('is_read', false)
 
   if (error) {
@@ -174,7 +183,7 @@ export async function createNotification(
 
     const { error } = await supabase.from('notification').insert({
       recipient_user_id: params.recipient_user_id,
-      sender_user_id: params.sender_user_id,
+      sender_user_id: params.sender_user_id ?? null,
       type: params.type,
       title: params.title,
       body: params.body,
@@ -191,6 +200,81 @@ export async function createNotification(
       console.error('Failed to create notification:', error)
       return false
     }
+
+    const emailEnabled = await isEmailNotificationEnabled(
+      params.recipient_user_id,
+      params.type
+    )
+
+    if (!emailEnabled) return true
+
+    const { data: recipient, error: recipientError } = await supabase
+      .from('user')
+      .select('email, first_name, username')
+      .eq('user_id', params.recipient_user_id)
+      .maybeSingle()
+
+    if (recipientError) {
+      console.error('Failed to load notification email recipient:', recipientError)
+      return true
+    }
+
+    const recipientEmail = recipient?.email?.trim()
+    if (!recipientEmail) {
+      console.info(
+        `Notification email skipped: missing recipient email user_id=${params.recipient_user_id}`
+      )
+      await supabase
+        .from('notification')
+        .update({ status: 'skipped', sent_at: new Date().toISOString() })
+        .eq('recipient_user_id', params.recipient_user_id)
+        .eq('type', params.type)
+        .eq('delivery_channel', 'email')
+        .eq('status', 'queued')
+      return true
+    }
+
+    const title = params.title?.trim() || getNotificationTypeLabel(params.type)
+    const body =
+      params.body?.trim() || `You have a new ${getNotificationTypeLabel(params.type)} notification.`
+    const displayName = recipient?.first_name?.trim() || recipient?.username?.trim() || 'there'
+
+    const emailResult = await sendEmail({
+      to: recipientEmail,
+      subject: `Trueke - ${title}`,
+      html: `
+        <p>Hello ${displayName},</p>
+        <p><strong>${title}</strong></p>
+        <p>${body}</p>
+        <p>You can view this in your Trueke notifications center.</p>
+        <p>— Trueke</p>
+      `,
+    })
+
+    if (!emailResult.ok) {
+      console.error(
+        `Notification email send failed user_id=${params.recipient_user_id} type=${params.type}: ${emailResult.error ?? 'unknown error'}`
+      )
+      await supabase
+        .from('notification')
+        .update({ status: 'failed', sent_at: new Date().toISOString() })
+        .eq('recipient_user_id', params.recipient_user_id)
+        .eq('type', params.type)
+        .eq('delivery_channel', 'email')
+        .eq('status', 'queued')
+    } else {
+      console.info(
+        `Notification email sent user_id=${params.recipient_user_id} type=${params.type} to=${recipientEmail}`
+      )
+      await supabase
+        .from('notification')
+        .update({ status: 'sent', sent_at: new Date().toISOString() })
+        .eq('recipient_user_id', params.recipient_user_id)
+        .eq('type', params.type)
+        .eq('delivery_channel', 'email')
+        .eq('status', 'queued')
+    }
+
     return true
   } catch (err) {
     console.error('Failed to create notification:', err)

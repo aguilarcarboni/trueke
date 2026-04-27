@@ -19,12 +19,16 @@ export type NotificationType =
 /** The entity a notification is about (for deep-linking). */
 export type NotificationReferenceType =
   | 'exchange'
+  | 'proposal'
+  | 'report'
+  | 'negotiation'
   | 'message'
   | 'meeting'
   | 'item'
   | 'user'
 
 export type NotificationPriority = 'low' | 'normal' | 'high'
+export type NotificationChannel = 'in_app' | 'email'
 
 // ─── Read Models ─────────────────────────────────────────────────────────────
 
@@ -57,13 +61,19 @@ export interface NotificationSummary {
 /** Parameters for creating a new notification (server-side only). */
 export interface CreateNotificationParams {
   recipient_user_id: string
-  sender_user_id: string
+  sender_user_id?: string | null
   type: NotificationType
   title: string
   body: string
   reference_type?: NotificationReferenceType
   reference_id?: string
   priority?: NotificationPriority
+}
+
+export interface NotificationChannelPreference {
+  type: NotificationType
+  in_app_enabled: true
+  email_enabled: boolean
 }
 
 // ─── Display Helpers ─────────────────────────────────────────────────────────
@@ -83,6 +93,10 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   rating_received: 'New Rating',
   system: 'System',
 }
+
+export const NOTIFICATION_TYPES = Object.keys(
+  NOTIFICATION_TYPE_LABELS
+) as NotificationType[]
 
 /** Map each type to a color token for the dot/icon. */
 export const NOTIFICATION_TYPE_COLORS: Record<NotificationType, string> = {

@@ -23,6 +23,7 @@ import { ChangeEmailDialog } from "@/components/sections/profile/credentials/Cha
 import { UserRatingStars } from "@/components/sections/profile/user-rating-stars"
 import { UserReviewsList } from "@/components/sections/profile/user-reviews-list"
 import { DeactivateAccountDialog } from "@/components/sections/profile/deactivate-account-dialog"
+import { NotificationPreferences } from "@/components/sections/profile/notification-preferences"
 
 const PROFILE_IMAGES_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_PROFILE_IMAGES_BUCKET || "images"
 
@@ -252,6 +253,18 @@ export function Profile() {
               <TriangleAlert className="h-4 w-4" />
               Deactivate account
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-card-foreground">Notification Preferences</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              In-app notifications are always enabled. Email notifications are optional.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {session.user.id && <NotificationPreferences userId={session.user.id} />}
           </CardContent>
         </Card>
 

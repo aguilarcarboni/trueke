@@ -50,7 +50,7 @@ DO $$ BEGIN
     EXCEPTION WHEN duplicate_object THEN NULL; 
 END $$;
 DO $$ BEGIN 
-    CREATE TYPE notification_type   AS ENUM ('account_created', 'proposal_created', 'proposal_accepted', 'proposal_rejected', 'counter_offer', 'message_received', 'meeting_invite', 'meeting_rsvp', 'item_reported', 'user_reported', 'rating_received', 'system'); 
+    CREATE TYPE notification_type   AS ENUM ('account_created', 'proposal_created', 'proposal_accepted', 'proposal_rejected', 'proposal_cancelled', 'counter_offer', 'message_received', 'meeting_invite', 'meeting_rsvp', 'item_reported', 'user_reported', 'rating_received', 'system'); 
     EXCEPTION WHEN duplicate_object THEN NULL; 
 END $$;
 DO $$ BEGIN 
@@ -315,6 +315,19 @@ CREATE TABLE IF NOT EXISTS notification (
     expires_at          TIMESTAMP
 );
 
+-- Notification Preferences Table
+CREATE TABLE IF NOT EXISTS notification_preference (
+    user_id            UUID NOT NULL REFERENCES "user"(user_id) ON DELETE CASCADE,
+    notification_type  notification_type NOT NULL,
+    channel            notification_channel NOT NULL,
+    is_enabled         BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at         TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at         TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, notification_type, channel),
+    CONSTRAINT chk_notification_preference_in_app_enabled
+        CHECK (channel <> 'in_app' OR is_enabled = TRUE)
+);
+
 -- Login Events Table
 CREATE TABLE IF NOT EXISTS login_event (
     login_event_id  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -448,3 +461,65 @@ CREATE OR REPLACE TRIGGER trg_update_item_last_date_uploaded
 AFTER INSERT ON item_media
 FOR EACH ROW
 EXECUTE FUNCTION update_item_last_date_uploaded();
+
+-- Queue email-channel notifications whenever an in-app notification is inserted
+CREATE OR REPLACE FUNCTION enqueue_email_notification_from_in_app()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_email_enabled BOOLEAN;
+BEGIN
+    IF NEW.delivery_channel <> 'in_app' THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM notification_preference np
+        WHERE np.user_id = NEW.recipient_user_id
+          AND np.notification_type = NEW.type
+          AND np.channel = 'email'::notification_channel
+          AND np.is_enabled = TRUE
+    )
+    INTO v_email_enabled;
+
+    IF v_email_enabled THEN
+        INSERT INTO notification (
+            recipient_user_id,
+            sender_user_id,
+            type,
+            reference_type,
+            reference_id,
+            title,
+            body,
+            is_read,
+            delivery_channel,
+            status,
+            priority,
+            sent_at,
+            expires_at
+        )
+        VALUES (
+            NEW.recipient_user_id,
+            NEW.sender_user_id,
+            NEW.type,
+            NEW.reference_type,
+            NEW.reference_id,
+            NEW.title,
+            NEW.body,
+            FALSE,
+            'email'::notification_channel,
+            'queued'::notification_status,
+            NEW.priority,
+            NULL,
+            NEW.expires_at
+        );
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trg_enqueue_email_notification_from_in_app
+AFTER INSERT ON notification
+FOR EACH ROW
+EXECUTE FUNCTION enqueue_email_notification_from_in_app();

@@ -66,6 +66,7 @@ export async function markNotificationRead(
       .update({ is_read: true, read_at: new Date().toISOString() })
       .eq('notification_id', notificationId)
       .eq('recipient_user_id', userId)
+      .eq('delivery_channel', 'in_app')
 
     if (error) {
       console.error('markNotificationRead error:', error)
@@ -91,6 +92,7 @@ export async function markAllNotificationsRead(): Promise<{ error?: string }> {
       .from('notification')
       .update({ is_read: true, read_at: new Date().toISOString() })
       .eq('recipient_user_id', userId)
+      .eq('delivery_channel', 'in_app')
       .eq('is_read', false)
 
     if (error) {

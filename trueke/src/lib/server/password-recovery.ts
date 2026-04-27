@@ -1,4 +1,3 @@
-import bcrypt from 'bcrypt'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { EMAIL_PATTERN } from '@/lib/validation/email'
@@ -6,9 +5,11 @@ import { validateNewPasswordField } from '@/lib/validation/password'
 import { generateSixDigitCode } from '@/lib/server/verification-code'
 import { sendPasswordRecoveryEmail, sendPasswordChangeNotificationEmail } from '@/lib/server/mail/account-emails'
 import {
+  getRecentPasswordHistoryHashes,
   hashPassword,
-  passwordsMatch,
-  updateUserPasswordHash,
+  isPasswordReused,
+  PASSWORD_REUSE_ERROR_MESSAGE,
+  updateUserPasswordWithHistory,
 } from '@/lib/server/account/user-password'
 
 export { EMAIL_PATTERN }
@@ -90,12 +91,21 @@ export async function runPasswordReset(
     return { error: 'Could not find account for this email.' }
   }
 
-  if (await passwordsMatch(newPassword, user.password_hash)) {
-    return { error: 'New password must be different from your current password.' }
+  const history = await getRecentPasswordHistoryHashes(supabase, user.user_id, 3)
+  if (history.error) return { error: 'Could not validate password history.' }
+
+  const reused = await isPasswordReused(newPassword, user.password_hash, history.hashes)
+  if (reused) {
+    return { error: PASSWORD_REUSE_ERROR_MESSAGE }
   }
 
   const passwordHash = await hashPassword(newPassword)
-  const persist = await updateUserPasswordHash(supabase, user.user_id, passwordHash)
+  const persist = await updateUserPasswordWithHistory(
+    supabase,
+    user.user_id,
+    user.password_hash,
+    passwordHash
+  )
   if (persist.error) {
     return { error: persist.error }
   }

@@ -17,6 +17,7 @@ DROP FUNCTION IF EXISTS update_item_last_date_uploaded();
 DROP INDEX IF EXISTS uq_user_current_address;
 DROP INDEX IF EXISTS uq_item_current_address;
 DROP INDEX IF EXISTS uq_item_media_display_order;
+DROP INDEX IF EXISTS idx_password_history_user_created_at;
 
 --=========================================================--
 --------------------- DROP TABLES --------------------------
@@ -42,6 +43,7 @@ DROP TABLE IF EXISTS item;
 DROP TABLE IF EXISTS user_list_member;
 DROP TABLE IF EXISTS user_list;
 DROP TABLE IF EXISTS user_address;
+DROP TABLE IF EXISTS password_history;
 DROP TABLE IF EXISTS "address";
 DROP TABLE IF EXISTS "user";
 

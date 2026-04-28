@@ -2,9 +2,12 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { validateChangePasswordFields } from '@/lib/validation/password'
 import {
+  getRecentPasswordHistoryHashes,
   hashPassword,
+  isPasswordReused,
+  PASSWORD_REUSE_ERROR_MESSAGE,
   passwordsMatch,
-  updateUserPasswordHash,
+  updateUserPasswordWithHistory,
 } from '@/lib/server/account/user-password'
 import { sendPasswordChangeNotificationEmail } from '@/lib/server/mail/account-emails'
 
@@ -32,12 +35,16 @@ export async function runChangePassword(
     return { error: 'Current password is incorrect.' }
   }
 
-  if (await passwordsMatch(newPassword, user.password_hash)) {
-    return { error: 'New password must be different from your current password.' }
+  const history = await getRecentPasswordHistoryHashes(supabase, userId, 3)
+  if (history.error) return { error: 'Could not validate password history.' }
+
+  const reused = await isPasswordReused(newPassword, user.password_hash, history.hashes)
+  if (reused) {
+    return { error: PASSWORD_REUSE_ERROR_MESSAGE }
   }
 
   const passwordHash = await hashPassword(newPassword)
-  const persist = await updateUserPasswordHash(supabase, userId, passwordHash)
+  const persist = await updateUserPasswordWithHistory(supabase, userId, user.password_hash, passwordHash)
   if (persist.error) return { error: persist.error }
 
   if (user.email) {

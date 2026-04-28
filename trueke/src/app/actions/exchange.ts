@@ -265,16 +265,6 @@ export async function createExchangeProposal(
         if (data && data.length > 0) {
             const result = data[0]
             if (result.result_status === 'success') {
-                // AC1: Notify the target user about the new proposal
-                await sendExchangeNotification(
-                    supabase,
-                    result.exchange_id,
-                    request.initiator_id,
-                    'proposal_created',
-                    'New Trade Proposal',
-                    'Someone has sent you a new trade proposal!'
-                )
-
                 return {
                     success: true,
                     data: {

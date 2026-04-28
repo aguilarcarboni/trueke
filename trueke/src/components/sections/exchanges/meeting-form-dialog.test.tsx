@@ -110,9 +110,6 @@ describe("MeetingFormDialog", () => {
     fireEvent.click(screen.getAllByRole("combobox")[0]);
     fireEvent.click(screen.getByText("Virtual"));
 
-    fireEvent.change(screen.getByLabelText(/date and time/i), {
-      target: { value: "2099-01-01T10:00" },
-    });
     fireEvent.change(screen.getByLabelText(/platform/i), {
       target: { value: "Google Meet" },
     });

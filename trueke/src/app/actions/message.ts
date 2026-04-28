@@ -10,6 +10,7 @@ import type {
 import { MESSAGE_MAX_LENGTH } from '@/lib/entities/message'
 import { createNotification } from '@/utils/entities/notification'
 import { createClient } from '@/utils/supabase/server'
+import { requireActiveUser } from '@/utils/auth-server'
 
 type ParticipantRow = {
   negotiation_id: string
@@ -514,6 +515,12 @@ export async function sendMessage(
   request: SendMessageRequest
 ): Promise<ApiResponse<SendMessageResult>> {
   try {
+    // AC3: banned users cannot send messages
+    const authResult = await requireActiveUser()
+    if ('error' in authResult) {
+      return { success: false, error: authResult.error }
+    }
+
     const conversationId = request.conversation_id?.trim()
     const senderUserId = request.sender_user_id?.trim()
     const content = normalizeContent(request.content || '')

@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { Item, ItemWithAddress } from '@/lib/entities/item';
 import { Address } from '@/lib/entities/address';
-import { getAuthenticatedUserId } from '@/utils/auth-server';
+import { getAuthenticatedUserId, requireActiveUser } from '@/utils/auth-server';
 import type { ApiResponse } from '@/lib/types';
 
 export interface ItemDetailsResponse {
@@ -308,11 +308,11 @@ export async function createItem(
   }
 ) {
   try {
-    const userId = await getAuthenticatedUserId()
-
-    if (!userId) {
-      return { status: 403, error: 'Unauthorized: Not authenticated' }
+    const authResult = await requireActiveUser()
+    if ('error' in authResult) {
+      return { status: 403, error: authResult.error }
     }
+    const userId = authResult.userId
 
     // Only validate business rules not enforced by DB
     const errors: Record<string, string> = {}
@@ -379,8 +379,9 @@ export async function updateItemImages(
   imageUrls: string[]
 ): Promise<{ error: string | null }> {
   try {
-    const userId = await getAuthenticatedUserId()
-    if (!userId) return { error: 'Not authenticated' }
+    const authResult = await requireActiveUser()
+    if ('error' in authResult) return { error: authResult.error ?? null }
+    const userId = authResult.userId
 
     const supabase = await createClient()
 
@@ -431,11 +432,9 @@ export async function updateItem(
   address?: Omit<Address, 'addressId'>
 ) {
   try {
-    const userId = await getAuthenticatedUserId()
-
-    if (!userId) {
-      return { error: 'Not authenticated' }
-    }
+    const authResult = await requireActiveUser()
+    if ('error' in authResult) return { error: authResult.error }
+    const userId = authResult.userId
     const supabase = await createClient()
 
     const { data: item, error: fetchError } = await supabase
@@ -626,11 +625,9 @@ export async function changeItemStatus(
   action: "publish" | "archive" | "set-draft",
 ): Promise<{ error: string | null }> {
   try {
-    const userId = await getAuthenticatedUserId();
-
-    if (!userId) {
-      return { error: "Not authenticated" };
-    }
+    const authResult = await requireActiveUser()
+    if ('error' in authResult) return { error: authResult.error ?? null }
+    const userId = authResult.userId
 
     const supabase = await createClient();
 

@@ -11,6 +11,11 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     exclude: ['node_modules', '.next', 'src/components/ui/**'],
     pool: 'threads',
+    server: {
+      deps: {
+        inline: [/@csstools/, /@asamuzakjp/],
+      },
+    },
     coverage: {
       provider: 'v8',
       include: [

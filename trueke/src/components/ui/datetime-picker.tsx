@@ -1,5 +1,4 @@
 import { Button, buttonVariants } from '@/components/ui/button';
-import type { CalendarProps } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -18,6 +17,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DayPicker } from 'react-day-picker';
+
+type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
 // ---------- utils start ----------
 /**
@@ -667,7 +668,7 @@ type DateTimePickerProps = {
    * Show the default month and time when popup the calendar. Default is the current Date().
    **/
   defaultPopupValue?: Date;
-} & Pick<CalendarProps, 'locale' | 'weekStartsOn' | 'showWeekNumber' | 'showOutsideDays'>;
+} & Partial<Pick<CalendarProps, 'locale' | 'weekStartsOn' | 'showWeekNumber' | 'showOutsideDays'>>;
 
 type DateTimePickerRef = {
   value?: Date;

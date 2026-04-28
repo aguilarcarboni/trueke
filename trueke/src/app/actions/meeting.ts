@@ -7,10 +7,13 @@ import { createNotification } from "@/utils/entities/notification"
 import type { ApiResponse } from "@/lib/types"
 import type {
   CreateMeetingForExchangeRequest,
+  MeetingRsvpStatus,
   UpdateMeetingRequest,
 } from "@/lib/entities/meeting"
 import type { AddressFormData } from "@/lib/entities/address"
 import type { NotificationType } from "@/lib/entities/notification"
+
+const RSVP_RESPONSES: MeetingRsvpStatus[] = ["accepted", "declined", "maybe"]
 
 function normalizeAddress(address: {
   countryCode: string
@@ -353,6 +356,138 @@ export async function updateMeeting(
     }
   } catch (err) {
     console.error("Error updating meeting:", err)
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "An unexpected error occurred.",
+    }
+  }
+}
+
+export async function respondToMeeting(
+  meeting_id: string,
+  user_id: string,
+  response: MeetingRsvpStatus
+): Promise<ApiResponse<null>> {
+  try {
+    const supabase = await createClient()
+
+    if (!meeting_id?.trim()) {
+      return { success: false, error: "Meeting is required." }
+    }
+
+    if (!user_id?.trim()) {
+      return { success: false, error: "User is required." }
+    }
+
+    if (!RSVP_RESPONSES.includes(response)) {
+      return { success: false, error: "RSVP response is invalid." }
+    }
+
+    const { data: meeting, error: meetingError } = await supabase
+      .from("meeting")
+      .select("meeting_id,scheduled_at,created_by_user_id")
+      .eq("meeting_id", meeting_id)
+      .single()
+
+    if (meetingError || !meeting) {
+      return { success: false, error: meetingError?.message ?? "Meeting not found." }
+    }
+
+    if (new Date(meeting.scheduled_at) <= new Date()) {
+      return {
+        success: false,
+        error: "Cannot respond to a meeting that has already started or passed.",
+      }
+    }
+
+    const { data: invitee, error: inviteeError } = await supabase
+      .from("meeting_invitee")
+      .select("meeting_id,user_id")
+      .eq("meeting_id", meeting_id)
+      .eq("user_id", user_id)
+      .maybeSingle()
+
+    if (inviteeError) {
+      return { success: false, error: inviteeError.message }
+    }
+
+    if (!invitee) {
+      return { success: false, error: "You are not invited to this meeting." }
+    }
+
+    const { error: updateError } = await supabase
+      .from("meeting_invitee")
+      .update({ rsvp_status: response })
+      .eq("meeting_id", meeting_id)
+      .eq("user_id", user_id)
+
+    if (updateError) {
+      return { success: false, error: updateError.message }
+    }
+
+    if (meeting.created_by_user_id !== user_id) {
+      await createNotification({
+        recipient_user_id: meeting.created_by_user_id,
+        sender_user_id: user_id,
+        type: "meeting_rsvp" as NotificationType,
+        title: "Meeting RSVP Updated",
+        body: `An invitee responded "${response}" to your meeting.`,
+        reference_type: "meeting",
+        reference_id: meeting_id,
+      })
+    }
+
+    return {
+      success: true,
+      data: null,
+      message: "RSVP updated successfully.",
+    }
+  } catch (err) {
+    console.error("Error responding to meeting:", err)
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "An unexpected error occurred.",
+    }
+  }
+}
+
+export async function getMeetingRsvpSummary(
+  meeting_id: string
+): Promise<
+  ApiResponse<Record<MeetingRsvpStatus, number>>
+> {
+  try {
+    const supabase = await createClient()
+
+    if (!meeting_id?.trim()) {
+      return { success: false, error: "Meeting is required." }
+    }
+
+    const counts: Record<MeetingRsvpStatus, number> = {
+      accepted: 0,
+      declined: 0,
+      maybe: 0,
+      pending: 0,
+      overdue: 0,
+    }
+
+    const { data, error } = await supabase
+      .from("meeting_invitee")
+      .select("rsvp_status")
+      .eq("meeting_id", meeting_id)
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    for (const row of data || []) {
+      const key = row.rsvp_status as MeetingRsvpStatus
+      counts[key] = (counts[key] || 0) + 1
+    }
+
+    return { success: true, data: counts }
+  } catch (err) {
+    console.error("Error loading meeting RSVP summary:", err)
     return {
       success: false,
       error: err instanceof Error ? err.message : "An unexpected error occurred.",

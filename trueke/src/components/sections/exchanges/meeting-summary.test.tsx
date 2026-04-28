@@ -3,6 +3,12 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { MeetingSummaryCard } from "./meeting-summary";
 import type { MeetingSummary } from "@/lib/entities/meeting";
 
+const respondToMeeting = vi.fn();
+
+vi.mock("@/app/actions/meeting", () => ({
+  respondToMeeting: (...args: unknown[]) => respondToMeeting(...args),
+}));
+
 function makeMeeting(overrides: Partial<MeetingSummary> = {}): MeetingSummary {
   return {
     meeting_id: "meeting-1",
@@ -32,7 +38,7 @@ function makeMeeting(overrides: Partial<MeetingSummary> = {}): MeetingSummary {
       {
         user_id: "user-2",
         username: "other",
-        rsvp_status: "pending",
+        rsvp_status: "maybe",
       },
     ],
     ...overrides,
@@ -48,6 +54,7 @@ describe("MeetingSummaryCard", () => {
     expect(screen.getByText(/meeting/i)).toBeInTheDocument();
     expect(screen.getByText(/physical/i)).toBeInTheDocument();
     expect(screen.getByText(/central market/i)).toBeInTheDocument();
+    expect(screen.getByText(/maybe 1/i)).toBeInTheDocument();
   });
 
   it("renders virtual meeting details", () => {
@@ -129,5 +136,36 @@ describe("MeetingSummaryCard", () => {
     fireEvent.click(screen.getByRole("button", { name: /edit meeting/i }));
 
     expect(onEdit).toHaveBeenCalledOnce();
+  });
+
+  it("renders RSVP controls for invitee before meeting time", () => {
+    render(
+      <MeetingSummaryCard
+        meeting={makeMeeting()}
+        currentUserId="user-2"
+        onEdit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /accept/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /decline/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /maybe/i })).toBeInTheDocument();
+  });
+
+  it("responds to RSVP action", async () => {
+    respondToMeeting.mockResolvedValue({ success: true, data: null, message: "ok" });
+    const onMeetingChanged = vi.fn();
+
+    render(
+      <MeetingSummaryCard
+        meeting={makeMeeting()}
+        currentUserId="user-2"
+        onMeetingChanged={onMeetingChanged}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /accept/i }));
+
+    expect(respondToMeeting).toHaveBeenCalledWith("meeting-1", "user-2", "accepted");
   });
 });

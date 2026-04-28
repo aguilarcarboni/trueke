@@ -465,6 +465,18 @@ async function getMeetingsByNegotiationIds(
         }
     }
 
+    const overdueMeetingIds = meetings
+        .filter((meeting) => new Date(meeting.scheduled_at) < new Date())
+        .map((meeting) => meeting.meeting_id)
+
+    if (overdueMeetingIds.length > 0) {
+        await supabase
+            .from('meeting_invitee')
+            .update({ rsvp_status: 'overdue' })
+            .in('meeting_id', overdueMeetingIds)
+            .eq('rsvp_status', 'pending')
+    }
+
     const { data: inviteeRows, error: inviteeError } = await supabase
         .from('meeting_invitee')
         .select('meeting_id,user_id,rsvp_status')

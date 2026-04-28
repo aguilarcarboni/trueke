@@ -1,7 +1,12 @@
 import type { AddressFormData } from "@/lib/entities/address"
 
 export type MeetingType = "physical" | "virtual"
-export type MeetingRsvpStatus = "accepted" | "declined" | "pending" | "overdue"
+export type MeetingRsvpStatus =
+  | "accepted"
+  | "declined"
+  | "maybe"
+  | "pending"
+  | "overdue"
 
 export interface MeetingAddress {
   address_id: string

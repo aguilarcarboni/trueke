@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import {
   Select,
   SelectContent,
@@ -44,14 +46,16 @@ interface MeetingFormDialogProps {
   onSuccess?: () => void;
 }
 
-function toDatetimeLocalValue(value?: string | null): string {
-  if (!value) return "";
-
+function toDateValue(value?: string | null): Date | undefined {
+  if (!value) return undefined;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date;
+}
 
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 16);
+function toLocalSqlTimestamp(value?: Date): string {
+  if (!value) return "";
+  return format(value, "yyyy-MM-dd HH:mm:ss");
 }
 
 export function MeetingFormDialog({
@@ -66,8 +70,8 @@ export function MeetingFormDialog({
   const isEditing = Boolean(meeting);
 
   const [meetingType, setMeetingType] = useState<MeetingType>("physical");
-  const [scheduledAt, setScheduledAt] = useState("");
-  const [dueDate, setDueDate] = useState("");
+  const [scheduledAt, setScheduledAt] = useState<Date | undefined>(undefined);
+  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [platform, setPlatform] = useState("");
   const [accessCode, setAccessCode] = useState("");
   const [address, setAddress] = useState<AddressFormData>(EMPTY_ADDRESS);
@@ -78,8 +82,8 @@ export function MeetingFormDialog({
 
     if (meeting) {
       setMeetingType(meeting.meeting_type);
-      setScheduledAt(toDatetimeLocalValue(meeting.scheduled_at));
-      setDueDate(toDatetimeLocalValue(meeting.due_date));
+      setScheduledAt(toDateValue(meeting.scheduled_at));
+      setDueDate(toDateValue(meeting.due_date));
       setPlatform(meeting.platform || "");
       setAccessCode(meeting.access_code || "");
       setAddress(
@@ -97,8 +101,8 @@ export function MeetingFormDialog({
       );
     } else {
       setMeetingType("physical");
-      setScheduledAt("");
-      setDueDate("");
+      setScheduledAt(undefined);
+      setDueDate(undefined);
       setPlatform("");
       setAccessCode("");
       setAddress(EMPTY_ADDRESS);
@@ -109,8 +113,8 @@ export function MeetingFormDialog({
     setIsSubmitting(true);
 
     try {
-      const scheduledValue = scheduledAt ? `${scheduledAt}:00` : "";
-      const dueValue = dueDate ? `${dueDate}:00` : null;
+      const scheduledValue = toLocalSqlTimestamp(scheduledAt);
+      const dueValue = dueDate ? toLocalSqlTimestamp(dueDate) : null;
 
       const payload = {
         meeting_type: meetingType,
@@ -189,26 +193,28 @@ export function MeetingFormDialog({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label htmlFor="scheduledAt" className="text-sm">
+              <Label className="text-sm">
                 Date and time <span className="text-destructive">*</span>
               </Label>
-              <Input
-                id="scheduledAt"
-                type="datetime-local"
+              <DateTimePicker
                 value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
+                onChange={setScheduledAt}
+                granularity="minute"
+                hourCycle={12}
+                placeholder="Select scheduled time"
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="dueDate" className="text-sm">
+              <Label className="text-sm">
                 End time
               </Label>
-              <Input
-                id="dueDate"
-                type="datetime-local"
+              <DateTimePicker
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={setDueDate}
+                granularity="minute"
+                hourCycle={12}
+                placeholder="Select end time"
               />
             </div>
           </div>

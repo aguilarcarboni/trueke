@@ -250,6 +250,7 @@ export function ExchangeCard({
                   <MeetingSummaryCard
                     meeting={meeting}
                     currentUserId={currentUserId}
+                    onMeetingChanged={onMeetingChanged}
                     onEdit={() => {
                       setMeetingToEdit(meeting);
                       setMeetingOpen(true);

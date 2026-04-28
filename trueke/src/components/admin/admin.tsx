@@ -2,6 +2,8 @@
 
 import { AdminReportsList } from "@/components/admin/admin-reports-list"
 import { AdminUsersList } from "@/components/admin/admin-users-list"
+import { AdminAnalytics } from "@/components/admin/admin-analytics"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { ReportRow } from "@/lib/entities/report"
 
 type AdminUser = { user_id: string; username: string; status: string }
@@ -20,15 +22,24 @@ export function Admin({
   initialReportsError,
 }: AdminProps) {
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-7xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
         <p className="text-muted-foreground mt-1">Manage and review platform activity.</p>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AdminUsersList initialUsers={initialUsers} initialError={initialUsersError} />
-        <AdminReportsList initialReports={initialReports} initialError={initialReportsError} />
-      </div>
+      <AdminUsersList initialUsers={initialUsers} initialError={initialUsersError} />
+      <Tabs defaultValue="reports" className="w-full">
+        <TabsList>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+        <TabsContent value="reports" className="mt-4">
+          <AdminReportsList initialReports={initialReports} initialError={initialReportsError} />
+        </TabsContent>
+        <TabsContent value="analytics" className="mt-4">
+          <AdminAnalytics />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

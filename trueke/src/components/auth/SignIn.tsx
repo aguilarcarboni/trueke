@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -29,9 +29,11 @@ function SignIn() {
 
   const {toast} = useToast()
 
-  if (session) {
-    router.push(callbackUrl ? callbackUrl : '/');
-  }
+  useEffect(() => {
+    if (session) {
+      router.push(callbackUrl ? callbackUrl : '/');
+    }
+  }, [session, callbackUrl, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

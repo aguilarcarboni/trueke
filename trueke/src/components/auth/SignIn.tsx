@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -29,9 +29,11 @@ function SignIn() {
 
   const {toast} = useToast()
 
-  if (session) {
-    router.push(callbackUrl ? callbackUrl : '/');
-  }
+  useEffect(() => {
+    if (session) {
+      router.push(callbackUrl ? callbackUrl : '/');
+    }
+  }, [session, callbackUrl, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,12 +48,29 @@ function SignIn() {
 
     if (result?.error) {
       setIsRecoverable(result.error === 'AccountDeactivatedRecoverable')
-      const messages: Record<string, string> = {
-        AccountDeactivatedRecoverable: 'Your account is deactivated. You can reactivate it within 30 days.',
-        AccountDeactivated: 'This account has been permanently deactivated. Please contact support.',
-        AccountBanned: 'Your account has been banned. Please contact support.',
+
+      let description: string
+      if (result.error.startsWith('AccountBanned')) {
+        const sepIdx = result.error.indexOf(':')
+        const expiryIso = sepIdx !== -1 ? result.error.slice(sepIdx + 1) : ''
+        if (expiryIso) {
+          const expiryDate = new Date(expiryIso)
+          const isPermanent = expiryDate.getFullYear() >= 9999
+          description = isPermanent
+            ? 'Your account has been permanently banned. Please contact support.'
+            : `Your account is banned until ${expiryDate.toLocaleDateString()}. Please contact support.`
+        } else {
+          description = 'Your account has been banned. Please contact support.'
+        }
+      } else {
+        const messages: Record<string, string> = {
+          AccountDeactivatedRecoverable: 'Your account is deactivated. You can reactivate it within 30 days.',
+          AccountDeactivated: 'This account has been permanently deactivated. Please contact support.',
+        }
+        description = messages[result.error] ?? 'Invalid email or password.'
       }
-      toast({ title: 'Error', description: messages[result.error] ?? 'Invalid email or password.', variant: 'destructive' })
+
+      toast({ title: 'Error', description, variant: 'destructive' })
     }
 
     setIsLoading(false);

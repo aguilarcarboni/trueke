@@ -51,8 +51,8 @@ export const authOptions: NextAuthOptions = {
               if (error instanceof Error && error.message === 'AccountDeactivatedRecoverable') {
                 throw new Error('AccountDeactivatedRecoverable')
               }
-              if (error instanceof Error && error.message === 'AccountBanned') {
-                throw new Error('AccountBanned')
+              if (error instanceof Error && error.message.startsWith('AccountBanned')) {
+                throw new Error(error.message)
               }
               throw new Error('Invalid credentials')
             }
@@ -81,15 +81,31 @@ export const authOptions: NextAuthOptions = {
 
         } else if (token.sub) {
 
-          // Refresh: re-fetch status from DB to detect bans
+          // Refresh: re-fetch status from DB to detect bans and handle expiry
           const supabase = createServiceClient()
           const { data } = await supabase
             .from('user')
-            .select('status')
+            .select('status, end_ban_date_time')
             .eq('user_id', token.sub)
             .single()
 
-          if (data?.status) token.status = data.status
+          if (data) {
+            if (data.status === 'banned') {
+              const banExpiry = data.end_ban_date_time ? new Date(data.end_ban_date_time) : null
+              if (banExpiry && new Date() > banExpiry) {
+                // Ban has expired – attempt auto-restore (AC4)
+                const { error: restoreError } = await supabase.rpc('handle_user_status_change', {
+                  p_user_id: token.sub,
+                  p_new_status: 'active',
+                })
+                token.status = restoreError ? 'banned' : 'active'
+              } else {
+                token.status = 'banned'
+              }
+            } else if (data.status) {
+              token.status = data.status
+            }
+          }
 
         }
         

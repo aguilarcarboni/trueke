@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { getAdminUsers, banUser } from "@/app/actions/admin"
+import { getAdminUsers, banUser, unbanUser } from "@/app/actions/admin"
 import { BanUserDialog } from "./ban-user-dialog"
 import { useToast } from "@/hooks/use-toast"
 
@@ -104,7 +104,19 @@ export function AdminUsersList({ initialUsers, initialError }: AdminUsersListPro
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onSelect={() => router.push(`/admin/users/${user.user_id}`)}>View</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setBanTarget(user)}>Ban</DropdownMenuItem>
+                      {user.status === 'banned' ? (
+                        <DropdownMenuItem onSelect={async () => {
+                          const result = await unbanUser(user.user_id)
+                          if (result?.error) {
+                            toast({ variant: 'destructive', title: 'Error', description: result.error })
+                          } else {
+                            toast({ title: 'User unbanned', description: `${user.username} has been unbanned.` })
+                            loadUsers()
+                          }
+                        }}>Unban</DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setBanTarget(user)}>Ban</DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

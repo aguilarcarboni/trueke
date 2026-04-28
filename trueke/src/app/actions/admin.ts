@@ -329,3 +329,30 @@ export async function banUser(
     return { error: 'An unexpected error occurred.' }
   }
 }
+
+export async function unbanUser(userId: string): Promise<{ error?: string }> {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.is_admin) return { error: 'Unauthorized' }
+
+    const supabase = await createClient()
+
+    const { error: updateError } = await supabase
+      .from('user')
+      .update({ status: 'active', end_ban_date_time: null })
+      .eq('user_id', userId)
+
+    if (updateError) return { error: updateError.message }
+
+    await supabase.from('admin_audit_log').insert({
+      admin_user_id:  session.user.id,
+      target_user_id: userId,
+      action_type:    'unban',
+      details:        null,
+    })
+
+    return {}
+  } catch {
+    return { error: 'An unexpected error occurred.' }
+  }
+}

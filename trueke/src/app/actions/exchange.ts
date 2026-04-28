@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { requireActiveUser } from '@/utils/auth-server'
 import type { 
     ApiResponse, 
 
@@ -242,6 +243,12 @@ export async function createExchangeProposal(
     request: CreateExchangeRequest
 ): Promise<ApiResponse<{exchange_id: string}>> {
     try {
+        // AC3: banned users cannot create exchange proposals
+        const authResult = await requireActiveUser()
+        if ('error' in authResult) {
+            return { success: false, error: authResult.error }
+        }
+
         const supabase = await createClient()
 
         // Call the database function

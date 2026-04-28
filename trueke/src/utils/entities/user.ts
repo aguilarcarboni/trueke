@@ -26,7 +26,22 @@ export async function loginUserWithCredentials(email: string, password: string) 
     }
 
     if (data.status === 'banned') {
-        throw new Error('AccountBanned')
+        const banExpiry = data.end_ban_date_time ? new Date(data.end_ban_date_time) : null
+        if (banExpiry && new Date() > banExpiry) {
+            // Ban duration has expired – auto-restore to active (AC4)
+            const { error: restoreError } = await supabase.rpc('handle_user_status_change', {
+                p_user_id: data.user_id,
+                p_new_status: 'active',
+            })
+            if (!restoreError) {
+                return { ...data, status: 'active', end_ban_date_time: null }
+            }
+        }
+        // Encode ban expiry so the login page can display a clear message (AC1)
+        const banMsg = data.end_ban_date_time
+            ? `AccountBanned:${data.end_ban_date_time}`
+            : 'AccountBanned'
+        throw new Error(banMsg)
     }
 
     if (data.status === 'inactive') {

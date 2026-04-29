@@ -13,7 +13,20 @@ vi.mock('next/navigation', () => ({
 vi.mock('next/link', () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
 }))
-vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
+vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn(), dismiss: vi.fn(), toasts: [] }) }))
+
+describe('SignIn – banned account', () => {
+  it('does not show the reactivate link when account is banned', async () => {
+    vi.mocked(await import('next-auth/react')).signIn = vi.fn().mockResolvedValue({ error: 'AccountBanned', ok: false })
+    render(<SignIn />)
+    fireEvent.change(screen.getByPlaceholderText(/email/i), { target: { value: 'a@b.com' } })
+    fireEvent.change(screen.getByPlaceholderText(/^password$/i), { target: { value: 'pass' } })
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: /reactivate account/i })).not.toBeInTheDocument()
+    )
+  })
+})
 
 describe('SignIn – deactivated account alert', () => {
   it('does not show the reactivate link when account is permanently deactivated', async () => {

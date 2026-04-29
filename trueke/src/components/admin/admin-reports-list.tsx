@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Flag, Package, RefreshCw, Search, User, X } from "lucide-react"
+import { Download, Flag, Package, RefreshCw, Search, User, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,6 +20,11 @@ import {
 } from "@/lib/entities/report"
 import { AdminReportDetail } from "./admin-report-detail"
 
+interface AdminReportsListProps {
+  initialReports?: ReportRow[]
+  initialError?: string | null
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
@@ -28,11 +33,60 @@ function formatDate(iso: string) {
   })
 }
 
-export function AdminReportsList() {
-  const [reports, setReports] = useState<ReportRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+function exportReportsToCSV(reports: ReportRow[]) {
+  const headers = [
+    "Report ID",
+    "Target Type",
+    "Target",
+    "Reason",
+    "Description",
+    "Status",
+    "Reporter",
+    "Date",
+  ]
+  const rows = reports.map((r) => [
+    r.report_id,
+    r.target_type,
+    r.target_label ?? "",
+    formatReportReason(r.reason),
+    r.description ?? "",
+    r.status,
+    `@${r.reporter_username}`,
+    formatDate(r.created_at),
+  ])
+
+  const csv = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n")
+
+  const blob = new Blob([csv], { type: "text/csv" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `reports-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+export function AdminReportsList({ initialReports, initialError }: AdminReportsListProps) {
+  const hasInitialState = initialReports !== undefined || initialError !== undefined
+  const [reports, setReports] = useState<ReportRow[]>(initialReports ?? [])
+  const [loading, setLoading] = useState(!hasInitialState)
+  const [error, setError] = useState<string | null>(initialError ?? null)
   const [selected, setSelected] = useState<ReportRow | null>(null)
+  const showSkeleton = loading && reports.length === 0 && !error
+
+  useEffect(() => {
+    if (initialReports !== undefined) {
+      setReports(initialReports)
+    }
+  }, [initialReports])
+
+  useEffect(() => {
+    setError(initialError ?? null)
+  }, [initialError])
 
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedStatus, setSelectedStatus] = useState<ReportStatus | "">("")
@@ -91,8 +145,10 @@ export function AdminReportsList() {
   }
 
   useEffect(() => {
-    fetchReports()
-  }, [])
+    if (!hasInitialState) {
+      void fetchReports()
+    }
+  }, [hasInitialState])
 
   if (selected) {
     return (
@@ -112,21 +168,33 @@ export function AdminReportsList() {
         <CardTitle className="flex items-center gap-2 text-base text-card-foreground">
           <Flag className="h-4 w-4" />
           Reports
-          {!loading && (
+          {reports.length > 0 && (
             <Badge variant="secondary" className="ml-1">
               {hasActiveFilters ? `${filteredReports.length} / ${reports.length}` : reports.length}
             </Badge>
           )}
         </CardTitle>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={fetchReports}
-          disabled={loading}
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            title="Export CSV"
+            onClick={() => exportReportsToCSV(reports)}
+            disabled={loading || reports.length === 0}
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={fetchReports}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {/* Filter bar */}
@@ -190,7 +258,7 @@ export function AdminReportsList() {
           )}
         </div>
 
-        {loading ? (
+        {showSkeleton ? (
           <div className="space-y-3">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-16 w-full rounded-lg" />

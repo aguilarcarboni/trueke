@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Favorites } from './favorites'
 import type { UserList, UserListMember } from '@/lib/entities/user-list'
@@ -9,11 +9,17 @@ import type { UserList, UserListMember } from '@/lib/entities/user-list'
 const mockGetUserListsAction = vi.fn()
 const mockGetUserListMembersAction = vi.fn()
 const mockRemoveUserFromListAction = vi.fn()
+const mockDeleteCustomListAction = vi.fn()
 
 vi.mock('@/app/actions/user-list', () => ({
   getUserListsAction: (...args: unknown[]) => mockGetUserListsAction(...args),
   getUserListMembersAction: (...args: unknown[]) => mockGetUserListMembersAction(...args),
   removeUserFromListAction: (...args: unknown[]) => mockRemoveUserFromListAction(...args),
+  deleteCustomListAction: (...args: unknown[]) => mockDeleteCustomListAction(...args),
+}))
+
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({ toast: vi.fn() }),
 }))
 
 vi.mock('@/components/sections/exchanges/user-profile-dialog', () => ({
@@ -248,8 +254,8 @@ describe('Favorites', () => {
       await user.click(screen.getByRole('option', { name: /custom lists/i }))
 
       await waitFor(() => {
-        // The custom list card should appear
-        expect(screen.getByRole('button', { name: /trading partners/i })).toBeInTheDocument()
+        // The custom list card's select button should appear (distinct from its delete button)
+        expect(screen.getByRole('button', { name: /^trading partners/i })).toBeInTheDocument()
       })
     })
 
@@ -270,13 +276,47 @@ describe('Favorites', () => {
       await user.click(screen.getByRole('option', { name: /custom lists/i }))
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /trading partners/i })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /^trading partners/i })).toBeInTheDocument()
       })
 
-      await user.click(screen.getByRole('button', { name: /trading partners/i }))
+      await user.click(screen.getByRole('button', { name: /^trading partners/i }))
 
       await waitFor(() => {
         expect(mockGetUserListMembersAction).toHaveBeenCalledWith(CUSTOM_LIST.listId)
+      })
+    })
+
+    it('offers a control to return to the grid of all custom lists', async () => {
+      const user = userEvent.setup()
+      mockGetUserListsAction.mockResolvedValue({
+        success: true,
+        data: [FAVORITES_LIST, FREQUENT_LIST, CUSTOM_LIST],
+      })
+      mockGetUserListMembersAction.mockResolvedValue({ success: true, data: [] })
+
+      render(<Favorites />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: /custom lists/i })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('option', { name: /custom lists/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^trading partners/i })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: /^trading partners/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /all custom lists/i })).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: /all custom lists/i }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^trading partners/i })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /create new list/i })).toBeInTheDocument()
       })
     })
 
@@ -372,7 +412,8 @@ describe('Favorites', () => {
       })
     })
 
-    it('removes a member from the list when the remove button is clicked', async () => {
+    it('removes a member from the list after the user confirms', async () => {
+      const user = userEvent.setup()
       mockGetUserListsAction.mockResolvedValue({
         success: true,
         data: [{ ...FAVORITES_LIST, memberCount: 1 }, FREQUENT_LIST],
@@ -386,7 +427,10 @@ describe('Favorites', () => {
         expect(screen.getByText('John Doe')).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('button', { name: /remove johndoe from list/i }))
+      await user.click(screen.getByRole('button', { name: /remove johndoe from list/i }))
+
+      const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByRole('button', { name: /remove from list/i }))
 
       await waitFor(() => {
         expect(mockRemoveUserFromListAction).toHaveBeenCalledWith(FAVORITES_LIST.listId, MEMBER.userId)
@@ -413,6 +457,235 @@ describe('Favorites', () => {
       await waitFor(() => {
         expect(mockGetUserListMembersAction).toHaveBeenCalledWith(FREQUENT_LIST.listId)
       })
+    })
+  })
+
+  // ── Remove from list story ─────────────────────────────────────────────────
+
+  describe('Remove from list', () => {
+    async function openListWithMember() {
+      const user = userEvent.setup()
+      mockGetUserListsAction.mockResolvedValue({
+        success: true,
+        data: [{ ...FAVORITES_LIST, memberCount: 1 }, FREQUENT_LIST],
+      })
+      mockGetUserListMembersAction.mockResolvedValue({ success: true, data: [MEMBER] })
+      render(<Favorites />)
+      await waitFor(() => {
+        expect(screen.getByText('John Doe')).toBeInTheDocument()
+      })
+      return user
+    }
+
+    it('AC1: exposes a remove control from the list view for each member', async () => {
+      await openListWithMember()
+      expect(
+        screen.getByRole('button', { name: /remove johndoe from list/i })
+      ).toBeInTheDocument()
+    })
+
+    it('AC2: shows a confirmation dialog and does NOT call the action until confirm is clicked', async () => {
+      const user = await openListWithMember()
+
+      await user.click(screen.getByRole('button', { name: /remove johndoe from list/i }))
+
+      const dialog = await screen.findByRole('alertdialog')
+      expect(within(dialog).getByText(/john doe/i)).toBeInTheDocument()
+      expect(within(dialog).getByText(/favorites/i)).toBeInTheDocument()
+      expect(mockRemoveUserFromListAction).not.toHaveBeenCalled()
+    })
+
+    it('AC2: clicking cancel in the confirm dialog aborts the removal', async () => {
+      const user = await openListWithMember()
+
+      await user.click(screen.getByRole('button', { name: /remove johndoe from list/i }))
+
+      const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByRole('button', { name: /cancel/i }))
+
+      expect(mockRemoveUserFromListAction).not.toHaveBeenCalled()
+      expect(screen.getByText('John Doe')).toBeInTheDocument()
+    })
+
+    it('AC3: removes the member from the visible list immediately on success', async () => {
+      const user = await openListWithMember()
+      mockRemoveUserFromListAction.mockResolvedValue({ success: true, data: null })
+
+      await user.click(screen.getByRole('button', { name: /remove johndoe from list/i }))
+      const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByRole('button', { name: /remove from list/i }))
+
+      await waitFor(() => {
+        expect(mockRemoveUserFromListAction).toHaveBeenCalledWith(FAVORITES_LIST.listId, MEMBER.userId)
+      })
+      await waitFor(() => {
+        expect(screen.queryByText('John Doe')).not.toBeInTheDocument()
+      })
+      // Member count in the "N members in this list" line should update too
+      await waitFor(() => {
+        const line = screen.getByText(/members in this list/i)
+        expect(line.textContent).toMatch(/^\s*0\s+members in this list/i)
+      })
+    })
+
+    it('keeps the member visible when the remove action fails', async () => {
+      const user = await openListWithMember()
+      mockRemoveUserFromListAction.mockResolvedValue({ success: false, error: 'Network error' })
+
+      await user.click(screen.getByRole('button', { name: /remove johndoe from list/i }))
+      const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByRole('button', { name: /remove from list/i }))
+
+      await waitFor(() => {
+        expect(mockRemoveUserFromListAction).toHaveBeenCalledWith(FAVORITES_LIST.listId, MEMBER.userId)
+      })
+      expect(screen.getByText('John Doe')).toBeInTheDocument()
+    })
+  })
+
+  // ── Custom list deletion story ─────────────────────────────────────────────
+
+  describe('Custom list deletion', () => {
+    async function openCustomListsView() {
+      const user = userEvent.setup()
+      mockGetUserListsAction.mockResolvedValue({
+        success: true,
+        data: [FAVORITES_LIST, FREQUENT_LIST, CUSTOM_LIST],
+      })
+      mockGetUserListMembersAction.mockResolvedValue({ success: true, data: [] })
+
+      render(<Favorites />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: /custom lists/i })).toBeInTheDocument()
+      })
+      await user.click(screen.getByRole('option', { name: /custom lists/i }))
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /delete list trading partners/i })
+        ).toBeInTheDocument()
+      })
+      return user
+    }
+
+    // ── AC1: the user can delete any custom list they created ───────────────
+
+    it('AC1: deletes the custom list when the user confirms', async () => {
+      const user = await openCustomListsView()
+      mockDeleteCustomListAction.mockResolvedValue({ success: true, data: null })
+
+      await user.click(screen.getByRole('button', { name: /delete list trading partners/i }))
+
+      const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByRole('button', { name: /delete list/i }))
+
+      await waitFor(() => {
+        expect(mockDeleteCustomListAction).toHaveBeenCalledWith(CUSTOM_LIST.listId)
+      })
+      await waitFor(() => {
+        expect(screen.queryByText('Trading Partners')).not.toBeInTheDocument()
+      })
+    })
+
+    // ── AC2: predefined lists cannot be deleted ────────────────────────────
+
+    it('AC2: predefined list chips do not expose a delete control', async () => {
+      setupEmptyLists()
+      render(<Favorites />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: /favorites/i })).toBeInTheDocument()
+      })
+
+      expect(
+        screen.queryByRole('button', { name: /delete list favorites/i })
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: /delete list frequent users/i })
+      ).not.toBeInTheDocument()
+    })
+
+    it('AC2: predefined lists are never passed to deleteCustomListAction', async () => {
+      const user = userEvent.setup()
+      mockGetUserListsAction.mockResolvedValue({
+        success: true,
+        data: [FAVORITES_LIST, FREQUENT_LIST, CUSTOM_LIST],
+      })
+      mockGetUserListMembersAction.mockResolvedValue({ success: true, data: [] })
+      mockDeleteCustomListAction.mockResolvedValue({ success: true, data: null })
+
+      render(<Favorites />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: /custom lists/i })).toBeInTheDocument()
+      })
+      await user.click(screen.getByRole('option', { name: /custom lists/i }))
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /delete list trading partners/i })
+        ).toBeInTheDocument()
+      })
+
+      // The only delete affordance in the view targets the custom list, never predefined ones
+      const deleteButtons = screen.getAllByRole('button', { name: /^delete list /i })
+      expect(deleteButtons).toHaveLength(1)
+      expect(deleteButtons[0]).toHaveAccessibleName(/trading partners/i)
+    })
+
+    // ── AC3: a confirmation dialog is shown before deletion ────────────────
+
+    it('AC3: shows a confirmation dialog and does NOT call the action until confirm is clicked', async () => {
+      const user = await openCustomListsView()
+
+      await user.click(screen.getByRole('button', { name: /delete list trading partners/i }))
+
+      const dialog = await screen.findByRole('alertdialog')
+      expect(within(dialog).getByText(/trading partners/i)).toBeInTheDocument()
+      expect(mockDeleteCustomListAction).not.toHaveBeenCalled()
+    })
+
+    it('AC3: clicking cancel in the confirm dialog aborts the deletion', async () => {
+      const user = await openCustomListsView()
+
+      await user.click(screen.getByRole('button', { name: /delete list trading partners/i }))
+
+      const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByRole('button', { name: /cancel/i }))
+
+      expect(mockDeleteCustomListAction).not.toHaveBeenCalled()
+      // Card is still there
+      expect(screen.getByText('Trading Partners')).toBeInTheDocument()
+    })
+
+    // ── AC4: deleting a list doesn't delete the users in it ───────────────
+
+    it('AC4: the confirmation copy explicitly states users remain on the platform', async () => {
+      const user = await openCustomListsView()
+
+      await user.click(screen.getByRole('button', { name: /delete list trading partners/i }))
+
+      const dialog = await screen.findByRole('alertdialog')
+      expect(
+        within(dialog).getByText(/users.*remain on the platform/i)
+      ).toBeInTheDocument()
+    })
+
+    // ── Resilience ─────────────────────────────────────────────────────────
+
+    it('keeps the list in place when the delete action fails', async () => {
+      const user = await openCustomListsView()
+      mockDeleteCustomListAction.mockResolvedValue({ success: false, error: 'Network error' })
+
+      await user.click(screen.getByRole('button', { name: /delete list trading partners/i }))
+      const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByRole('button', { name: /delete list/i }))
+
+      await waitFor(() => {
+        expect(mockDeleteCustomListAction).toHaveBeenCalledWith(CUSTOM_LIST.listId)
+      })
+      // Failure should not remove the card
+      expect(screen.getByText('Trading Partners')).toBeInTheDocument()
     })
   })
 

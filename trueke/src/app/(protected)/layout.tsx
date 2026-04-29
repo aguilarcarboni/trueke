@@ -1,6 +1,6 @@
 'use client'
 // import "../globals.css";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/app-sidebar";
@@ -22,6 +22,11 @@ export default function Layout({
 
     if (!session?.user) {
       router.replace("/login")
+      return
+    }
+
+    if (session.user.status === "banned") {
+      signOut({ callbackUrl: "/login" })
       return
     }
 

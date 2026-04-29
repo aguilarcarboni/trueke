@@ -77,3 +77,25 @@ export async function getAuthenticatedUserIdFromNextRequest(req: NextRequest): P
 
   return getAuthenticatedUserId()
 }
+
+/**
+ * Returns the authenticated user ID only if the user is not banned.
+ *
+ * Use this instead of `getAuthenticatedUserId` in any write operation that should be
+ * blocked for banned users (AC2, AC3).
+ *
+ * Returns:
+ * - `{ userId }` on success
+ * - `{ error, isBanned }` if not authenticated or the account is banned
+ */
+export async function requireActiveUser(): Promise<
+  { userId: string; error?: never; isBanned?: never } |
+  { userId?: never; error: string; isBanned: boolean }
+> {
+  unstable_noStore()
+  const session = await getServerSession(authOptions)
+  const userId = session?.user?.id?.trim()
+  if (!userId) return { error: 'Not authenticated.', isBanned: false }
+  if (session?.user?.status === 'banned') return { error: 'Your account is banned.', isBanned: true }
+  return { userId }
+}

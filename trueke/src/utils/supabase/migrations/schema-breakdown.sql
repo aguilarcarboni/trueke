@@ -5,11 +5,13 @@ DROP TRIGGER IF EXISTS trg_enforce_current_user_address_not_deactivated ON user_
 DROP TRIGGER IF EXISTS trg_set_previous_address_inactive_user_address ON user_address;
 DROP TRIGGER IF EXISTS trg_set_previous_address_inactive_item_address ON item_address;
 DROP TRIGGER IF EXISTS trg_update_item_last_date_uploaded ON item_media;
+DROP TRIGGER IF EXISTS trg_enqueue_email_notification_from_in_app ON notification;
 
 DROP FUNCTION IF EXISTS enforce_current_user_address_not_deactivated();
 DROP FUNCTION IF EXISTS set_previous_address_inactive_user_address();
 DROP FUNCTION IF EXISTS set_previous_address_inactive_item_address();
 DROP FUNCTION IF EXISTS update_item_last_date_uploaded();
+DROP FUNCTION IF EXISTS enqueue_email_notification_from_in_app();
 
 --=========================================================--
 ----------------- DROP INDEXES/CONSTRAINTS ------------------
@@ -17,11 +19,13 @@ DROP FUNCTION IF EXISTS update_item_last_date_uploaded();
 DROP INDEX IF EXISTS uq_user_current_address;
 DROP INDEX IF EXISTS uq_item_current_address;
 DROP INDEX IF EXISTS uq_item_media_display_order;
+DROP INDEX IF EXISTS idx_password_history_user_created_at;
 
 --=========================================================--
 --------------------- DROP TABLES --------------------------
 --=========================================================--
 DROP TABLE IF EXISTS login_event;
+DROP TABLE IF EXISTS notification_preference;
 DROP TABLE IF EXISTS notification;
 DROP TABLE IF EXISTS report;
 DROP TABLE IF EXISTS item_rating;
@@ -42,6 +46,7 @@ DROP TABLE IF EXISTS item;
 DROP TABLE IF EXISTS user_list_member;
 DROP TABLE IF EXISTS user_list;
 DROP TABLE IF EXISTS user_address;
+DROP TABLE IF EXISTS password_history;
 DROP TABLE IF EXISTS "address";
 DROP TABLE IF EXISTS "user";
 

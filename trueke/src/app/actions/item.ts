@@ -3,8 +3,9 @@
 import { createClient } from '@/utils/supabase/server'
 import { Item, ItemWithAddress } from '@/lib/entities/item';
 import { Address } from '@/lib/entities/address';
-import { getAuthenticatedUserId } from '@/utils/auth-server';
+import { getAuthenticatedUserId, requireActiveUser } from '@/utils/auth-server';
 import type { ApiResponse } from '@/lib/types';
+import { createNotification } from '@/utils/entities/notification';
 
 export interface ItemDetailsResponse {
   item: {
@@ -308,11 +309,11 @@ export async function createItem(
   }
 ) {
   try {
-    const userId = await getAuthenticatedUserId()
-
-    if (!userId) {
-      return { status: 403, error: 'Unauthorized: Not authenticated' }
+    const authResult = await requireActiveUser()
+    if ('error' in authResult) {
+      return { status: 403, error: authResult.error }
     }
+    const userId = authResult.userId
 
     // Only validate business rules not enforced by DB
     const errors: Record<string, string> = {}
@@ -379,8 +380,9 @@ export async function updateItemImages(
   imageUrls: string[]
 ): Promise<{ error: string | null }> {
   try {
-    const userId = await getAuthenticatedUserId()
-    if (!userId) return { error: 'Not authenticated' }
+    const authResult = await requireActiveUser()
+    if ('error' in authResult) return { error: authResult.error ?? null }
+    const userId = authResult.userId
 
     const supabase = await createClient()
 
@@ -431,11 +433,9 @@ export async function updateItem(
   address?: Omit<Address, 'addressId'>
 ) {
   try {
-    const userId = await getAuthenticatedUserId()
-
-    if (!userId) {
-      return { error: 'Not authenticated' }
-    }
+    const authResult = await requireActiveUser()
+    if ('error' in authResult) return { error: authResult.error }
+    const userId = authResult.userId
     const supabase = await createClient()
 
     const { data: item, error: fetchError } = await supabase
@@ -626,11 +626,9 @@ export async function changeItemStatus(
   action: "publish" | "archive" | "set-draft",
 ): Promise<{ error: string | null }> {
   try {
-    const userId = await getAuthenticatedUserId();
-
-    if (!userId) {
-      return { error: "Not authenticated" };
-    }
+    const authResult = await requireActiveUser()
+    if ('error' in authResult) return { error: authResult.error ?? null }
+    const userId = authResult.userId
 
     const supabase = await createClient();
 
@@ -898,37 +896,31 @@ export async function createItemReport(
     const reportId: string | undefined = reportData?.report_id
 
     // Non-blocking: send confirmation to the reporter
-    supabase.from('notification').insert({
+    createNotification({
       recipient_user_id: userId,
       sender_user_id: null,
       type: 'item_reported',
       reference_type: 'report',
-      reference_id: reportId ?? null,
+      reference_id: reportId ?? undefined,
       title: 'Report Submitted',
       body: `Your report for "${itemTitle}" has been received and is under review.`,
-      is_read: false,
-      delivery_channel: 'in_app',
-      status: 'queued',
       priority: 'normal',
-    }).then(({ error }) => {
-      if (error) console.error('Failed to send reporter notification:', error)
+    }).catch((error) => {
+      console.error('Failed to send reporter notification:', error)
     })
 
     // Non-blocking: notify the item owner
-    supabase.from('notification').insert({
+    createNotification({
       recipient_user_id: item.owner_user_id,
       sender_user_id: null,
       type: 'item_reported',
       reference_type: 'report',
-      reference_id: reportId ?? null,
+      reference_id: reportId ?? undefined,
       title: 'Your Item Has Been Reported',
       body: `"${itemTitle}" has received a report. Our team will review it shortly.`,
-      is_read: false,
-      delivery_channel: 'in_app',
-      status: 'queued',
       priority: 'normal',
-    }).then(({ error }) => {
-      if (error) console.error('Failed to send owner notification:', error)
+    }).catch((error) => {
+      console.error('Failed to send owner notification:', error)
     })
 
     return { status: 201 }

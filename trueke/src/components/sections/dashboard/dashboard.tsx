@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardNotifications } from "./dashboard-notifications"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { Admin } from "@/components/admin/admin"
 import { getMyItems, getUserExchanges, getMarketplaceItems } from "@/app/actions/exchange"
 import { getUserRatingSummary } from "@/app/actions/review"
 import type { Item } from "@/lib/entities/item"
@@ -71,10 +70,6 @@ export function Dashboard() {
 
   if (status === "loading") {
     return null
-  }
-
-  if (isAdmin) {
-    return <Admin />
   }
 
   const statCards = [

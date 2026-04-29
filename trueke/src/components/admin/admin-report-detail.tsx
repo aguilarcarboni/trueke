@@ -8,6 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel"
 import { useToast } from "@/hooks/use-toast"
 import {
   AlertDialog,
@@ -96,6 +103,27 @@ function TargetDetails({ details }: { details: ReportTargetDetails }) {
           </div>
         </div>
       </div>
+      {details.images.length > 0 && (
+        <div className="px-8">
+          <Carousel className="w-full" opts={{ loop: false }}>
+            <CarouselContent>
+              {details.images.map((url, i) => (
+                <CarouselItem key={i}>
+                  <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+                    <img
+                      src={url}
+                      alt={`${details.title} image ${i + 1}`}
+                      className="w-full max-h-36 object-contain rounded-lg border border-border bg-muted hover:opacity-90 transition-opacity"
+                    />
+                  </a>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious />
+            <CarouselNext />
+          </Carousel>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <StatBox label="Owner" value={`@${details.owner_username}`} />
         <StatBox label="Reports against" value={String(details.report_count)} />

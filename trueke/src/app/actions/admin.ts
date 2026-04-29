@@ -147,7 +147,7 @@ export async function getReportTargetDetails(
       const item = itemResult.data
       if (!item) return { error: 'Item not found.' }
 
-      const [ownerResult, reportCountResult] = await Promise.all([
+      const [ownerResult, reportCountResult, mediaResult] = await Promise.all([
         supabase
           .from('user')
           .select('username')
@@ -158,6 +158,11 @@ export async function getReportTargetDetails(
           .select('*', { count: 'exact', head: true })
           .eq('target_id', targetId)
           .eq('target_type', 'item'),
+        supabase
+          .from('item_media')
+          .select('url')
+          .eq('item_id', targetId)
+          .order('display_order', { ascending: true }),
       ])
 
       return {
@@ -167,6 +172,7 @@ export async function getReportTargetDetails(
           status: item.status,
           owner_username: ownerResult.data?.username ?? 'Unknown',
           report_count: reportCountResult.count ?? 0,
+          images: (mediaResult.data ?? []).map((m) => m.url as string),
         },
       }
     }
@@ -206,22 +212,41 @@ export async function updateReportStatus(
 
     if (status === 'resolved') {
       // Non-blocking: notify the reporter that their report was resolved
-      supabase
-        .from('report')
-        .select('reporter_user_id,reason')
-        .eq('report_id', reportId)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (!data) return
-          createNotification({
-            recipient_user_id: data.reporter_user_id,
-            sender_user_id: session!.user.id,
-            type: 'system',
-            title: 'Report Resolved',
-            body: `Your report for "${formatReportReason(data.reason)}" has been reviewed and resolved.`,
-            priority: 'normal',
-          })
+      ;(async () => {
+        const { data } = await supabase
+          .from('report')
+          .select('reporter_user_id,reason,target_type,target_id')
+          .eq('report_id', reportId)
+          .maybeSingle()
+        if (!data) return
+
+        // Resolve the human-readable target label
+        let targetLabel: string
+        if (data.target_type === 'item') {
+          const { data: item } = await supabase
+            .from('item')
+            .select('title')
+            .eq('item_id', data.target_id)
+            .maybeSingle()
+          targetLabel = item?.title ? `item "${item.title}"` : 'an item'
+        } else {
+          const { data: user } = await supabase
+            .from('user')
+            .select('username')
+            .eq('user_id', data.target_id)
+            .maybeSingle()
+          targetLabel = user?.username ? `user @${user.username}` : 'a user'
+        }
+
+        createNotification({
+          recipient_user_id: data.reporter_user_id,
+          sender_user_id: session!.user.id,
+          type: 'system',
+          title: 'Report Resolved',
+          body: `Your ${formatReportReason(data.reason)} report against ${targetLabel} has been reviewed and resolved.`,
+          priority: 'normal',
         })
+      })()
     }
 
     return {}

@@ -33,6 +33,7 @@ export interface ReportTargetItemDetails {
   status: string
   owner_username: string
   report_count: number
+  images: string[]
 }
 
 export type ReportTargetDetails = ReportTargetUserDetails | ReportTargetItemDetails

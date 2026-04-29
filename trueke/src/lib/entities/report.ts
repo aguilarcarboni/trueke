@@ -16,6 +16,8 @@ export interface ReportRow {
   reporter_created_at: string
   reporter_total_reports: number
   target_label: string
+  admin_notes: string | null
+  resolved_by_user_id: string | null
 }
 
 export interface ReportTargetUserDetails {

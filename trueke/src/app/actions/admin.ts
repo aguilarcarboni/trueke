@@ -4,6 +4,8 @@ import { createClient } from '@/utils/supabase/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/utils/auth'
 import type { ReportRow, ReportStatus, ReportTargetDetails, ReportTargetType, ReporterStatus } from '@/lib/entities/report'
+import { createNotification } from '@/utils/entities/notification'
+import { formatReportReason } from '@/lib/entities/report'
 
 async function requireAdmin(): Promise<{ error: string } | null> {
   const session = await getServerSession(authOptions)
@@ -22,7 +24,7 @@ export async function getReports(): Promise<{ data?: ReportRow[]; error?: string
 
     const { data: reports, error: reportsError } = await supabase
       .from('report')
-      .select('report_id,target_type,target_id,reason,description,status,created_at,reporter_user_id')
+      .select('report_id,target_type,target_id,reason,description,status,created_at,reporter_user_id,admin_notes,resolved_by_user_id')
       .order('created_at', { ascending: false })
 
     if (reportsError) {
@@ -78,6 +80,8 @@ export async function getReports(): Promise<{ data?: ReportRow[]; error?: string
         r.target_type === 'item'
           ? (itemMap.get(r.target_id) ?? 'Unknown Item')
           : (userMap.get(r.target_id) ?? 'Unknown User'),
+      admin_notes: r.admin_notes ?? null,
+      resolved_by_user_id: r.resolved_by_user_id ?? null,
     }))
 
     return { data }
@@ -166,21 +170,49 @@ export async function getReportTargetDetails(
 export async function updateReportStatus(
   reportId: string,
   status: ReportStatus,
+  adminNotes?: string,
 ): Promise<{ error?: string }> {
   try {
     const authError = await requireAdmin()
     if (authError) return { error: authError.error }
 
+    const session = await getServerSession(authOptions)
     const supabase = await createClient()
+
+    const updatePayload: Record<string, unknown> = { status }
+    if (status === 'resolved') {
+      updatePayload.admin_notes = adminNotes?.trim() || null
+      updatePayload.resolved_by_user_id = session!.user.id
+    }
 
     const { error } = await supabase
       .from('report')
-      .update({ status })
+      .update(updatePayload)
       .eq('report_id', reportId)
 
     if (error) {
       console.error('updateReportStatus error:', error)
       return { error: 'Failed to update report status.' }
+    }
+
+    if (status === 'resolved') {
+      // Non-blocking: notify the reporter that their report was resolved
+      supabase
+        .from('report')
+        .select('reporter_user_id,reason')
+        .eq('report_id', reportId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!data) return
+          createNotification({
+            recipient_user_id: data.reporter_user_id,
+            sender_user_id: session!.user.id,
+            type: 'system',
+            title: 'Report Resolved',
+            body: `Your report for "${formatReportReason(data.reason)}" has been reviewed and resolved.`,
+            priority: 'normal',
+          })
+        })
     }
 
     return {}

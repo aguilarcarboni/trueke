@@ -37,8 +37,15 @@ export function AdminReportsList() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedStatus, setSelectedStatus] = useState<ReportStatus | "">("")
   const [selectedTargetType, setSelectedTargetType] = useState<ReportTargetType | "">("")
+  const [selectedReason, setSelectedReason] = useState("")
 
-  const hasActiveFilters = searchQuery !== "" || selectedStatus !== "" || selectedTargetType !== ""
+  const uniqueReasons = useMemo(
+    () => [...new Set(reports.map((r) => r.reason))].sort(),
+    [reports],
+  )
+
+  const hasActiveFilters =
+    searchQuery !== "" || selectedStatus !== "" || selectedTargetType !== "" || selectedReason !== ""
 
   const filteredReports = useMemo(() => {
     let result = reports
@@ -47,6 +54,9 @@ export function AdminReportsList() {
     }
     if (selectedTargetType) {
       result = result.filter((r) => r.target_type === selectedTargetType)
+    }
+    if (selectedReason) {
+      result = result.filter((r) => r.reason === selectedReason)
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
@@ -59,12 +69,13 @@ export function AdminReportsList() {
       )
     }
     return result
-  }, [reports, searchQuery, selectedStatus, selectedTargetType])
+  }, [reports, searchQuery, selectedStatus, selectedTargetType, selectedReason])
 
   const clearFilters = () => {
     setSearchQuery("")
     setSelectedStatus("")
     setSelectedTargetType("")
+    setSelectedReason("")
   }
 
   const fetchReports = async () => {
@@ -154,6 +165,21 @@ export function AdminReportsList() {
               <SelectItem value="__all__">All types</SelectItem>
               {(Object.entries(REPORT_TARGET_TYPE_LABELS) as [ReportTargetType, string][]).map(([value, label]) => (
                 <SelectItem key={value} value={value}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={selectedReason || "__all__"}
+            onValueChange={(v) => setSelectedReason(v === "__all__" ? "" : v)}
+            disabled={uniqueReasons.length === 0}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Reason" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All reasons</SelectItem>
+              {uniqueReasons.map((r) => (
+                <SelectItem key={r} value={r}>{formatReportReason(r)}</SelectItem>
               ))}
             </SelectContent>
           </Select>

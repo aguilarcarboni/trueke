@@ -27,12 +27,15 @@ export function Admin({
         <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
         <p className="text-muted-foreground mt-1">Manage and review platform activity.</p>
       </div>
-      <AdminUsersList initialUsers={initialUsers} initialError={initialUsersError} />
-      <Tabs defaultValue="reports" className="w-full">
+      <Tabs defaultValue="users" className="w-full">
         <TabsList>
+          <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
+        <TabsContent value="users" className="mt-4">
+          <AdminUsersList initialUsers={initialUsers} initialError={initialUsersError} />
+        </TabsContent>
         <TabsContent value="reports" className="mt-4">
           <AdminReportsList initialReports={initialReports} initialError={initialReportsError} />
         </TabsContent>

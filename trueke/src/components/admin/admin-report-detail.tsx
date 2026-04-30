@@ -7,14 +7,35 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel"
 import { useToast } from "@/hooks/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { getReportTargetDetails, updateReportStatus } from "@/app/actions/admin"
 import {
   type ReportRow,
   type ReportStatus,
   type ReportTargetDetails,
+  type ReporterStatus,
   REPORT_STATUS_LABELS,
   REPORT_STATUS_STYLES,
+  REPORTER_STATUS_LABELS,
+  REPORTER_STATUS_STYLES,
   formatReportReason,
 } from "@/lib/entities/report"
 
@@ -82,6 +103,27 @@ function TargetDetails({ details }: { details: ReportTargetDetails }) {
           </div>
         </div>
       </div>
+      {details.images.length > 0 && (
+        <div className="px-8">
+          <Carousel className="w-full" opts={{ loop: false }}>
+            <CarouselContent>
+              {details.images.map((url, i) => (
+                <CarouselItem key={i}>
+                  <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+                    <img
+                      src={url}
+                      alt={`${details.title} image ${i + 1}`}
+                      className="w-full max-h-36 object-contain rounded-lg border border-border bg-muted hover:opacity-90 transition-opacity"
+                    />
+                  </a>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious />
+            <CarouselNext />
+          </Carousel>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <StatBox label="Owner" value={`@${details.owner_username}`} />
         <StatBox label="Reports against" value={String(details.report_count)} />
@@ -106,6 +148,10 @@ export function AdminReportDetail({
   const [targetDetails, setTargetDetails] = useState<ReportTargetDetails | null>(null)
   const [targetLoading, setTargetLoading] = useState(true)
   const [targetError, setTargetError] = useState<string | null>(null)
+  const [resolveDialogOpen, setResolveDialogOpen] = useState(false)
+  const [unresolveDialogOpen, setUnresolveDialogOpen] = useState(false)
+  const [pendingStatus, setPendingStatus] = useState<ReportStatus | null>(null)
+  const [adminNotes, setAdminNotes] = useState("")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -126,8 +172,27 @@ export function AdminReportDetail({
 
   const handleStatusChange = async (newStatus: ReportStatus) => {
     if (newStatus === status || updating) return
+
+    // Moving away from resolved — ask for confirmation first
+    if (status === 'resolved' && newStatus !== 'resolved') {
+      setPendingStatus(newStatus)
+      setUnresolveDialogOpen(true)
+      return
+    }
+
+    // Setting to resolved — ask for confirmation + optional notes
+    if (newStatus === 'resolved') {
+      setAdminNotes("")
+      setResolveDialogOpen(true)
+      return
+    }
+
+    await commitStatusChange(newStatus)
+  }
+
+  const commitStatusChange = async (newStatus: ReportStatus, notes?: string) => {
     setUpdating(true)
-    const result = await updateReportStatus(report.report_id, newStatus)
+    const result = await updateReportStatus(report.report_id, newStatus, notes)
     if (result.error) {
       toast({ title: "Error", description: result.error, variant: "destructive" })
     } else {
@@ -143,6 +208,64 @@ export function AdminReportDetail({
 
   return (
     <div className="space-y-6">
+      {/* Resolve confirmation dialog */}
+      <AlertDialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resolve this report?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Optionally add admin notes before resolving.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            placeholder="Admin notes (optional)..."
+            value={adminNotes}
+            onChange={(e) => setAdminNotes(e.target.value)}
+            className="min-h-[100px]"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setResolveDialogOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setResolveDialogOpen(false)
+                commitStatusChange("resolved", adminNotes)
+              }}
+            >
+              Resolve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Un-resolve confirmation dialog */}
+      <AlertDialog open={unresolveDialogOpen} onOpenChange={setUnresolveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Re-open this report?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This report is currently resolved. Changing the status will clear the admin notes and resolver record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setUnresolveDialogOpen(false); setPendingStatus(null) }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const next = pendingStatus!
+                setUnresolveDialogOpen(false)
+                setPendingStatus(null)
+                commitStatusChange(next)
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Back button */}
       <Button
         variant="ghost"
@@ -226,15 +349,48 @@ export function AdminReportDetail({
                 <h3 className="text-sm font-semibold text-card-foreground mb-3">
                   Reported By
                 </h3>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-                    <User className="h-5 w-5 text-muted-foreground" />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                      <User className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-card-foreground">@{report.reporter_username}</p>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs mt-1 ${REPORTER_STATUS_STYLES[report.reporter_status]}`}
+                      >
+                        {REPORTER_STATUS_LABELS[report.reporter_status]}
+                      </Badge>
+                    </div>
                   </div>
-                  <p className="font-semibold text-card-foreground">
-                    @{report.reporter_username}
-                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatBox
+                      label="Member since"
+                      value={new Date(report.reporter_created_at).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
+                    />
+                    <StatBox
+                      label="Reports filed"
+                      value={String(report.reporter_total_reports)}
+                    />
+                  </div>
                 </div>
               </div>
+
+              {/* Admin Notes */}
+              {report.admin_notes && (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="text-sm font-semibold text-card-foreground mb-2">
+                      Admin Notes
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {report.admin_notes}
+                    </p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
